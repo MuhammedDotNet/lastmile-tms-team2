@@ -1,5 +1,7 @@
 using LastMile.TMS.Domain.Common;
 
+namespace LastMile.TMS.Domain.Entities;
+
 public class OperatingHours: BaseAuditableEntity
 {
     public Guid DepotId { get; set; }

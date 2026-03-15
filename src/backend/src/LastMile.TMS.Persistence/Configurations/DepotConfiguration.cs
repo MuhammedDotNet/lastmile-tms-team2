@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using LastMile.TMS.Domain.Entities;
 
 namespace LastMile.TMS.Persistence.Configurations;
 
