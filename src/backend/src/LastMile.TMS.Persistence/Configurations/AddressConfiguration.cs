@@ -10,44 +10,51 @@ public class AddressConfiguration : IEntityTypeConfiguration<Address>
     {
         builder.ToTable("Addresses");
 
-        builder.HasKey(x => x.Id);
+        builder.HasKey(a => a.Id);
 
-        builder.Property(x => x.Street1)
+        builder.Property(a => a.Street1)
             .IsRequired()
             .HasMaxLength(200);
 
-        builder.Property(x => x.Street2)
+        builder.Property(a => a.Street2)
             .HasMaxLength(200);
 
-        builder.Property(x => x.City)
+        builder.Property(a => a.City)
             .IsRequired()
             .HasMaxLength(100);
 
-        builder.Property(x => x.State)
+        builder.Property(a => a.State)
             .IsRequired()
             .HasMaxLength(100);
 
-        builder.Property(x => x.PostalCode)
+        builder.Property(a => a.PostalCode)
             .IsRequired()
             .HasMaxLength(20);
 
-        builder.Property(x => x.CountryCode)
+        builder.Property(a => a.CountryCode)
             .IsRequired()
-            .HasMaxLength(2);
+            .HasMaxLength(3);
 
-        builder.Property(x => x.ContactName)
+        builder.Property(a => a.IsResidential)
+            .HasDefaultValue(false);
+
+        builder.Property(a => a.ContactName)
             .HasMaxLength(150);
 
-        builder.Property(x => x.CompanyName)
+        builder.Property(a => a.CompanyName)
             .HasMaxLength(200);
 
-        builder.Property(x => x.Phone)
+        builder.Property(a => a.Phone)
             .HasMaxLength(20);
 
-        builder.Property(x => x.Email)
+        builder.Property(a => a.Email)
             .HasMaxLength(254);
 
-        builder.Property(x => x.GeoLocation)
+        builder.Property(a => a.GeoLocation)
             .HasColumnType("geometry (point, 4326)");
+
+        builder.HasIndex(a => a.PostalCode);
+        builder.HasIndex(a => a.City);
+        builder.HasIndex(a => new { a.City, a.State });
     }
 }
