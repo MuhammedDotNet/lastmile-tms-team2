@@ -1,0 +1,67 @@
+using FluentAssertions;
+using LastMile.TMS.Domain.Entities;
+using LastMile.TMS.Domain.Enums;
+
+namespace LastMile.TMS.Domain.Tests;
+
+public class VehicleTests
+{
+    [Fact]
+    public void Vehicle_ShouldStoreAllRequiredProperties()
+    {
+        var depot = new Depot
+        {
+            Name = "Main Depot",
+            IsActive = true
+        };
+
+        var vehicle = new Vehicle
+        {
+            RegistrationPlate = "AA1234BB",
+            Type = VehicleType.Van,
+            ParcelCapacity = 150,
+            WeightCapacity = 1200m,
+            Status = VehicleStatus.Available,
+            DepotId = depot.Id,
+            Depot = depot
+        };
+
+        vehicle.RegistrationPlate.Should().Be("AA1234BB");
+        vehicle.Type.Should().Be(VehicleType.Van);
+        vehicle.ParcelCapacity.Should().Be(150);
+        vehicle.WeightCapacity.Should().Be(1200m);
+        vehicle.Status.Should().Be(VehicleStatus.Available);
+        vehicle.DepotId.Should().Be(depot.Id);
+        vehicle.Depot.Should().Be(depot);
+    }
+
+    [Fact]
+    public void Vehicle_ShouldAllowDifferentStatuses()
+    {
+        var vehicle = new Vehicle
+        {
+            RegistrationPlate = "BB5678CC",
+            Type = VehicleType.Car,
+            ParcelCapacity = 50,
+            WeightCapacity = 300m,
+            Status = VehicleStatus.Maintenance
+        };
+
+        vehicle.Status.Should().Be(VehicleStatus.Maintenance);
+    }
+
+    [Fact]
+    public void Vehicle_ShouldAllowDifferentTypes()
+    {
+        var vehicle = new Vehicle
+        {
+            RegistrationPlate = "CC9012DD",
+            Type = VehicleType.Bike,
+            ParcelCapacity = 10,
+            WeightCapacity = 25m,
+            Status = VehicleStatus.InUse
+        };
+
+        vehicle.Type.Should().Be(VehicleType.Bike);
+    }
+}
