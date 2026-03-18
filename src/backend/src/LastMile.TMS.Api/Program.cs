@@ -34,6 +34,21 @@ try
     builder.Services.AddSwaggerGen();
     builder.Services.AddSignalR();
 
+    // CORS for local development (frontend on different port)
+    builder.Services.AddCors(options =>
+    {
+        options.AddPolicy("AllowFrontend", policy =>
+        {
+            var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+                ?? new[] { "http://localhost:3000"};
+
+            policy.WithOrigins(allowedOrigins)
+                  .AllowAnyMethod()
+                  .AllowAnyHeader()
+                  .AllowCredentials();
+        });
+    });
+
     builder.Services.AddStackExchangeRedisCache(options =>
         options.Configuration = builder.Configuration.GetConnectionString("Redis"));
 
@@ -52,6 +67,10 @@ try
 
     app.UseSerilogRequestLogging();
     app.UseHttpsRedirection();
+    
+    // Enable CORS (must be before Authentication/Authorization)
+    app.UseCors("AllowFrontend");
+    
     app.UseAuthentication();
     app.UseAuthorization();
     app.MapControllers();

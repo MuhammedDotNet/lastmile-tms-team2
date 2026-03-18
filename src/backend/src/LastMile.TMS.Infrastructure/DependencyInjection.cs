@@ -42,9 +42,9 @@ public static class DependencyInjection
                        .EnableTokenEndpointPassthrough()
                        .DisableTransportSecurityRequirement();
 
-                // Ephemeral signing/encryption keys (dev-only; swap for real certs in prod)
-                options.AddEphemeralEncryptionKey()
-                       .AddEphemeralSigningKey()
+                // Development certificates (persisted on disk, reused between restarts)
+                options.AddDevelopmentEncryptionCertificate()
+                       .AddDevelopmentSigningCertificate()
                        .DisableAccessTokenEncryption(); // plain JWT (not encrypted JWE)
             })
             .AddValidation(options =>
