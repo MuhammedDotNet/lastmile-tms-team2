@@ -17,6 +17,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();
     public DbSet<Driver> Drivers => Set<Driver>();
     public DbSet<DriverAvailability> DriverAvailabilities => Set<DriverAvailability>();
+    public DbSet<Route> Routes => Set<Route>();
+    public DbSet<Parcel> Parcels => Set<Parcel>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -1,7 +1,8 @@
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 
-export default auth((req) => {
+/** Next.js 16+ expects a named `proxy` export; keep default for tooling that still resolves it. */
+const proxy = auth((req) => {
   const { pathname } = req.nextUrl;
 
   // Allow public paths
@@ -25,6 +26,9 @@ export default auth((req) => {
 
   return NextResponse.next();
 });
+
+export { proxy };
+export default proxy;
 
 export const config = {
   matcher: [

@@ -4,20 +4,46 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
-import { toast } from "sonner";
+import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { appToast } from "@/lib/app-toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { loginSchema, type LoginSchema } from "@/lib/validations";
+
+const authErrorMessages: Record<string, string> = {
+  CredentialsSignin:
+    "Invalid email or password, or the API could not be reached.",
+  Configuration:
+    "Sign-in is misconfigured. Check AUTH_SECRET and API_URL on the server.",
+  AccessDenied: "You do not have permission to sign in.",
+};
 
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
+  const urlAuthError = searchParams.get("error");
   const [isLoading, setIsLoading] = useState(false);
+
+  // Auth.js redirects here with ?error=CredentialsSignin when credentials fail (e.g. server signIn flow)
+  useEffect(() => {
+    if (!urlAuthError) return;
+
+    appToast.error(
+      authErrorMessages[urlAuthError] ??
+        "Sign in failed. If this persists, check the terminal for [auth] Login failed.",
+      { id: "login-url-auth-error" },
+    );
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("error");
+    params.delete("code");
+    const qs = params.toString();
+    router.replace(`/login${qs ? `?${qs}` : ""}`, { scroll: false });
+  }, [urlAuthError, router, searchParams]);
 
   const {
     register,
@@ -42,15 +68,15 @@ export function LoginForm() {
       });
 
       if (result?.error) {
-        toast.error("Invalid email or password");
+        appToast.error("Invalid email or password");
         return;
       }
 
-      toast.success("Login successful");
+      appToast.success("Login successful");
       router.push(callbackUrl);
       router.refresh();
     } catch {
-      toast.error("An error occurred during login");
+      appToast.error("An error occurred during login");
     } finally {
       setIsLoading(false);
     }

@@ -14,7 +14,20 @@ export function Providers({ children }: { children: ReactNode }) {
     <SessionProvider>
       <QueryClientProvider client={queryClient}>
         {children}
-        <Toaster richColors />
+        <Toaster
+          richColors
+          position="bottom-right"
+          closeButton
+          expand
+          toastOptions={{
+            classNames: {
+              toast: "!items-start !w-[min(100vw-2rem,28rem)]",
+              title: "whitespace-pre-wrap break-words text-left !leading-snug",
+              description:
+                "whitespace-pre-wrap break-words text-left !leading-snug",
+            },
+          }}
+        />
         <ReactQueryDevtools initialIsOpen={false} />
       </QueryClientProvider>
     </SessionProvider>
