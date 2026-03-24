@@ -1,5 +1,4 @@
 using LastMile.TMS.Domain.Common;
-using LastMile.TMS.Domain.Entities;
 
 namespace LastMile.TMS.Domain.Entities;
 

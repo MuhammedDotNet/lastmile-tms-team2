@@ -9,6 +9,10 @@ public interface IAppDbContext
     DbSet<ApplicationRole> Roles { get; }
     DbSet<Permission> Permissions { get; }
     DbSet<Driver> Drivers { get; }
+    DbSet<Vehicle> Vehicles { get; }
+    DbSet<Depot> Depots { get; }
+    DbSet<Route> Routes { get; }
+    DbSet<Parcel> Parcels { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

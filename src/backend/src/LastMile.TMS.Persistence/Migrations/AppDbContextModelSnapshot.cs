@@ -723,6 +723,54 @@ namespace LastMile.TMS.Persistence.Migrations
                     b.ToTable("Permissions", (string)null);
                 });
 
+            modelBuilder.Entity("LastMile.TMS.Domain.Entities.Route", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("DriverId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("EndDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("EndMileage")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("StartDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("StartMileage")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("VehicleId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DriverId");
+
+                    b.HasIndex("VehicleId");
+
+                    b.ToTable("Routes", (string)null);
+                });
+
             modelBuilder.Entity("LastMile.TMS.Domain.Entities.TrackingEvent", b =>
                 {
                     b.Property<Guid>("Id")
@@ -774,6 +822,55 @@ namespace LastMile.TMS.Persistence.Migrations
                     b.HasIndex("ParcelId", "Timestamp");
 
                     b.ToTable("TrackingEvents", (string)null);
+                });
+
+            modelBuilder.Entity("LastMile.TMS.Domain.Entities.Vehicle", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("DepotId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<int>("ParcelCapacity")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("RegistrationPlate")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("WeightCapacity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DepotId");
+
+                    b.HasIndex("RegistrationPlate")
+                        .IsUnique();
+
+                    b.ToTable("Vehicles", (string)null);
                 });
 
             modelBuilder.Entity("LastMile.TMS.Domain.Entities.Zone", b =>
@@ -1161,6 +1258,21 @@ namespace LastMile.TMS.Persistence.Migrations
                     b.ToTable("RolePermissions");
                 });
 
+            modelBuilder.Entity("RouteParcels", b =>
+                {
+                    b.Property<Guid>("ParcelsId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RouteId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("ParcelsId", "RouteId");
+
+                    b.HasIndex("RouteId");
+
+                    b.ToTable("RouteParcels");
+                });
+
             modelBuilder.Entity("LastMile.TMS.Domain.Entities.DeliveryConfirmation", b =>
                 {
                     b.HasOne("LastMile.TMS.Domain.Entities.Parcel", "Parcel")
@@ -1270,6 +1382,25 @@ namespace LastMile.TMS.Persistence.Migrations
                     b.Navigation("Parcel");
                 });
 
+            modelBuilder.Entity("LastMile.TMS.Domain.Entities.Route", b =>
+                {
+                    b.HasOne("LastMile.TMS.Domain.Entities.Driver", "Driver")
+                        .WithMany()
+                        .HasForeignKey("DriverId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("LastMile.TMS.Domain.Entities.Vehicle", "Vehicle")
+                        .WithMany()
+                        .HasForeignKey("VehicleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Driver");
+
+                    b.Navigation("Vehicle");
+                });
+
             modelBuilder.Entity("LastMile.TMS.Domain.Entities.TrackingEvent", b =>
                 {
                     b.HasOne("LastMile.TMS.Domain.Entities.Parcel", "Parcel")
@@ -1279,6 +1410,17 @@ namespace LastMile.TMS.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Parcel");
+                });
+
+            modelBuilder.Entity("LastMile.TMS.Domain.Entities.Vehicle", b =>
+                {
+                    b.HasOne("LastMile.TMS.Domain.Entities.Depot", "Depot")
+                        .WithMany()
+                        .HasForeignKey("DepotId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Depot");
                 });
 
             modelBuilder.Entity("LastMile.TMS.Domain.Entities.Zone", b =>
@@ -1395,6 +1537,21 @@ namespace LastMile.TMS.Persistence.Migrations
                     b.HasOne("LastMile.TMS.Domain.Entities.ApplicationRole", null)
                         .WithMany()
                         .HasForeignKey("RolesId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("RouteParcels", b =>
+                {
+                    b.HasOne("LastMile.TMS.Domain.Entities.Parcel", null)
+                        .WithMany()
+                        .HasForeignKey("ParcelsId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("LastMile.TMS.Domain.Entities.Route", null)
+                        .WithMany()
+                        .HasForeignKey("RouteId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

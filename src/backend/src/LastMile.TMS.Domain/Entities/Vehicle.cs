@@ -11,6 +11,9 @@ public class Vehicle : BaseAuditableEntity
 
     public int ParcelCapacity { get; set; }
 
+    /// <summary>
+    /// Maximum cargo weight in kilograms (kg). Used when validating route parcel assignments.
+    /// </summary>
     public decimal WeightCapacity { get; set; }
 
     public VehicleStatus Status { get; set; }

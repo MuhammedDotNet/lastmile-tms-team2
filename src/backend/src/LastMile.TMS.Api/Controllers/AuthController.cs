@@ -44,7 +44,8 @@ public class AuthController(
 
     private async Task<IActionResult> HandlePasswordGrantAsync(OpenIddictRequest request)
     {
-        var user = await userManager.FindByNameAsync(request.Username!);
+        var user = await userManager.FindByNameAsync(request.Username!)
+            ?? await userManager.FindByEmailAsync(request.Username!);
         if (user is null || !user.IsActive)
             return ForbidWithInvalidGrant("The username/password couple is invalid.");
 
