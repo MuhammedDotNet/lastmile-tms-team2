@@ -28,19 +28,12 @@ public sealed class TestSupportController(
     public async Task<ActionResult<TestSupportFixtureResponse>> ResetAndSeedAsync(
         CancellationToken cancellationToken)
     {
-        if (!testingOptions.Value.EnableTestSupport || environment.IsProduction())
+        if (!IsTestSupportEnabled())
         {
             return NotFound();
         }
 
-        var supportKey = testingOptions.Value.SupportKey;
-        if (string.IsNullOrWhiteSpace(supportKey))
-        {
-            return NotFound();
-        }
-
-        if (!Request.Headers.TryGetValue("X-Test-Support-Key", out var providedKey) ||
-            !StringComparer.Ordinal.Equals(providedKey.ToString(), supportKey))
+        if (!HasValidSupportKey())
         {
             return Unauthorized();
         }
@@ -137,4 +130,19 @@ public sealed class TestSupportController(
         string AdminPassword,
         string DepotName,
         string ZoneName);
+
+    private bool IsTestSupportEnabled() =>
+        testingOptions.Value.EnableTestSupport && !environment.IsProduction();
+
+    private bool HasValidSupportKey()
+    {
+        var supportKey = testingOptions.Value.SupportKey;
+        if (string.IsNullOrWhiteSpace(supportKey))
+        {
+            return false;
+        }
+
+        return Request.Headers.TryGetValue("X-Test-Support-Key", out var providedKey) &&
+            StringComparer.Ordinal.Equals(providedKey.ToString(), supportKey);
+    }
 }

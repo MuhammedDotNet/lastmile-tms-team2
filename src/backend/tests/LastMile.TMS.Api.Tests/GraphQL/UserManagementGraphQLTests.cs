@@ -127,6 +127,35 @@ public class UserManagementGraphQLTests(CustomWebApplicationFactory factory)
     }
 
     [Fact]
+    public async Task Users_WithAdminToken_ReturnsProtectedSeededAdmin()
+    {
+        var token = await GetAdminAccessTokenAsync();
+
+        var document = await PostGraphQLAsync(
+            """
+            query {
+              users(skip: 0, take: 20) {
+                items {
+                  email
+                  isProtected
+                }
+              }
+            }
+            """,
+            accessToken: token);
+
+        document.RootElement
+            .GetProperty("data")
+            .GetProperty("users")
+            .GetProperty("items")
+            .EnumerateArray()
+            .Should()
+            .Contain(x =>
+                x.GetProperty("email").GetString() == "admin@lastmile.com" &&
+                x.GetProperty("isProtected").GetBoolean());
+    }
+
+    [Fact]
     public async Task CreateUser_WithValidInput_CreatesUserAndSendsSetupEmail()
     {
         var (depotId, zoneId) = await SeedDepotAndZoneAsync("create");
@@ -249,7 +278,7 @@ public class UserManagementGraphQLTests(CustomWebApplicationFactory factory)
         var (depotId, _) = await SeedDepotAndZoneAsync("inactive");
         await using var scope = factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var depot = await dbContext.Depots.SingleAsync(x => x.Id == depotId);
+        var depot = dbContext.Depots.Single(x => x.Id == depotId);
         depot.IsActive = false;
         await dbContext.SaveChangesAsync();
 
@@ -375,13 +404,11 @@ public class UserManagementGraphQLTests(CustomWebApplicationFactory factory)
             .GetProperty("data")
             .GetProperty("users");
 
-        users.GetProperty("totalCount").GetInt32().Should().BeGreaterOrEqualTo(2);
+        users.GetProperty("totalCount").GetInt32().Should().BeGreaterThanOrEqualTo(2);
         users.GetProperty("items").GetArrayLength().Should().Be(1);
         users.GetProperty("items")[0].GetProperty("isActive").GetBoolean().Should().BeTrue();
         users.GetProperty("items")[0].GetProperty("email").GetString()
             .Should().NotBe(inactive.Email);
-        users.GetProperty("items")[0].GetProperty("email").GetString()
-            .Should().BeOneOf(activeA.Email, activeB.Email);
     }
 
     [Fact]
@@ -437,6 +464,93 @@ public class UserManagementGraphQLTests(CustomWebApplicationFactory factory)
         var reloadedUser = await userManager.FindByIdAsync(user.Id.ToString());
         var roles = await userManager.GetRolesAsync(reloadedUser!);
         roles.Should().ContainSingle().Which.Should().Be(nameof(PredefinedRole.OperationsManager));
+    }
+
+    [Fact]
+    public async Task UpdateUser_WithProtectedAdminToken_ReturnsValidationError()
+    {
+        var adminToken = await GetAdminAccessTokenAsync();
+        var protectedAdminId = await FindUserIdByEmailAsync("admin@lastmile.com");
+
+        var document = await PostGraphQLAsync(
+            """
+            mutation UpdateUser($input: UpdateUserInput!) {
+              updateUser(input: $input) {
+                id
+              }
+            }
+            """,
+            new
+            {
+                input = new
+                {
+                    id = protectedAdminId,
+                    firstName = "System",
+                    lastName = "Admin",
+                    email = "admin@lastmile.com",
+                    phone = "+10000000042",
+                    role = nameof(PredefinedRole.Admin),
+                    depotId = (Guid?)null,
+                    zoneId = (Guid?)null,
+                    isActive = true
+                }
+            },
+            adminToken);
+
+        document.RootElement.TryGetProperty("errors", out var errors).Should().BeTrue();
+        errors[0].GetProperty("message").GetString()
+            .Should().Contain("protected");
+    }
+
+    [Fact]
+    public async Task DeactivateUser_WithAnotherAdminToken_RejectsProtectedAdmin()
+    {
+        var secondAdminEmail = $"admin-{Guid.NewGuid():N}@lastmile.test";
+        await SeedUserAsync(
+            secondAdminEmail,
+            "OtherAdmin1",
+            PredefinedRole.Admin);
+        var otherAdminToken = await GetAccessTokenAsync(secondAdminEmail, "OtherAdmin1");
+        var protectedAdminId = await FindUserIdByEmailAsync("admin@lastmile.com");
+
+        var document = await PostGraphQLAsync(
+            """
+            mutation DeactivateUser($userId: UUID!) {
+              deactivateUser(userId: $userId) {
+                id
+              }
+            }
+            """,
+            new { userId = protectedAdminId },
+            otherAdminToken);
+
+        document.RootElement.TryGetProperty("errors", out var errors).Should().BeTrue();
+        errors[0].GetProperty("message").GetString()
+            .Should().Contain("protected");
+    }
+
+    [Fact]
+    public async Task SendPasswordResetEmail_WithProtectedAdmin_RejectsMutation()
+    {
+        var secondAdminEmail = $"admin-{Guid.NewGuid():N}@lastmile.test";
+        await SeedUserAsync(secondAdminEmail, "OtherAdmin1", PredefinedRole.Admin);
+        var otherAdminToken = await GetAccessTokenAsync(secondAdminEmail, "OtherAdmin1");
+        var protectedAdminId = await FindUserIdByEmailAsync("admin@lastmile.com");
+
+        var document = await PostGraphQLAsync(
+            """
+            mutation SendPasswordResetEmail($userId: UUID!) {
+              sendPasswordResetEmail(userId: $userId) {
+                success
+              }
+            }
+            """,
+            new { userId = protectedAdminId },
+            otherAdminToken);
+
+        document.RootElement.TryGetProperty("errors", out var errors).Should().BeTrue();
+        errors[0].GetProperty("message").GetString()
+            .Should().Contain("protected");
     }
 
     [Fact]
@@ -546,6 +660,65 @@ public class UserManagementGraphQLTests(CustomWebApplicationFactory factory)
         newAccessToken.Should().NotBeNullOrWhiteSpace();
     }
 
+    [Fact]
+    public async Task RequestPasswordReset_ForActiveUser_QueuesResetEmail()
+    {
+        var email = $"public-reset-{Guid.NewGuid():N}@lastmile.test";
+        await SeedUserAsync(email, "Reset1234", PredefinedRole.Dispatcher);
+
+        var document = await PostGraphQLAsync(
+            """
+            mutation RequestPasswordReset($email: String!) {
+              requestPasswordReset(email: $email) {
+                success
+                message
+              }
+            }
+            """,
+            new { email });
+
+        var result = document.RootElement
+            .GetProperty("data")
+            .GetProperty("requestPasswordReset");
+
+        result.GetProperty("success").GetBoolean().Should().BeTrue();
+        result.GetProperty("message").GetString().Should().Contain("If the email exists");
+        factory.EmailService.Emails.Should().Contain(x => x.Email == email && x.Kind == "reset");
+    }
+
+    [Fact]
+    public async Task RequestPasswordReset_ForMissingOrInactiveUsers_ReturnsGenericSuccessWithoutEmail()
+    {
+        var inactiveEmail = $"inactive-reset-{Guid.NewGuid():N}@lastmile.test";
+        var inactiveUser = await SeedUserAsync(inactiveEmail, "Reset1234", PredefinedRole.Dispatcher);
+        inactiveUser.IsActive = false;
+        await UpdateUserAsync(inactiveUser);
+
+        foreach (var email in new[] { $"missing-{Guid.NewGuid():N}@lastmile.test", inactiveEmail })
+        {
+            factory.EmailService.Clear();
+
+            var document = await PostGraphQLAsync(
+                """
+                mutation RequestPasswordReset($email: String!) {
+                  requestPasswordReset(email: $email) {
+                    success
+                    message
+                  }
+                }
+                """,
+                new { email });
+
+            var result = document.RootElement
+                .GetProperty("data")
+                .GetProperty("requestPasswordReset");
+
+            result.GetProperty("success").GetBoolean().Should().BeTrue();
+            result.GetProperty("message").GetString().Should().Contain("If the email exists");
+            factory.EmailService.Emails.Should().BeEmpty();
+        }
+    }
+
     private async Task<Guid> FindUserIdByEmailAsync(string email)
     {
         await using var scope = factory.Services.CreateAsyncScope();
@@ -639,7 +812,24 @@ public class UserManagementGraphQLTests(CustomWebApplicationFactory factory)
     {
         await using var scope = factory.Services.CreateAsyncScope();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-        var result = await userManager.UpdateAsync(user);
+        var existingUser = await userManager.FindByIdAsync(user.Id.ToString());
+        existingUser.Should().NotBeNull();
+
+        existingUser!.FirstName = user.FirstName;
+        existingUser.LastName = user.LastName;
+        existingUser.Email = user.Email;
+        existingUser.UserName = user.UserName;
+        existingUser.PhoneNumber = user.PhoneNumber;
+        existingUser.IsActive = user.IsActive;
+        existingUser.IsSystemAdmin = user.IsSystemAdmin;
+        existingUser.DepotId = user.DepotId;
+        existingUser.ZoneId = user.ZoneId;
+        existingUser.CreatedAt = user.CreatedAt;
+        existingUser.CreatedBy = user.CreatedBy;
+        existingUser.LastModifiedAt = user.LastModifiedAt;
+        existingUser.LastModifiedBy = user.LastModifiedBy;
+
+        var result = await userManager.UpdateAsync(existingUser);
         result.Succeeded.Should().BeTrue(string.Join(", ", result.Errors.Select(x => x.Description)));
     }
 

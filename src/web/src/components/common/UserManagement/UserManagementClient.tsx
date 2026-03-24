@@ -212,6 +212,10 @@ export function UserManagementClient({
   }
 
   async function handleDeactivate(user: UserManagementUser) {
+    if (user.isProtected) {
+      return;
+    }
+
     if (!window.confirm(`Deactivate ${user.fullName}?`)) {
       return;
     }
@@ -328,7 +332,14 @@ export function UserManagementClient({
                 usersQuery.data.items.map((user) => (
                   <tr key={user.id} className="align-top">
                     <td className="px-4 py-4">
-                      <div className="font-medium">{user.fullName}</div>
+                      <div className="flex items-center gap-2">
+                        <div className="font-medium">{user.fullName}</div>
+                        {user.isProtected && (
+                          <span className="inline-flex rounded-full bg-sky-100 px-2.5 py-1 text-xs font-medium text-sky-700">
+                            System admin
+                          </span>
+                        )}
+                      </div>
                       <div className="text-muted-foreground">{user.email}</div>
                       {user.phone && (
                         <div className="text-muted-foreground">{user.phone}</div>
@@ -358,6 +369,7 @@ export function UserManagementClient({
                           variant="outline"
                           size="sm"
                           onClick={() => setDialogState({ mode: "edit", user })}
+                          disabled={user.isProtected}
                         >
                           <Pencil className="size-4" />
                           Edit
@@ -366,7 +378,7 @@ export function UserManagementClient({
                           variant="outline"
                           size="sm"
                           onClick={() => sendResetMutation.mutate(user.id)}
-                          disabled={sendResetMutation.isPending}
+                          disabled={user.isProtected || sendResetMutation.isPending}
                         >
                           <Mail className="size-4" />
                           Reset Email
@@ -375,7 +387,7 @@ export function UserManagementClient({
                           variant="destructive"
                           size="sm"
                           onClick={() => handleDeactivate(user)}
-                          disabled={!user.isActive || deactivateMutation.isPending}
+                          disabled={user.isProtected || !user.isActive || deactivateMutation.isPending}
                         >
                           <UserX className="size-4" />
                           Deactivate

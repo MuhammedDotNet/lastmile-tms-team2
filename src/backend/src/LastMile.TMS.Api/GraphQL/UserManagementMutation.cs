@@ -58,6 +58,13 @@ public sealed class UserManagementMutation
         sender.Send(new SendPasswordResetEmailCommand(userId), cancellationToken);
 
     [AllowAnonymous]
+    public Task<UserActionResultDto> RequestPasswordReset(
+        string email,
+        [Service] ISender sender,
+        CancellationToken cancellationToken) =>
+        sender.Send(new RequestPasswordResetCommand(email), cancellationToken);
+
+    [AllowAnonymous]
     public Task<UserActionResultDto> CompletePasswordReset(
         CompletePasswordResetInput input,
         [Service] ISender sender,

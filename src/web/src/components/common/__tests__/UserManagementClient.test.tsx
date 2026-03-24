@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UserManagementClient } from "@/components/common/UserManagement";
@@ -55,6 +55,7 @@ describe("UserManagementClient", () => {
           phone: "+10000000000",
           role: "Admin",
           isActive: true,
+          isProtected: false,
           depotId: null,
           depotName: null,
           zoneId: null,
@@ -74,6 +75,7 @@ describe("UserManagementClient", () => {
       phone: null,
       role: "Dispatcher",
       isActive: true,
+      isProtected: false,
       depotId: "depot-1",
       depotName: "North Depot",
       zoneId: "zone-1",
@@ -126,5 +128,53 @@ describe("UserManagementClient", () => {
         zoneId: "zone-1",
       });
     });
+  });
+
+  it("renders protected system admin as read-only", async () => {
+    mockedGetUsers.mockResolvedValueOnce({
+      totalCount: 1,
+      items: [
+        {
+          id: "user-1",
+          firstName: "System",
+          lastName: "Admin",
+          fullName: "System Admin",
+          email: "admin@lastmile.com",
+          phone: null,
+          role: "Admin",
+          isActive: true,
+          isProtected: true,
+          depotId: null,
+          depotName: null,
+          zoneId: null,
+          zoneName: null,
+          createdAt: "2026-03-24T00:00:00Z",
+          lastModifiedAt: null,
+        },
+      ],
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <UserManagementClient accessToken="token-123" />
+      </QueryClientProvider>
+    );
+
+    const rowText = await screen.findByText("System Admin");
+    expect(await screen.findByText("System admin")).toBeInTheDocument();
+
+    const row = rowText.closest("tr");
+    expect(row).not.toBeNull();
+    const scoped = within(row!);
+    expect(scoped.getByRole("button", { name: /edit/i })).toBeDisabled();
+    expect(scoped.getByRole("button", { name: /reset email/i })).toBeDisabled();
+    expect(scoped.getByRole("button", { name: /deactivate/i })).toBeDisabled();
   });
 });

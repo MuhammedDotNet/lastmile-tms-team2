@@ -1,12 +1,16 @@
 using FluentValidation;
 using FluentValidation.Results;
 using LastMile.TMS.Application.Common.Interfaces;
+using LastMile.TMS.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace LastMile.TMS.Application.Users.Common;
 
 internal static class UserManagementRules
 {
+    public const string ProtectedSystemAdminMessage =
+        "The seeded system admin account is protected and cannot be modified.";
+
     public static async Task EnsureValidAssignmentsAsync(
         IAppDbContext dbContext,
         Guid? depotId,
@@ -47,6 +51,14 @@ internal static class UserManagementRules
             {
                 throw CreateValidationException("The selected zone does not belong to the selected depot.");
             }
+        }
+    }
+
+    public static void EnsureUserCanBeManaged(ApplicationUser user)
+    {
+        if (user.IsSystemAdmin)
+        {
+            throw CreateValidationException(ProtectedSystemAdminMessage);
         }
     }
 

@@ -3,6 +3,7 @@ import type {
   CompletePasswordResetInput,
   CreateUserInput,
   GetUsersInput,
+  RequestPasswordResetInput,
   UpdateUserInput,
   UserActionResult,
   UserManagementLookups,
@@ -19,6 +20,7 @@ const USER_FIELDS = `
   phone
   role
   isActive
+  isProtected
   depotId
   depotName
   zoneId
@@ -208,4 +210,24 @@ export async function completePasswordReset(
   );
 
   return data.completePasswordReset;
+}
+
+export async function requestPasswordReset(
+  input: RequestPasswordResetInput
+): Promise<UserActionResult> {
+  const data = await graphqlRequest<{ requestPasswordReset: UserActionResult }>(
+    `
+      mutation RequestPasswordReset($email: String!) {
+        requestPasswordReset(email: $email) {
+          success
+          message
+        }
+      }
+    `,
+    {
+      email: input.email,
+    }
+  );
+
+  return data.requestPasswordReset;
 }

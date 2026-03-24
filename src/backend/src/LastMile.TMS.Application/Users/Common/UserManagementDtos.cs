@@ -11,6 +11,7 @@ public sealed record UserManagementUserDto(
     string? Phone,
     PredefinedRole? Role,
     bool IsActive,
+    bool IsProtected,
     Guid? DepotId,
     string? DepotName,
     Guid? ZoneId,

@@ -63,6 +63,18 @@ public class UserManagementCommandValidatorTests
     }
 
     [Fact]
+    public void RequestPasswordResetCommandValidator_ShouldRequireValidEmail()
+    {
+        var validator = new RequestPasswordResetCommandValidator();
+        var command = new RequestPasswordResetCommand("not-an-email");
+
+        var result = validator.Validate(command);
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(x => x.PropertyName == nameof(RequestPasswordResetCommand.Email));
+    }
+
+    [Fact]
     public void GetUsersQueryValidator_ShouldRejectInvalidPaging()
     {
         var validator = new GetUsersQueryValidator();

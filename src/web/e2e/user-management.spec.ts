@@ -111,4 +111,17 @@ test.describe("User Management CRUD", () => {
       updatedRow.getByRole("button", { name: /deactivate/i })
     ).toBeDisabled();
   });
+
+  test("seeded system admin is visible but read-only", async ({ page }) => {
+    const protectedRow = page.locator("tbody tr", { hasText: fixture.adminEmail });
+
+    await expect(protectedRow).toContainText("System admin");
+    await expect(protectedRow.getByRole("button", { name: /edit/i })).toBeDisabled();
+    await expect(
+      protectedRow.getByRole("button", { name: /reset email/i })
+    ).toBeDisabled();
+    await expect(
+      protectedRow.getByRole("button", { name: /deactivate/i })
+    ).toBeDisabled();
+  });
 });

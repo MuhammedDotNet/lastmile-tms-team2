@@ -36,6 +36,8 @@ public sealed class DeactivateUserCommandHandler(
             throw new KeyNotFoundException("User not found.");
         }
 
+        UserManagementRules.EnsureUserCanBeManaged(user);
+
         if (user.IsActive)
         {
             user.IsActive = false;

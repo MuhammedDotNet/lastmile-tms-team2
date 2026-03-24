@@ -32,6 +32,8 @@ public sealed class SendPasswordResetEmailCommandHandler(
             throw new KeyNotFoundException("User not found.");
         }
 
+        UserManagementRules.EnsureUserCanBeManaged(user);
+
         await emailJobScheduler.SchedulePasswordResetEmailAsync(user.Id, cancellationToken);
 
         return new UserActionResultDto(true, "Password reset email queued.");

@@ -54,6 +54,8 @@ public sealed class UpdateUserCommandHandler(
             throw new KeyNotFoundException("User not found.");
         }
 
+        UserManagementRules.EnsureUserCanBeManaged(user);
+
         var email = request.Email.Trim();
         var emailOwner = await userManager.FindByEmailAsync(email);
         if (emailOwner is not null && emailOwner.Id != user.Id)

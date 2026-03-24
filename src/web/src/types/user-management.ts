@@ -17,6 +17,7 @@ export interface UserManagementUser {
   phone: string | null;
   role: UserRole | null;
   isActive: boolean;
+  isProtected: boolean;
   depotId: string | null;
   depotName: string | null;
   zoneId: string | null;
@@ -71,6 +72,10 @@ export interface CompletePasswordResetInput {
   email: string;
   token: string;
   newPassword: string;
+}
+
+export interface RequestPasswordResetInput {
+  email: string;
 }
 
 export interface UserActionResult {
