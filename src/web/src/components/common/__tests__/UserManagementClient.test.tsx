@@ -104,16 +104,19 @@ describe("UserManagementClient", () => {
     );
 
     expect(await screen.findByText("Alex Admin")).toBeInTheDocument();
+    expect(screen.getByText("Total users")).toBeInTheDocument();
+    expect(screen.getByText("Filters")).toBeInTheDocument();
 
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: /new user/i }));
+    const modal = await screen.findByTestId("user-form-modal");
 
     await user.type(screen.getByLabelText(/first name/i), "  Casey");
     await user.type(screen.getByLabelText(/last name/i), " Creator  ");
     await user.type(screen.getByLabelText(/^email$/i), "casey@example.com");
-    await user.selectOptions(screen.getByLabelText(/^role$/i), "Dispatcher");
-    await user.selectOptions(screen.getByLabelText(/^depot$/i), "depot-1");
-    await user.selectOptions(screen.getByLabelText(/^zone$/i), "zone-1");
+    await user.selectOptions(within(modal).getByLabelText(/^role$/i), "Dispatcher");
+    await user.selectOptions(within(modal).getByLabelText(/^depot$/i), "depot-1");
+    await user.selectOptions(within(modal).getByLabelText(/^zone$/i), "zone-1");
 
     await user.click(screen.getByRole("button", { name: /create user/i }));
 
@@ -169,6 +172,9 @@ describe("UserManagementClient", () => {
 
     const rowText = await screen.findByText("System Admin");
     expect(await screen.findByText("System admin")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /user management/i }),
+    ).toBeInTheDocument();
 
     const row = rowText.closest("tr");
     expect(row).not.toBeNull();

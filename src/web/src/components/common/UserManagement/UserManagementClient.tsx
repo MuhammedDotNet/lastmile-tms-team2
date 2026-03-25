@@ -7,26 +7,36 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import {
-  Mail,
-  Pencil,
-  Plus,
-  Search,
-  UserX,
-} from "lucide-react";
+import { Mail, Pencil, Plus, Search, UserX, Users } from "lucide-react";
 import { toast } from "sonner";
+
+import {
+  ListDataTable,
+  ListPageHeader,
+  ListPageLoading,
+  ListPagePagination,
+  ListPageStatsStrip,
+  listDataTableBodyRowClass,
+  listDataTableHeadRowClass,
+  listDataTableTdClass,
+  listDataTableThClass,
+  listDataTableThRightClass,
+} from "@/components/list";
+import { UserFormModal } from "@/components/common/UserManagement/UserFormModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { UserFormModal } from "@/components/common/UserManagement/UserFormModal";
+import { QueryErrorAlert } from "@/components/ui/query-error-alert";
 import { useDebounce } from "@/hooks/use-debounce";
+import { getErrorMessage } from "@/lib/error-message";
+import { cn } from "@/lib/utils";
+import { getUserManagementLookups, getUsers, createUser, updateUser, deactivateUser, sendPasswordResetEmail } from "@/services/user-management.service";
+import type { UserFormSchema } from "@/lib/validations";
 import type {
   CreateUserInput,
   UpdateUserInput,
   UserManagementUser,
   UserRole,
 } from "@/types/user-management";
-import { getUserManagementLookups, getUsers, createUser, updateUser, deactivateUser, sendPasswordResetEmail } from "@/services/user-management.service";
-import type { UserFormSchema } from "@/lib/validations";
 
 const PAGE_SIZE = 10;
 
@@ -92,9 +102,7 @@ export function UserManagementClient({
         search: debouncedSearch || undefined,
         role: roleFilter === "ALL" ? undefined : roleFilter,
         isActive:
-          statusFilter === "ALL"
-            ? undefined
-            : statusFilter === "ACTIVE",
+          statusFilter === "ALL" ? undefined : statusFilter === "ACTIVE",
         depotId: depotFilter === "ALL" ? undefined : depotFilter,
         zoneId: zoneFilter === "ALL" ? undefined : zoneFilter,
         skip: (page - 1) * PAGE_SIZE,
@@ -147,11 +155,25 @@ export function UserManagementClient({
     },
   });
 
+  const queryError = lookupsQuery.error ?? usersQuery.error;
   const totalCount = usersQuery.data?.totalCount ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const from = totalCount === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const to = totalCount === 0 ? 0 : Math.min(page * PAGE_SIZE, totalCount);
   const zoneOptions = lookupsQuery.data?.zones.filter(
-    (zone) => depotFilter === "ALL" || zone.depotId === depotFilter
+    (zone) => depotFilter === "ALL" || zone.depotId === depotFilter,
   );
+  const activeFilters = [
+    debouncedSearch ? "Search" : null,
+    roleFilter !== "ALL" ? formatRole(roleFilter) : null,
+    statusFilter !== "ALL"
+      ? statusFilter === "ACTIVE"
+        ? "Active"
+        : "Inactive"
+      : null,
+    depotFilter !== "ALL" ? "Depot" : null,
+    zoneFilter !== "ALL" ? "Zone" : null,
+  ].filter(Boolean);
 
   function handleSearchChange(value: string) {
     setSearch(value);
@@ -176,7 +198,7 @@ export function UserManagementClient({
       zoneFilter !== "ALL" &&
       value !== "ALL" &&
       !lookupsQuery.data?.zones.some(
-        (zone) => zone.id === zoneFilter && zone.depotId === value
+        (zone) => zone.id === zoneFilter && zone.depotId === value,
       )
     ) {
       setZoneFilter("ALL");
@@ -223,22 +245,55 @@ export function UserManagementClient({
     await deactivateMutation.mutateAsync(user.id);
   }
 
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
-          <p className="text-muted-foreground">
-            Create, edit, deactivate, and manage access for system users.
-          </p>
-        </div>
-        <Button onClick={() => setDialogState({ mode: "create" })}>
-          <Plus className="size-4" />
-          New User
-        </Button>
-      </div>
+  if (
+    (lookupsQuery.isLoading && !lookupsQuery.data) ||
+    (usersQuery.isLoading && !usersQuery.data)
+  ) {
+    return <ListPageLoading />;
+  }
 
-      <div className="grid gap-4 rounded-2xl border border-border bg-card p-5 shadow-sm lg:grid-cols-[2fr_repeat(4,1fr)]">
+  if (queryError) {
+    return (
+      <QueryErrorAlert
+        title="Could not load users"
+        message={getErrorMessage(queryError)}
+      />
+    );
+  }
+
+  return (
+    <>
+      <ListPageHeader
+        variant="route"
+        eyebrow="Access"
+        title="User Management"
+        description="Create, edit, deactivate, and manage access for system users."
+        icon={<Users strokeWidth={1.75} aria-hidden />}
+        action={
+          <Button onClick={() => setDialogState({ mode: "create" })}>
+            <Plus className="size-4" aria-hidden />
+            New User
+          </Button>
+        }
+      />
+
+      <ListPageStatsStrip
+        totalLabel="Total users"
+        totalCount={totalCount}
+        rangeEntityLabel="users"
+        from={from}
+        to={to}
+        page={page}
+        totalPages={totalPages}
+        pageSize={PAGE_SIZE}
+        filterCardLabel="Filters"
+        filterCardHint="Search, role, status, depot, and zone"
+        activeFilterDisplay={
+          activeFilters.length > 0 ? activeFilters.join(", ") : "All users"
+        }
+      />
+
+      <div className="mb-6 grid gap-4 rounded-2xl border border-border/50 bg-card/80 p-5 shadow-[0_1px_0_0_oklch(0_0_0/0.05),0_16px_48px_-20px_oklch(0.4_0.02_250/0.14)] dark:bg-card/60 lg:grid-cols-[2fr_repeat(4,1fr)]">
         <div className="space-y-2">
           <LabelText>Search</LabelText>
           <div className="relative">
@@ -303,138 +358,108 @@ export function UserManagementClient({
         />
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-border text-sm">
-            <thead className="bg-muted/50 text-left text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3 font-medium">User</th>
-                <th className="px-4 py-3 font-medium">Role</th>
-                <th className="px-4 py-3 font-medium">Assignment</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {usersQuery.isLoading ? (
-                <tr>
-                  <td className="px-4 py-8 text-muted-foreground" colSpan={5}>
-                    Loading users...
-                  </td>
-                </tr>
-              ) : usersQuery.isError ? (
-                <tr>
-                  <td className="px-4 py-8 text-destructive" colSpan={5}>
-                    {(usersQuery.error as Error).message}
-                  </td>
-                </tr>
-              ) : usersQuery.data?.items.length ? (
-                usersQuery.data.items.map((user) => (
-                  <tr key={user.id} className="align-top">
-                    <td className="px-4 py-4">
-                      <div className="flex items-center gap-2">
-                        <div className="font-medium">{user.fullName}</div>
-                        {user.isProtected && (
-                          <span className="inline-flex rounded-full bg-sky-100 px-2.5 py-1 text-xs font-medium text-sky-700">
-                            System admin
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-muted-foreground">{user.email}</div>
-                      {user.phone && (
-                        <div className="text-muted-foreground">{user.phone}</div>
-                      )}
-                    </td>
-                    <td className="px-4 py-4">{formatRole(user.role)}</td>
-                    <td className="px-4 py-4">
-                      <div>{user.depotName ?? "No depot"}</div>
-                      <div className="text-muted-foreground">
-                        {user.zoneName ?? "No zone"}
-                      </div>
-                    </td>
-                    <td className="px-4 py-4">
-                      <span
-                        className={
-                          user.isActive
-                            ? "inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700"
-                            : "inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700"
-                        }
-                      >
-                        {user.isActive ? "Active" : "Inactive"}
+      <ListDataTable minWidthClassName="min-w-[1080px]">
+        <thead>
+          <tr className={listDataTableHeadRowClass}>
+            <th className={listDataTableThClass}>User</th>
+            <th className={listDataTableThClass}>Role</th>
+            <th className={listDataTableThClass}>Assignment</th>
+            <th className={listDataTableThClass}>Status</th>
+            <th className={listDataTableThRightClass}>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {usersQuery.data?.items.length ? (
+            usersQuery.data.items.map((user) => (
+              <tr key={user.id} className={listDataTableBodyRowClass}>
+                <td className={cn(listDataTableTdClass, "align-top")}>
+                  <div className="flex items-center gap-2">
+                    <div className="font-medium">{user.fullName}</div>
+                    {user.isProtected ? (
+                      <span className="inline-flex rounded-full bg-sky-100 px-2.5 py-1 text-xs font-medium text-sky-700">
+                        System admin
                       </span>
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setDialogState({ mode: "edit", user })}
-                          disabled={user.isProtected}
-                        >
-                          <Pencil className="size-4" />
-                          Edit
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => sendResetMutation.mutate(user.id)}
-                          disabled={user.isProtected || sendResetMutation.isPending}
-                        >
-                          <Mail className="size-4" />
-                          Reset Email
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => handleDeactivate(user)}
-                          disabled={user.isProtected || !user.isActive || deactivateMutation.isPending}
-                        >
-                          <UserX className="size-4" />
-                          Deactivate
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td className="px-4 py-8 text-muted-foreground" colSpan={5}>
-                    No users matched the current filters.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                    ) : null}
+                  </div>
+                  <div className="text-muted-foreground">{user.email}</div>
+                  {user.phone ? (
+                    <div className="text-muted-foreground">{user.phone}</div>
+                  ) : null}
+                </td>
+                <td className={cn(listDataTableTdClass, "align-top")}>
+                  {formatRole(user.role)}
+                </td>
+                <td className={cn(listDataTableTdClass, "align-top")}>
+                  <div>{user.depotName ?? "No depot"}</div>
+                  <div className="text-muted-foreground">
+                    {user.zoneName ?? "No zone"}
+                  </div>
+                </td>
+                <td className={cn(listDataTableTdClass, "align-top")}>
+                  <span
+                    className={
+                      user.isActive
+                        ? "inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700"
+                        : "inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700"
+                    }
+                  >
+                    {user.isActive ? "Active" : "Inactive"}
+                  </span>
+                </td>
+                <td className={cn(listDataTableTdClass, "min-w-[270px] text-right align-top")}>
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDialogState({ mode: "edit", user })}
+                      disabled={user.isProtected}
+                    >
+                      <Pencil className="size-4" aria-hidden />
+                      Edit
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => sendResetMutation.mutate(user.id)}
+                      disabled={user.isProtected || sendResetMutation.isPending}
+                    >
+                      <Mail className="size-4" aria-hidden />
+                      Reset Email
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDeactivate(user)}
+                      disabled={
+                        user.isProtected ||
+                        !user.isActive ||
+                        deactivateMutation.isPending
+                      }
+                    >
+                      <UserX className="size-4" aria-hidden />
+                      Deactivate
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            ))
+          ) : (
+            <tr className={listDataTableBodyRowClass}>
+              <td className={listDataTableTdClass} colSpan={5}>
+                <div className="py-8 text-center text-muted-foreground">
+                  No users matched the current filters.
+                </div>
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </ListDataTable>
 
-        <div className="flex flex-col gap-3 border-t border-border px-4 py-4 text-sm md:flex-row md:items-center md:justify-between">
-          <p className="text-muted-foreground">
-            Showing {totalCount === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}-
-            {totalCount === 0 ? 0 : Math.min(page * PAGE_SIZE, totalCount)} of {totalCount} users
-          </p>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setPage((current) => Math.max(1, current - 1))}
-              disabled={page === 1}
-            >
-              Previous
-            </Button>
-            <span className="min-w-20 text-center">
-              Page {page} of {totalPages}
-            </span>
-            <Button
-              variant="outline"
-              onClick={() =>
-                setPage((current) => Math.min(totalPages, current + 1))
-              }
-              disabled={page >= totalPages}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
-      </div>
+      <ListPagePagination
+        page={page}
+        totalPages={totalPages}
+        setPage={setPage}
+      />
 
       <UserFormModal
         isOpen={dialogState !== null}
@@ -451,7 +476,7 @@ export function UserManagementClient({
         onClose={() => setDialogState(null)}
         onSubmit={handleSubmit}
       />
-    </div>
+    </>
   );
 }
 
@@ -474,9 +499,10 @@ function FilterSelect({
     <div className="space-y-2">
       <LabelText>{label}</LabelText>
       <select
+        aria-label={label}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="flex h-8 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/40"
+        className="flex h-10 w-full rounded-xl border border-input/90 bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/40"
       >
         {options.map((option) => (
           <option key={option.value} value={option.value}>

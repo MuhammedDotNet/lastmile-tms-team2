@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { signOut } from "next-auth/react";
-import { usePathname } from "next/navigation";
 import { LogOut, Truck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -26,18 +25,7 @@ function userInitials(user: DashboardHeaderProps["user"]): string {
   return raw.slice(0, 2).toUpperCase() || "?";
 }
 
-function isHeaderLinkActive(pathname: string, href: string): boolean {
-  if (href === "/dashboard") {
-    return pathname === href;
-  }
-
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
-
 export function DashboardHeader({ user }: DashboardHeaderProps) {
-  const pathname = usePathname();
-  const isAdmin = user.roles?.includes("Admin");
-
   return (
     <div
       className={cn(
@@ -62,20 +50,6 @@ export function DashboardHeader({ user }: DashboardHeaderProps) {
             </span>
           </span>
         </Link>
-
-        <nav className="hidden items-center gap-1 md:flex">
-          <HeaderLink
-            href="/dashboard"
-            isActive={isHeaderLinkActive(pathname, "/dashboard")}
-          >
-            Dashboard
-          </HeaderLink>
-          {isAdmin ? (
-            <HeaderLink href="/users" isActive={isHeaderLinkActive(pathname, "/users")}>
-              Users
-            </HeaderLink>
-          ) : null}
-        </nav>
       </div>
 
       <div className="flex min-w-0 shrink items-center gap-2 sm:gap-8">
@@ -107,29 +81,5 @@ export function DashboardHeader({ user }: DashboardHeaderProps) {
         </Button>
       </div>
     </div>
-  );
-}
-
-function HeaderLink({
-  href,
-  isActive,
-  children,
-}: {
-  href: string;
-  isActive: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <Link
-      href={href}
-      className={cn(
-        "rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-        isActive
-          ? "bg-white/10 text-white"
-          : "text-neutral-400 hover:bg-white/5 hover:text-white",
-      )}
-    >
-      {children}
-    </Link>
   );
 }
