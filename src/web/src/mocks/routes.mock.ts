@@ -1,4 +1,4 @@
-import { Route, RouteStatus } from "@/types/routes";
+import type { Route } from "@/types/routes";
 
 const V1 = "10000000-0000-0000-0000-000000000001";
 const V2 = "10000000-0000-0000-0000-000000000002";
@@ -15,7 +15,7 @@ export const mockRoutes: Route[] = [
     startMileage: 45000,
     endMileage: 45120,
     totalMileage: 120,
-    status: RouteStatus.Completed,
+    status: "COMPLETED",
     parcelCount: 15,
     parcelsDelivered: 15,
     createdAt: "2024-03-15T07:45:00Z",
@@ -31,7 +31,7 @@ export const mockRoutes: Route[] = [
     startMileage: 45120,
     endMileage: 0,
     totalMileage: 0,
-    status: RouteStatus.InProgress,
+    status: "IN_PROGRESS",
     parcelCount: 12,
     parcelsDelivered: 3,
     createdAt: "2024-03-18T08:50:00Z",
@@ -47,7 +47,7 @@ export const mockRoutes: Route[] = [
     startMileage: 120000,
     endMileage: 120050,
     totalMileage: 50,
-    status: RouteStatus.Completed,
+    status: "COMPLETED",
     parcelCount: 8,
     parcelsDelivered: 8,
     createdAt: "2024-03-14T09:30:00Z",

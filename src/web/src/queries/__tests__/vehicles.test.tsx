@@ -11,7 +11,7 @@ import {
 } from "../vehicles";
 import type { PaginatedResponse } from "../../types/api";
 import type { Vehicle } from "../../types/vehicles";
-import { VehicleStatus } from "../../types/vehicles";
+import type { VehicleStatus } from "../../types/vehicles";
 import * as vehiclesService from "../../services/vehicles.service";
 
 vi.mock("next-auth/react", () => ({
@@ -99,7 +99,7 @@ describe("useVehicles", () => {
     );
 
     const { result } = renderHook(
-      () => useVehicles({ page: 2, pageSize: 10, status: VehicleStatus.Available }),
+      () => useVehicles({ page: 2, pageSize: 10, status: "AVAILABLE" }),
       { wrapper: createWrapper() }
     );
 
@@ -108,14 +108,14 @@ describe("useVehicles", () => {
     expect(mockVehiclesService.getAll).toHaveBeenCalledWith(
       2,
       10,
-      VehicleStatus.Available,
+      "AVAILABLE",
       undefined
     );
   });
 
   it("should have correct query key", () => {
-    const keys = vehicleKeys.list({ page: 1, status: VehicleStatus.Available });
-    expect(keys).toEqual(["vehicles", "list", { page: 1, status: VehicleStatus.Available }]);
+    const keys = vehicleKeys.list({ page: 1, status: "AVAILABLE" });
+    expect(keys).toEqual(["vehicles", "list", { page: 1, status: "AVAILABLE" }]);
   });
 });
 
@@ -161,12 +161,12 @@ describe("useCreateVehicle", () => {
   it("should create a vehicle and invalidate queries", async () => {
     const newVehicle = {
       registrationPlate: "XYZ-999",
-      type: 0,
+      type: "VAN",
       parcelCapacity: 10,
       weightCapacity: 100,
-      status: 0,
+      status: "AVAILABLE",
       depotId: "dep-1",
-    };
+    } as const;
 
     const createdVehicle = { id: "new-id", ...newVehicle };
 
@@ -199,12 +199,12 @@ describe("useUpdateVehicle", () => {
   it("should update a vehicle and invalidate queries", async () => {
     const updateData = {
       registrationPlate: "ABC-001",
-      type: 0,
+      type: "VAN",
       parcelCapacity: 15,
       weightCapacity: 150,
-      status: 1,
+      status: "IN_USE",
       depotId: "dep-1",
-    };
+    } as const;
 
     const updatedVehicle = { id: "123", ...updateData };
 

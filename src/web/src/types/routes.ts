@@ -1,11 +1,6 @@
-export enum RouteStatus {
-  Planned = 0,
-  InProgress = 1,
-  Completed = 2,
-  Cancelled = 3,
-}
+export type { RouteStatus } from "@/graphql/generated";
 
-export interface Route {
+export type Route = {
   id: string;
   vehicleId: string;
   vehiclePlate: string;
@@ -16,24 +11,24 @@ export interface Route {
   startMileage: number;
   endMileage: number;
   totalMileage: number;
-  status: RouteStatus;
+  status: import("@/graphql/generated").RouteStatus;
   parcelCount: number;
   parcelsDelivered: number;
   createdAt: string;
-}
+};
 
-export interface CreateRouteRequest {
+export type CreateRouteRequest = {
   vehicleId: string;
   driverId: string;
   startDate: string;
   startMileage: number;
   parcelIds: string[];
-}
+};
 
-export interface PaginatedRoutesResult {
+export type PaginatedRoutesResult = {
   items: Route[];
   totalCount: number;
   page: number;
   pageSize: number;
   totalPages: number;
-}
+};

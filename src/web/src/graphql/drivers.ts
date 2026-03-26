@@ -1,8 +1,5 @@
-export const DRIVERS_LIST = `
-  query GetDrivers($depotId: UUID) {
-    drivers(depotId: $depotId) {
-      id
-      displayName
-    }
-  }
-`;
+export { GetDriversDocument as DRIVERS_LIST } from "./generated";
+export type {
+  GetDriversQuery,
+  GetDriversQueryVariables,
+} from "./generated";

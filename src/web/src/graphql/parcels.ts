@@ -1,10 +1,7 @@
-export const PARCELS_FOR_ROUTE = `
-  query GetParcelsForRouteCreation {
-    parcelsForRouteCreation {
-      id
-      trackingNumber
-      weight
-      weightUnit
-    }
-  }
-`;
+export {
+  GetParcelsForRouteCreationDocument as PARCELS_FOR_ROUTE,
+} from "./generated";
+export type {
+  GetParcelsForRouteCreationQuery,
+  GetParcelsForRouteCreationQueryVariables,
+} from "./generated";

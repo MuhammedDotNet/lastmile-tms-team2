@@ -1,27 +1,27 @@
 import { cn } from "@/lib/utils";
-import { VehicleStatus, VehicleType } from "@/types/vehicles";
+import type { VehicleStatus, VehicleType } from "@/types/vehicles";
 
 const vehicleStatusBadgeBase =
   "inline-flex max-w-full min-w-0 items-center truncate rounded-full px-2 py-0.5 text-xs font-medium";
 
-export function vehicleStatusBadgeClass(status: VehicleStatus): string {
+export function vehicleStatusBadgeClass(status: string): string {
   switch (status) {
-    case VehicleStatus.Available:
+    case "AVAILABLE":
       return cn(
         vehicleStatusBadgeBase,
         "bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-200",
       );
-    case VehicleStatus.InUse:
+    case "IN_USE":
       return cn(
         vehicleStatusBadgeBase,
         "bg-green-100 text-green-800 dark:bg-green-950/50 dark:text-green-200",
       );
-    case VehicleStatus.Maintenance:
+    case "MAINTENANCE":
       return cn(
         vehicleStatusBadgeBase,
         "bg-yellow-100 text-yellow-800 dark:bg-yellow-950/50 dark:text-yellow-200",
       );
-    case VehicleStatus.Retired:
+    case "RETIRED":
       return cn(
         vehicleStatusBadgeBase,
         "bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-200",
@@ -32,29 +32,25 @@ export function vehicleStatusBadgeClass(status: VehicleStatus): string {
 }
 
 export const VEHICLE_STATUS_LABELS: Record<VehicleStatus, string> = {
-  [VehicleStatus.Available]: "Available",
-  [VehicleStatus.InUse]: "In Use",
-  [VehicleStatus.Maintenance]: "Maintenance",
-  [VehicleStatus.Retired]: "Retired",
+  AVAILABLE: "Available",
+  IN_USE: "In Use",
+  MAINTENANCE: "Maintenance",
+  RETIRED: "Retired",
 };
 
 export const VEHICLE_TYPE_LABELS: Record<VehicleType, string> = {
-  [VehicleType.Van]: "Van",
-  [VehicleType.Car]: "Car",
-  [VehicleType.Bike]: "Bike",
+  BIKE: "Bike",
+  CAR: "Car",
+  VAN: "Van",
 };
 
-const VEHICLE_TYPE_ORDER: VehicleType[] = [
-  VehicleType.Van,
-  VehicleType.Car,
-  VehicleType.Bike,
-];
+const VEHICLE_TYPE_ORDER: VehicleType[] = ["BIKE", "CAR", "VAN"];
 
 export const VEHICLE_STATUS_ORDER: VehicleStatus[] = [
-  VehicleStatus.Available,
-  VehicleStatus.InUse,
-  VehicleStatus.Maintenance,
-  VehicleStatus.Retired,
+  "AVAILABLE",
+  "IN_USE",
+  "MAINTENANCE",
+  "RETIRED",
 ];
 
 /** Options for {@link SelectDropdown} on vehicle create/edit forms. */

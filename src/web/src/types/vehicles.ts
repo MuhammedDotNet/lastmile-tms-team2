@@ -1,49 +1,35 @@
-import type { PaginatedResponse } from "@/types/api";
+export type { VehicleType, VehicleStatus } from "@/graphql/generated";
 
-export enum VehicleType {
-  Van = 0,
-  Car = 1,
-  Bike = 2,
-}
-
-export enum VehicleStatus {
-  Available = 0,
-  InUse = 1,
-  Maintenance = 2,
-  Retired = 3,
-}
-
-export interface Vehicle {
+export type Vehicle = {
   id: string;
   registrationPlate: string;
-  type: VehicleType;
+  type: import("@/graphql/generated").VehicleType;
   parcelCapacity: number;
   weightCapacity: number;
-  status: VehicleStatus;
+  status: import("@/graphql/generated").VehicleStatus;
   depotId: string;
   depotName: string;
-  /** All routes (any status) */
-  totalRoutes?: number;
-  routesCompleted?: number;
-  totalMileage?: number;
+  totalRoutes: number;
+  routesCompleted: number;
+  totalMileage: number;
   createdAt: string;
   lastModifiedAt: string | null;
-}
+};
 
-export interface CreateVehicleRequest {
+export type CreateVehicleRequest = {
   registrationPlate: string;
-  type: VehicleType;
+  type: import("@/graphql/generated").VehicleType;
   parcelCapacity: number;
   weightCapacity: number;
-  status: VehicleStatus;
+  status: import("@/graphql/generated").VehicleStatus;
   depotId: string;
-}
+};
 
-export interface UpdateVehicleRequest {
+export type UpdateVehicleRequest = {
   registrationPlate: string;
-  type: VehicleType;
+  type: import("@/graphql/generated").VehicleType;
   parcelCapacity: number;
   weightCapacity: number;
-  status: VehicleStatus;
+  status: import("@/graphql/generated").VehicleStatus;
   depotId: string;
-}
+};

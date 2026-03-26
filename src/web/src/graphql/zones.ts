@@ -1,48 +1,19 @@
-const ZONE_FIELDS = `
-  id
-  name
-  boundary
-  isActive
-  depotId
-  depotName
-  createdAt
-  updatedAt
-`;
-
-export const ZONES_LIST = `
-  query GetZones {
-    zones {
-      ${ZONE_FIELDS}
-    }
-  }
-`;
-
-export const ZONE_BY_ID = `
-  query GetZone($id: UUID!) {
-    zone(id: $id) {
-      ${ZONE_FIELDS}
-    }
-  }
-`;
-
-export const CREATE_ZONE = `
-  mutation CreateZone($input: CreateZoneInput!) {
-    createZone(input: $input) {
-      ${ZONE_FIELDS}
-    }
-  }
-`;
-
-export const UPDATE_ZONE = `
-  mutation UpdateZone($id: UUID!, $input: UpdateZoneInput!) {
-    updateZone(id: $id, input: $input) {
-      ${ZONE_FIELDS}
-    }
-  }
-`;
-
-export const DELETE_ZONE = `
-  mutation DeleteZone($id: UUID!) {
-    deleteZone(id: $id)
-  }
-`;
+export {
+  GetZonesDocument as ZONES_LIST,
+  GetZoneDocument as ZONE_BY_ID,
+  CreateZoneDocument as CREATE_ZONE,
+  UpdateZoneDocument as UPDATE_ZONE,
+  DeleteZoneDocument as DELETE_ZONE,
+} from "./generated";
+export type {
+  GetZonesQuery,
+  GetZonesQueryVariables,
+  GetZoneQuery,
+  GetZoneQueryVariables,
+  CreateZoneMutation,
+  CreateZoneMutationVariables,
+  UpdateZoneMutation,
+  UpdateZoneMutationVariables,
+  DeleteZoneMutation,
+  DeleteZoneMutationVariables,
+} from "./generated";

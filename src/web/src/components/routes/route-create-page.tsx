@@ -32,7 +32,7 @@ import { useCreateRoute } from "@/queries/routes";
 import { useVehicles } from "@/queries/vehicles";
 import { useParcelsForRouteCreation } from "@/queries/parcels";
 import { useDrivers } from "@/queries/drivers";
-import { VehicleStatus } from "@/types/vehicles";
+import type { VehicleStatus } from "@/types/vehicles";
 
 export default function NewRoutePage() {
   const router = useRouter();
@@ -57,7 +57,7 @@ export default function NewRoutePage() {
 
   const { data: vehiclesData } = useVehicles({
     pageSize: 100,
-    status: VehicleStatus.Available,
+    status: "AVAILABLE",
   });
   const { data: parcels = [], isLoading: parcelsLoading, error: parcelsError } =
     useParcelsForRouteCreation();

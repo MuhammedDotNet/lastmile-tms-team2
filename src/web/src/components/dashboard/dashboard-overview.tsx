@@ -20,7 +20,7 @@ import { useRoutes } from "@/queries/routes";
 import { useUsers } from "@/queries/users";
 import { useVehicles } from "@/queries/vehicles";
 import { useZones } from "@/queries/zones";
-import { RouteStatus } from "@/types/routes";
+import type { RouteStatus } from "@/types/routes";
 
 function renderMetricValue(value: number | undefined, isLoading: boolean): string {
   if (isLoading) {
@@ -59,7 +59,7 @@ export function DashboardOverviewClient({
   const activeRoutesQuery = useRoutes({
     page: 1,
     pageSize: 1,
-    status: RouteStatus.InProgress,
+    status: "IN_PROGRESS",
   });
   const depotsQuery = useDepots();
   const zonesQuery = useZones();

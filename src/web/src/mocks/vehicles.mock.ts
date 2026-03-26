@@ -1,9 +1,6 @@
 import type { PaginatedResponse } from "@/types/api";
-import {
-  Vehicle,
-  VehicleStatus,
-  VehicleType,
-} from "@/types/vehicles";
+import type { Vehicle } from "@/types/vehicles";
+import type { VehicleStatus, VehicleType } from "@/graphql/generated";
 
 const TEST_DEPOT_ID = "00000000-0000-0000-0000-000000000001";
 const TEST_DEPOT_NAME = "Test Depot";
@@ -12,10 +9,10 @@ export const mockVehicles: Vehicle[] = [
   {
     id: "10000000-0000-0000-0000-000000000001",
     registrationPlate: "ABC-1234",
-    type: VehicleType.Van,
+    type: "VAN",
     parcelCapacity: 120,
     weightCapacity: 800,
-    status: VehicleStatus.Available,
+    status: "AVAILABLE",
     depotId: TEST_DEPOT_ID,
     depotName: TEST_DEPOT_NAME,
     totalRoutes: 48,
@@ -27,10 +24,10 @@ export const mockVehicles: Vehicle[] = [
   {
     id: "10000000-0000-0000-0000-000000000002",
     registrationPlate: "XYZ-5678",
-    type: VehicleType.Car,
+    type: "CAR",
     parcelCapacity: 20,
     weightCapacity: 150,
-    status: VehicleStatus.InUse,
+    status: "IN_USE",
     depotId: TEST_DEPOT_ID,
     depotName: TEST_DEPOT_NAME,
     totalRoutes: 14,
@@ -42,10 +39,10 @@ export const mockVehicles: Vehicle[] = [
   {
     id: "10000000-0000-0000-0000-000000000003",
     registrationPlate: "BIKE-001",
-    type: VehicleType.Bike,
+    type: "BIKE",
     parcelCapacity: 5,
     weightCapacity: 25,
-    status: VehicleStatus.Available,
+    status: "AVAILABLE",
     depotId: TEST_DEPOT_ID,
     depotName: TEST_DEPOT_NAME,
     totalRoutes: 3,
@@ -57,10 +54,10 @@ export const mockVehicles: Vehicle[] = [
   {
     id: "10000000-0000-0000-0000-000000000004",
     registrationPlate: "VAN-999",
-    type: VehicleType.Van,
+    type: "VAN",
     parcelCapacity: 100,
     weightCapacity: 700,
-    status: VehicleStatus.Maintenance,
+    status: "MAINTENANCE",
     depotId: TEST_DEPOT_ID,
     depotName: TEST_DEPOT_NAME,
     totalRoutes: 91,
@@ -72,10 +69,10 @@ export const mockVehicles: Vehicle[] = [
   {
     id: "10000000-0000-0000-0000-000000000005",
     registrationPlate: "OLD-001",
-    type: VehicleType.Van,
+    type: "VAN",
     parcelCapacity: 80,
     weightCapacity: 500,
-    status: VehicleStatus.Retired,
+    status: "RETIRED",
     depotId: TEST_DEPOT_ID,
     depotName: TEST_DEPOT_NAME,
     totalRoutes: 315,

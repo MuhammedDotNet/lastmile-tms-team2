@@ -1,3 +1,4 @@
+import { type DocumentNode, print } from "graphql";
 import { getSession } from "next-auth/react";
 import { apiBaseUrl, parseApiErrorMessage } from "./api";
 
@@ -34,7 +35,7 @@ export function graphqlEndpointUrl(): string {
 }
 
 export async function graphqlRequest<TData>(
-  query: string,
+  query: string | DocumentNode,
   variables?: Record<string, unknown>,
   accessToken?: string
 ): Promise<TData> {
@@ -51,7 +52,7 @@ export async function graphqlRequest<TData>(
   const res = await fetch(graphqlEndpointUrl(), {
     method: "POST",
     headers,
-    body: JSON.stringify({ query, variables }),
+    body: JSON.stringify({ query: typeof query === "string" ? query : print(query), variables }),
     cache: "no-store",
   });
 

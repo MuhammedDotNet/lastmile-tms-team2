@@ -4,12 +4,17 @@ import {
   ROUTE_BY_ID,
   VEHICLE_ROUTE_HISTORY,
 } from "@/graphql/routes";
+import type {
+  GetRoutesQuery,
+  GetRouteQuery,
+  GetVehicleHistoryQuery,
+  CreateRouteMutation,
+} from "@/graphql/routes";
 import { graphqlRequest } from "@/lib/network/graphql-client";
-import {
+import type {
   Route,
   CreateRouteRequest,
   PaginatedRoutesResult,
-  RouteStatus,
 } from "@/types/routes";
 import {
   getMockRoutesByVehicle,
@@ -19,61 +24,22 @@ import {
 
 const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK_DATA === "true";
 
-/** GraphQL often returns .NET enums as names; UI expects numeric RouteStatus */
-const gqlStatusToRouteStatus: Record<string, RouteStatus> = {
-  PLANNED: RouteStatus.Planned,
-  IN_PROGRESS: RouteStatus.InProgress,
-  COMPLETED: RouteStatus.Completed,
-  CANCELLED: RouteStatus.Cancelled,
-};
-
-const routeStatusToGraphQL = (status: RouteStatus): string =>
-  (["PLANNED", "IN_PROGRESS", "COMPLETED", "CANCELLED"] as const)[status];
-
-function mapRouteStatus(s: unknown): RouteStatus {
-  if (typeof s === "number" && s >= 0 && s <= 3) return s as RouteStatus;
-  if (typeof s === "string" && s in gqlStatusToRouteStatus) {
-    return gqlStatusToRouteStatus[s];
-  }
-  return RouteStatus.Planned;
-}
-
-function mapRoute(raw: unknown): Route {
-  const r = raw as Record<string, unknown>;
+function mapRoute(raw: NonNullable<GetRouteQuery["route"]>): Route {
   return {
-    id: String(r.id),
-    vehicleId: String(r.vehicleId),
-    vehiclePlate: String(r.vehiclePlate ?? ""),
-    driverId: String(r.driverId ?? ""),
-    driverName: String(r.driverName ?? ""),
-    startDate:
-      typeof r.startDate === "string"
-        ? r.startDate
-        : String(r.startDate ?? ""),
-    endDate: r.endDate == null ? null : String(r.endDate),
-    startMileage: Number(r.startMileage ?? 0),
-    endMileage: Number(r.endMileage ?? 0),
-    totalMileage: Number(r.totalMileage ?? 0),
-    status: mapRouteStatus(r.status),
-    parcelCount: Number(r.parcelCount ?? 0),
-    parcelsDelivered: Number(r.parcelsDelivered ?? 0),
-    createdAt:
-      typeof r.createdAt === "string"
-        ? r.createdAt
-        : String(r.createdAt ?? ""),
-  };
-}
-
-function mapRoutesPage(raw: {
-  items: unknown[];
-  totalCount: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
-}): PaginatedRoutesResult {
-  return {
-    ...raw,
-    items: raw.items.map(mapRoute),
+    id: raw.id,
+    vehicleId: raw.vehicleId,
+    vehiclePlate: raw.vehiclePlate,
+    driverId: raw.driverId,
+    driverName: raw.driverName,
+    startDate: raw.startDate,
+    endDate: raw.endDate ?? null,
+    startMileage: raw.startMileage,
+    endMileage: raw.endMileage,
+    totalMileage: raw.totalMileage,
+    status: raw.status,
+    parcelCount: raw.parcelCount,
+    parcelsDelivered: raw.parcelsDelivered,
+    createdAt: raw.createdAt,
   };
 }
 
@@ -81,7 +47,7 @@ function getMockRoutesPaginated(
   vehicleId?: string,
   page = 1,
   pageSize = 20,
-  status?: RouteStatus
+  status?: string
 ): PaginatedRoutesResult {
   let items = vehicleId
     ? getMockRoutesByVehicle(vehicleId)
@@ -109,7 +75,7 @@ export const routesService = {
     vehicleId?: string,
     page = 1,
     pageSize = 20,
-    status?: RouteStatus
+    status?: string
   ): Promise<PaginatedRoutesResult> => {
     if (USE_MOCK) {
       return Promise.resolve(
@@ -122,19 +88,30 @@ export const routesService = {
       variables.vehicleId = vehicleId;
     }
     if (status !== undefined) {
-      variables.status = routeStatusToGraphQL(status);
+      variables.status = status;
     }
 
-    const data = await graphqlRequest<{
-      routes: {
-        items: unknown[];
-        totalCount: number;
-        page: number;
-        pageSize: number;
-        totalPages: number;
-      };
-    }>(PAGINATED_ROUTES, variables);
-    return mapRoutesPage(data.routes);
+    const data = await graphqlRequest<GetRoutesQuery>(PAGINATED_ROUTES, variables);
+    const p = data.routes;
+    return {
+      ...p,
+      items: p.items.map((item) => ({
+        id: item.id,
+        vehicleId: item.vehicleId,
+        vehiclePlate: item.vehiclePlate,
+        driverId: item.driverId,
+        driverName: item.driverName,
+        startDate: item.startDate,
+        endDate: item.endDate ?? null,
+        startMileage: item.startMileage,
+        endMileage: item.endMileage,
+        totalMileage: item.totalMileage,
+        status: item.status,
+        parcelCount: item.parcelCount,
+        parcelsDelivered: item.parcelsDelivered,
+        createdAt: item.createdAt,
+      })),
+    };
   },
 
   getById: async (id: string): Promise<Route> => {
@@ -144,7 +121,7 @@ export const routesService = {
       return Promise.resolve(route);
     }
 
-    const data = await graphqlRequest<{ route: unknown | null }>(
+    const data = await graphqlRequest<GetRouteQuery>(
       ROUTE_BY_ID,
       { id }
     );
@@ -163,20 +140,30 @@ export const routesService = {
       );
     }
 
-    const data = await graphqlRequest<{
-      vehicleHistory: {
-        items: unknown[];
-        totalCount: number;
-        page: number;
-        pageSize: number;
-        totalPages: number;
-      };
-    }>(VEHICLE_ROUTE_HISTORY, {
-      vehicleId,
-      page,
-      pageSize,
-    });
-    return mapRoutesPage(data.vehicleHistory);
+    const data = await graphqlRequest<GetVehicleHistoryQuery>(
+      VEHICLE_ROUTE_HISTORY,
+      { vehicleId, page, pageSize }
+    );
+    const p = data.vehicleHistory;
+    return {
+      ...p,
+      items: p.items.map((item) => ({
+        id: item.id,
+        vehicleId: item.vehicleId,
+        vehiclePlate: item.vehiclePlate,
+        driverId: item.driverId,
+        driverName: item.driverName,
+        startDate: item.startDate,
+        endDate: item.endDate ?? null,
+        startMileage: item.startMileage,
+        endMileage: item.endMileage,
+        totalMileage: item.totalMileage,
+        status: item.status,
+        parcelCount: item.parcelCount,
+        parcelsDelivered: item.parcelsDelivered,
+        createdAt: item.createdAt,
+      })),
+    };
   },
 
   create: async (data: CreateRouteRequest): Promise<Route> => {
@@ -192,7 +179,7 @@ export const routesService = {
         startMileage: data.startMileage,
         endMileage: 0,
         totalMileage: 0,
-        status: 0,
+        status: "PLANNED",
         parcelCount: data.parcelIds.length,
         parcelsDelivered: 0,
         createdAt: new Date().toISOString(),
@@ -200,7 +187,7 @@ export const routesService = {
       return Promise.resolve(newRoute);
     }
 
-    const res = await graphqlRequest<{ createRoute: unknown }>(
+    const res = await graphqlRequest<CreateRouteMutation>(
       CREATE_ROUTE,
       {
         input: {
