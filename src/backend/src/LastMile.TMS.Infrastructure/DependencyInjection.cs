@@ -40,11 +40,15 @@ public static class DependencyInjection
 
         var accessTokenMinutes = configuration.GetValue("Authentication:AccessTokenLifetimeMinutes", 60);
         var refreshTokenDays = configuration.GetValue("Authentication:RefreshTokenLifetimeDays", 14);
+        var issuer = configuration.GetValue("Authentication:Issuer", "http://localhost");
 
         // Configure OpenIddict server (password + refresh token grant → /connect/token)
         services.AddOpenIddict()
             .AddServer(options =>
             {
+                // Set the issuer to the public URL
+                options.SetIssuer(new Uri(issuer));
+
                 // Enable password and refresh-token grant types
                 options.AllowPasswordFlow()
                        .AllowRefreshTokenFlow();
