@@ -46,6 +46,7 @@ public static class ServiceCollectionExtensions
         services.AddGraphQLServer()
             .AddQueryType<Query>()
             .AddMutationType<Mutation>()
+            .ModifyCostOptions(o => o.MaxFieldCost = 1000000)
             .AddTypeExtension<DepotQuery>()
             .AddTypeExtension<DriverQuery>()
             .AddTypeExtension<ParcelQuery>()

@@ -48,7 +48,7 @@ public sealed class UserReadService(IAppDbContext dbContext) : IUserReadService
                 u.FirstName + " " + u.LastName,
                 u.Email!,
                 u.PhoneNumber,
-                Role: null,
+                null,
                 u.IsActive,
                 u.IsSystemAdmin,
                 u.DepotId,
