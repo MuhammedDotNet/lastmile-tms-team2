@@ -10,7 +10,6 @@ import {
   vehicleKeys,
 } from "../vehicles";
 import type { Vehicle } from "../../types/vehicles";
-import type { VehicleStatus } from "../../types/vehicles";
 import * as vehiclesService from "../../services/vehicles.service";
 
 vi.mock("next-auth/react", () => ({

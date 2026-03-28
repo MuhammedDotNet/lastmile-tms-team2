@@ -20,7 +20,7 @@ import { useRoutes } from "@/queries/routes";
 import { useUsers } from "@/queries/users";
 import { useVehicles } from "@/queries/vehicles";
 import { useZones } from "@/queries/zones";
-import type { RouteStatus } from "@/types/routes";
+
 
 function renderMetricValue(value: number | undefined, isLoading: boolean): string {
   if (isLoading) {

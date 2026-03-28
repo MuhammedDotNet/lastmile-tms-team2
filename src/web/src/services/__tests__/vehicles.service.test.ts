@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { vehiclesService } from "../vehicles.service";
-import type { VehicleStatus } from "../../types/vehicles";
 
 vi.mock("@/lib/network/graphql-client", () => ({
   graphqlRequest: vi.fn(),

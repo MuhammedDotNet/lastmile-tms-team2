@@ -92,7 +92,7 @@ export function UserManagementClient({
   const sendResetMutation = useSendPasswordResetEmail(accessToken);
 
   const queryError = lookupsQuery.error ?? usersQuery.error;
-  const allUsers = usersQuery.data ?? [];
+  const allUsers = useMemo(() => usersQuery.data ?? [], [usersQuery.data]);
   const totalCount = allUsers.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const from = totalCount === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;

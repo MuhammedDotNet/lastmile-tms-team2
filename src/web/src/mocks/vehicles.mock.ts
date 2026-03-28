@@ -1,5 +1,4 @@
-import type { Vehicle } from "@/types/vehicles";
-import type { VehicleStatus, VehicleType } from "@/graphql/generated";
+import type { Vehicle, VehicleStatus } from "@/types/vehicles";
 
 const TEST_DEPOT_ID = "00000000-0000-0000-0000-000000000001";
 const TEST_DEPOT_NAME = "Test Depot";

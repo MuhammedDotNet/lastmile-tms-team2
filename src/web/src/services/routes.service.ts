@@ -13,7 +13,6 @@ import type {
   CreateRouteRequest,
 } from "@/types/routes";
 import {
-  getMockRoutesByVehicle,
   getMockRouteById,
   mockRoutes,
 } from "@/mocks/routes.mock";

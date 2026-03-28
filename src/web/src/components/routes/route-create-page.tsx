@@ -32,7 +32,7 @@ import { useCreateRoute } from "@/queries/routes";
 import { useVehicles } from "@/queries/vehicles";
 import { useParcelsForRouteCreation } from "@/queries/parcels";
 import { useDrivers } from "@/queries/drivers";
-import type { VehicleStatus } from "@/types/vehicles";
+
 
 export default function NewRoutePage() {
   const router = useRouter();

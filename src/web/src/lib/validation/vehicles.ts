@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import type { VehicleStatus, VehicleType } from "@/graphql/generated";
+
 import { guidString } from "@/lib/validation/guid-string";
 
 const vehicleStatusValues = ["AVAILABLE", "IN_USE", "MAINTENANCE", "RETIRED"] as const;
