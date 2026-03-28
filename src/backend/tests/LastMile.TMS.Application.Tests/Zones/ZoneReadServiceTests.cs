@@ -1,5 +1,4 @@
 using FluentAssertions;
-using LastMile.TMS.Application.Zones.DTOs;
 using LastMile.TMS.Application.Zones.Reads;
 using LastMile.TMS.Domain.Entities;
 using LastMile.TMS.Persistence;
@@ -68,7 +67,7 @@ public class ZoneReadServiceTests
     }
 
     [Fact]
-    public async Task GetZones_ReturnsAllZonesWithDepotName()
+    public async Task GetZones_ReturnsAllZonesAsEntities()
     {
         var db = MakeDbContext();
         var (zone, depot) = await SeedZone(db, "Maadi District");
@@ -80,13 +79,12 @@ public class ZoneReadServiceTests
         result[0].Id.Should().Be(zone.Id);
         result[0].Name.Should().Be("Maadi District");
         result[0].DepotId.Should().Be(depot.Id);
-        result[0].DepotName.Should().Be("Test Depot");
         result[0].IsActive.Should().BeTrue();
-        result[0].Boundary.Should().NotBeNullOrEmpty();
+        result[0].Boundary.Should().NotBeNull();
     }
 
     [Fact]
-    public async Task GetZones_Boundary_IsWktString()
+    public async Task GetZones_Boundary_RemainsGeometry()
     {
         var db = MakeDbContext();
         await SeedZone(db, "Maadi");
@@ -94,7 +92,8 @@ public class ZoneReadServiceTests
         var service = new ZoneReadService(db);
         var result = await service.GetZones().ToListAsync();
 
-        result[0].Boundary.Should().StartWith("POLYGON");
+        result[0].Boundary.Should().NotBeNull();
+        result[0].Boundary.AsText().Should().StartWith("POLYGON");
     }
 
     [Fact]

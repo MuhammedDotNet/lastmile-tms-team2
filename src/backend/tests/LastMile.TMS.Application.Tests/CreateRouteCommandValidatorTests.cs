@@ -1,7 +1,6 @@
 using FluentAssertions;
 using LastMile.TMS.Application.Routes.Commands;
 using LastMile.TMS.Application.Routes.DTOs;
-using LastMile.TMS.Application.Routes.Validators;
 
 namespace LastMile.TMS.Application.Tests;
 

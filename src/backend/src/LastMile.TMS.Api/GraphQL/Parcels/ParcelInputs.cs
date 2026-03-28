@@ -2,25 +2,25 @@ using LastMile.TMS.Domain.Enums;
 
 namespace LastMile.TMS.Api.GraphQL.Parcels;
 
-public class RegisterParcelInput
+public sealed class RegisterParcelRecipientAddressInput
 {
-    // Shipper — required
+    public string Street1 { get; set; } = string.Empty;
+    public string? Street2 { get; set; }
+    public string City { get; set; } = string.Empty;
+    public string State { get; set; } = string.Empty;
+    public string PostalCode { get; set; } = string.Empty;
+    public string CountryCode { get; set; } = string.Empty;
+    public bool IsResidential { get; set; } = true;
+    public string? ContactName { get; set; }
+    public string? CompanyName { get; set; }
+    public string? Phone { get; set; }
+    public string? Email { get; set; }
+}
+
+public sealed class RegisterParcelInput
+{
     public Guid ShipperAddressId { get; set; }
-
-    // Recipient address — required, used for zone auto-assignment
-    public string RecipientStreet1 { get; set; } = null!;
-    public string? RecipientStreet2 { get; set; }
-    public string RecipientCity { get; set; } = null!;
-    public string RecipientState { get; set; } = null!;
-    public string RecipientPostalCode { get; set; } = null!;
-    public string RecipientCountryCode { get; set; } = null!;
-    public bool RecipientIsResidential { get; set; } = true;
-    public string? RecipientContactName { get; set; }
-    public string? RecipientCompanyName { get; set; }
-    public string? RecipientPhone { get; set; }
-    public string? RecipientEmail { get; set; }
-
-    // Parcel details
+    public RegisterParcelRecipientAddressInput RecipientAddress { get; set; } = null!;
     public string? Description { get; set; }
     public ServiceType ServiceType { get; set; } = ServiceType.Standard;
     public decimal Weight { get; set; }

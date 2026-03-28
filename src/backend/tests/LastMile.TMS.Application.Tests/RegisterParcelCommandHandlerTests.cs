@@ -1,6 +1,7 @@
 using FluentAssertions;
 using LastMile.TMS.Application.Parcels.Commands;
 using LastMile.TMS.Application.Parcels.Commands.Handlers;
+using LastMile.TMS.Application.Parcels.DTOs;
 using LastMile.TMS.Application.Parcels.Services;
 using LastMile.TMS.Domain.Entities;
 using LastMile.TMS.Domain.Enums;
@@ -28,31 +29,34 @@ public class RegisterParcelCommandHandlerTests
         string city = "Maadi",
         string street = "123 Street 9")
     {
-        return new RegisterParcelCommand(
-            ShipperAddressId: shipperAddressId,
-            RecipientStreet1: street,
-            RecipientStreet2: null,
-            RecipientCity: city,
-            RecipientState: "Cairo",
-            RecipientPostalCode: "11735",
-            RecipientCountryCode: "EG",
-            RecipientIsResidential: true,
-            RecipientContactName: "Ahmed",
-            RecipientCompanyName: null,
-            RecipientPhone: "+201234567890",
-            RecipientEmail: "ahmed@example.com",
-            Description: "Electronics",
-            ServiceType: ServiceType.Standard,
-            Weight: 2.5m,
-            WeightUnit: WeightUnit.Kg,
-            Length: 30m,
-            Width: 20m,
-            Height: 15m,
-            DimensionUnit: DimensionUnit.Cm,
-            DeclaredValue: 150.00m,
-            Currency: "USD",
-            EstimatedDeliveryDate: DateTimeOffset.UtcNow.AddDays(5),
-            ParcelType: "Package");
+        return new RegisterParcelCommand(new RegisterParcelDto
+        {
+            ShipperAddressId = shipperAddressId,
+            RecipientAddress = new RegisterParcelRecipientAddressDto
+            {
+                Street1 = street,
+                City = city,
+                State = "Cairo",
+                PostalCode = "11735",
+                CountryCode = "EG",
+                IsResidential = true,
+                ContactName = "Ahmed",
+                Phone = "+201234567890",
+                Email = "ahmed@example.com"
+            },
+            Description = "Electronics",
+            ServiceType = ServiceType.Standard,
+            Weight = 2.5m,
+            WeightUnit = WeightUnit.Kg,
+            Length = 30m,
+            Width = 20m,
+            Height = 15m,
+            DimensionUnit = DimensionUnit.Cm,
+            DeclaredValue = 150.00m,
+            Currency = "USD",
+            EstimatedDeliveryDate = DateTimeOffset.UtcNow.AddDays(5),
+            ParcelType = "Package"
+        });
     }
 
     private static Point MakePoint(double lon, double lat)

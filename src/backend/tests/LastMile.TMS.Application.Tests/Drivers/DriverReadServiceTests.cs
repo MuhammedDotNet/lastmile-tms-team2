@@ -77,7 +77,7 @@ public class DriverReadServiceTests
     }
 
     [Fact]
-    public async Task GetDrivers_ComputesDisplayName()
+    public async Task GetDrivers_ReturnsEntityNameFields()
     {
         var db = MakeDbContext();
 
@@ -87,7 +87,8 @@ public class DriverReadServiceTests
         var service = new DriverReadService(db);
         var result = await service.GetDrivers().ToListAsync();
 
-        result[0].DisplayName.Should().Be("Ali Ahmed");
+        result[0].FirstName.Should().Be("Ali");
+        result[0].LastName.Should().Be("Ahmed");
     }
 
     [Fact]
@@ -105,7 +106,7 @@ public class DriverReadServiceTests
         var service = new DriverReadService(db);
         var result = await service.GetDrivers().ToListAsync();
 
-        result.Select(d => d.DisplayName).Should().Equal(
+        result.Select(d => $"{d.FirstName} {d.LastName}").Should().Equal(
             "Ali Ahmed", "Omar Ahmed", "Sara Mohamed");
     }
 }

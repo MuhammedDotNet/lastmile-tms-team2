@@ -31,7 +31,7 @@ public class VehicleGraphQLTests(CustomWebApplicationFactory factory)
     {
         using var document = await PostGraphQLAsync(
             """
-            mutation CreateVehicle($input: CreateVehicleDtoInput!) {
+            mutation CreateVehicle($input: CreateVehicleInput!) {
               createVehicle(input: $input) {
                 id
               }
@@ -62,7 +62,7 @@ public class VehicleGraphQLTests(CustomWebApplicationFactory factory)
 
         using var document = await PostGraphQLAsync(
             """
-            mutation CreateVehicle($input: CreateVehicleDtoInput!) {
+            mutation CreateVehicle($input: CreateVehicleInput!) {
               createVehicle(input: $input) {
                 id
                 registrationPlate
@@ -70,7 +70,7 @@ public class VehicleGraphQLTests(CustomWebApplicationFactory factory)
                 depotId
                 depotName
                 createdAt
-                lastModifiedAt
+                updatedAt
               }
             }
             """,
@@ -99,7 +99,7 @@ public class VehicleGraphQLTests(CustomWebApplicationFactory factory)
         vehicle.GetProperty("depotId").GetString().Should().Be(DbSeeder.TestDepotId.ToString());
         vehicle.GetProperty("depotName").GetString().Should().Be("Test Depot");
         vehicle.GetProperty("createdAt").GetString().Should().NotBeNullOrWhiteSpace();
-        vehicle.GetProperty("lastModifiedAt").ValueKind.Should().Be(JsonValueKind.Null);
+        vehicle.GetProperty("updatedAt").ValueKind.Should().Be(JsonValueKind.Null);
     }
 
     [Fact]
@@ -122,7 +122,7 @@ public class VehicleGraphQLTests(CustomWebApplicationFactory factory)
 
         using var firstDocument = await PostGraphQLAsync(
             """
-            mutation CreateVehicle($input: CreateVehicleDtoInput!) {
+            mutation CreateVehicle($input: CreateVehicleInput!) {
               createVehicle(input: $input) {
                 id
               }
@@ -134,7 +134,7 @@ public class VehicleGraphQLTests(CustomWebApplicationFactory factory)
 
         using var duplicateDocument = await PostGraphQLAsync(
             """
-            mutation CreateVehicle($input: CreateVehicleDtoInput!) {
+            mutation CreateVehicle($input: CreateVehicleInput!) {
               createVehicle(input: $input) {
                 id
               }
@@ -154,7 +154,7 @@ public class VehicleGraphQLTests(CustomWebApplicationFactory factory)
 
         using var document = await PostGraphQLAsync(
             """
-            mutation CreateVehicle($input: CreateVehicleDtoInput!) {
+            mutation CreateVehicle($input: CreateVehicleInput!) {
               createVehicle(input: $input) {
                 id
               }
@@ -220,7 +220,7 @@ public class VehicleGraphQLTests(CustomWebApplicationFactory factory)
 
         using var document = await PostGraphQLAsync(
             """
-            mutation UpdateVehicle($id: UUID!, $input: UpdateVehicleDtoInput!) {
+            mutation UpdateVehicle($id: UUID!, $input: UpdateVehicleInput!) {
               updateVehicle(id: $id, input: $input) {
                 id
               }
@@ -254,7 +254,7 @@ public class VehicleGraphQLTests(CustomWebApplicationFactory factory)
 
         using var document = await PostGraphQLAsync(
             """
-            mutation UpdateVehicle($id: UUID!, $input: UpdateVehicleDtoInput!) {
+            mutation UpdateVehicle($id: UUID!, $input: UpdateVehicleInput!) {
               updateVehicle(id: $id, input: $input) {
                 id
               }
@@ -288,7 +288,7 @@ public class VehicleGraphQLTests(CustomWebApplicationFactory factory)
 
         using var document = await PostGraphQLAsync(
             """
-            mutation UpdateVehicle($id: UUID!, $input: UpdateVehicleDtoInput!) {
+            mutation UpdateVehicle($id: UUID!, $input: UpdateVehicleInput!) {
               updateVehicle(id: $id, input: $input) {
                 id
                 registrationPlate
@@ -296,7 +296,7 @@ public class VehicleGraphQLTests(CustomWebApplicationFactory factory)
                 totalRoutes
                 routesCompleted
                 totalMileage
-                lastModifiedAt
+                updatedAt
               }
             }
             """,
@@ -326,7 +326,7 @@ public class VehicleGraphQLTests(CustomWebApplicationFactory factory)
         updatedVehicle.GetProperty("totalRoutes").GetInt32().Should().Be(1);
         updatedVehicle.GetProperty("routesCompleted").GetInt32().Should().Be(1);
         updatedVehicle.GetProperty("totalMileage").GetInt32().Should().Be(120);
-        updatedVehicle.GetProperty("lastModifiedAt").GetString().Should().NotBeNullOrWhiteSpace();
+        updatedVehicle.GetProperty("updatedAt").GetString().Should().NotBeNullOrWhiteSpace();
     }
 
     [Fact]

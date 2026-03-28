@@ -1,10 +1,10 @@
-using LastMile.TMS.Application.Users.Common;
+using LastMile.TMS.Domain.Entities;
 
 namespace LastMile.TMS.Application.Users.Reads;
 
 public interface IUserReadService
 {
-    IQueryable<UserManagementUserDto> GetUsers(
+    IQueryable<ApplicationUser> GetUsers(
         string? search = null,
         bool? isActive = null,
         Guid? depotId = null,

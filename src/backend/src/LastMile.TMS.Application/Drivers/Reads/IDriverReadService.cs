@@ -1,6 +1,8 @@
+using LastMile.TMS.Domain.Entities;
+
 namespace LastMile.TMS.Application.Drivers.Reads;
 
 public interface IDriverReadService
 {
-    IQueryable<DriverReadModel> GetDrivers(Guid? depotId = null);
+    IQueryable<Driver> GetDrivers(Guid? depotId = null);
 }

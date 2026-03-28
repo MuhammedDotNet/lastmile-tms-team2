@@ -1,8 +1,8 @@
-using LastMile.TMS.Application.Routes.DTOs;
+using LastMile.TMS.Domain.Entities;
 
 namespace LastMile.TMS.Application.Routes.Reads;
 
 public interface IRouteReadService
 {
-    IQueryable<RouteDto> GetRoutes();
+    IQueryable<Route> GetRoutes();
 }

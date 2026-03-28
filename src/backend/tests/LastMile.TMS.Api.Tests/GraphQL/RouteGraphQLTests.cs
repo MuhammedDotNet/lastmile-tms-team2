@@ -35,7 +35,7 @@ public class RouteGraphQLTests(CustomWebApplicationFactory factory)
 
         using var document = await PostGraphQLAsync(
             """
-            mutation CreateRoute($input: CreateRouteDtoInput!) {
+            mutation CreateRoute($input: CreateRouteInput!) {
               createRoute(input: $input) {
                 id
                 vehicleId
@@ -100,7 +100,7 @@ public class RouteGraphQLTests(CustomWebApplicationFactory factory)
 
         using var document = await PostGraphQLAsync(
             """
-            mutation CreateRoute($input: CreateRouteDtoInput!) {
+            mutation CreateRoute($input: CreateRouteInput!) {
               createRoute(input: $input) {
                 id
               }
@@ -130,7 +130,7 @@ public class RouteGraphQLTests(CustomWebApplicationFactory factory)
 
         using var document = await PostGraphQLAsync(
             """
-            mutation CreateRoute($input: CreateRouteDtoInput!) {
+            mutation CreateRoute($input: CreateRouteInput!) {
               createRoute(input: $input) {
                 id
               }

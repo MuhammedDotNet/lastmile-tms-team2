@@ -1,5 +1,6 @@
 using FluentAssertions;
 using LastMile.TMS.Application.Users.Commands;
+using LastMile.TMS.Application.Users.DTOs;
 using LastMile.TMS.Domain.Enums;
 
 namespace LastMile.TMS.Application.Tests.Users;
@@ -10,38 +11,37 @@ public class UserManagementCommandValidatorTests
     public void CreateUserCommandValidator_ShouldRejectMissingRequiredFields()
     {
         var validator = new CreateUserCommandValidator();
-        var command = new CreateUserCommand(
-            "",
-            "",
-            "not-an-email",
-            new string('1', 25),
-            PredefinedRole.Dispatcher,
-            null,
-            null);
+        var command = new CreateUserCommand(new CreateUserDto
+        {
+            FirstName = "",
+            LastName = "",
+            Email = "not-an-email",
+            Phone = new string('1', 25),
+            Role = PredefinedRole.Dispatcher
+        });
 
         var result = validator.Validate(command);
 
         result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(x => x.PropertyName == nameof(CreateUserCommand.FirstName));
-        result.Errors.Should().Contain(x => x.PropertyName == nameof(CreateUserCommand.LastName));
-        result.Errors.Should().Contain(x => x.PropertyName == nameof(CreateUserCommand.Email));
-        result.Errors.Should().Contain(x => x.PropertyName == nameof(CreateUserCommand.Phone));
+        result.Errors.Should().Contain(x => x.PropertyName == "Dto.FirstName");
+        result.Errors.Should().Contain(x => x.PropertyName == "Dto.LastName");
+        result.Errors.Should().Contain(x => x.PropertyName == "Dto.Email");
+        result.Errors.Should().Contain(x => x.PropertyName == "Dto.Phone");
     }
 
     [Fact]
     public void UpdateUserCommandValidator_ShouldRequireUserId()
     {
         var validator = new UpdateUserCommandValidator();
-        var command = new UpdateUserCommand(
-            Guid.Empty,
-            "Taylor",
-            "Updater",
-            "taylor@example.com",
-            "+10000000003",
-            PredefinedRole.OperationsManager,
-            null,
-            null,
-            true);
+        var command = new UpdateUserCommand(Guid.Empty, new UpdateUserDto
+        {
+            FirstName = "Taylor",
+            LastName = "Updater",
+            Email = "taylor@example.com",
+            Phone = "+10000000003",
+            Role = PredefinedRole.OperationsManager,
+            IsActive = true
+        });
 
         var result = validator.Validate(command);
 

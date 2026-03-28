@@ -1,5 +1,25 @@
 namespace LastMile.TMS.Application.Depots.DTOs;
 
+public sealed record CreateDepotDto
+{
+    public string Name { get; init; } = string.Empty;
+    public AddressDto Address { get; init; } = null!;
+    public List<OperatingHoursDto>? OperatingHours { get; init; }
+    public bool IsActive { get; init; } = true;
+
+    public CreateDepotDto() { }
+}
+
+public sealed record UpdateDepotDto
+{
+    public string Name { get; init; } = string.Empty;
+    public AddressDto? Address { get; init; }
+    public List<OperatingHoursDto>? OperatingHours { get; init; }
+    public bool IsActive { get; init; }
+
+    public UpdateDepotDto() { }
+}
+
 public sealed record AddressDto
 {
     public string Street1 { get; init; } = string.Empty;

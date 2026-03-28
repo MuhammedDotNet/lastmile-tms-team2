@@ -1,5 +1,4 @@
 using FluentAssertions;
-using LastMile.TMS.Application.Users.Common;
 using LastMile.TMS.Application.Users.Reads;
 using LastMile.TMS.Domain.Entities;
 using LastMile.TMS.Persistence;
@@ -54,7 +53,7 @@ public class UserReadServiceTests
     }
 
     [Fact]
-    public async Task GetUsers_MapsAllScalarFieldsCorrectly()
+    public async Task GetUsers_ReturnsEntityScalarFields()
     {
         var db = MakeDbContext();
         var user = await SeedUser(db, "mapper@test.com", "Jane", "Doe");
@@ -67,11 +66,10 @@ public class UserReadServiceTests
         dto.Id.Should().Be(user.Id);
         dto.FirstName.Should().Be("Jane");
         dto.LastName.Should().Be("Doe");
-        dto.FullName.Should().Be("Jane Doe");
         dto.Email.Should().Be("mapper@test.com");
-        dto.Phone.Should().Be("+10000000000");
+        dto.PhoneNumber.Should().Be("+10000000000");
         dto.IsActive.Should().BeTrue();
-        dto.IsProtected.Should().BeFalse();
+        dto.IsSystemAdmin.Should().BeFalse();
         dto.CreatedAt.Should().BeCloseTo(user.CreatedAt, TimeSpan.FromSeconds(1));
     }
 

@@ -1,9 +1,9 @@
-using LastMile.TMS.Application.Zones.DTOs;
+using LastMile.TMS.Domain.Entities;
 
 namespace LastMile.TMS.Application.Zones.Reads;
 
 public interface IZoneReadService
 {
-    IQueryable<ZoneDto> GetZones();
-    Task<ZoneDto?> GetZoneByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    IQueryable<Zone> GetZones();
+    Task<Zone?> GetZoneByIdAsync(Guid id, CancellationToken cancellationToken = default);
 }

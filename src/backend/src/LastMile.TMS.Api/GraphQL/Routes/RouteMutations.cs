@@ -1,0 +1,18 @@
+using HotChocolate;
+using HotChocolate.Authorization;
+using LastMile.TMS.Application.Routes.Commands;
+using MediatR;
+using RouteEntity = LastMile.TMS.Domain.Entities.Route;
+
+namespace LastMile.TMS.Api.GraphQL.Routes;
+
+[ExtendObjectType(OperationTypeNames.Mutation)]
+public sealed class RouteMutations
+{
+    [Authorize(Roles = new[] { "OperationsManager", "Admin", "Dispatcher" })]
+    public Task<RouteEntity> CreateRoute(
+        CreateRouteInput input,
+        [Service] ISender mediator = null!,
+        CancellationToken cancellationToken = default) =>
+        mediator.Send(new CreateRouteCommand(input.ToDto()), cancellationToken);
+}

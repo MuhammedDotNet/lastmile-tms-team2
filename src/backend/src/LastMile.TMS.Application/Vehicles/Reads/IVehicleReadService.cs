@@ -1,8 +1,8 @@
-using LastMile.TMS.Application.Vehicles.DTOs;
+using LastMile.TMS.Domain.Entities;
 
 namespace LastMile.TMS.Application.Vehicles.Reads;
 
 public interface IVehicleReadService
 {
-    IQueryable<VehicleDto> GetVehicles();
+    IQueryable<Vehicle> GetVehicles();
 }
