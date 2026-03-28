@@ -83,7 +83,8 @@ public sealed class UserManagementUserType : EntityObjectType<ApplicationUser>
                     return ids.ToDictionary(
                         id => id,
                         id => roles.FirstOrDefault(x => x.UserId == id)?.Name);
-                })
+                },
+                "UserManagementRoleByUserId")
             .LoadAsync(userId);
 
     private static Task<string?> LoadDepotNameAsync(IResolverContext ctx, Guid depotId) =>
@@ -100,7 +101,8 @@ public sealed class UserManagementUserType : EntityObjectType<ApplicationUser>
                     return ids.ToDictionary(
                         id => id,
                         id => depots.FirstOrDefault(d => d.Id == id)?.Name);
-                })
+                },
+                "UserManagementDepotNameById")
             .LoadAsync(depotId);
 
     private static Task<string?> LoadZoneNameAsync(IResolverContext ctx, Guid zoneId) =>
@@ -117,7 +119,8 @@ public sealed class UserManagementUserType : EntityObjectType<ApplicationUser>
                     return ids.ToDictionary(
                         id => id,
                         id => zones.FirstOrDefault(z => z.Id == id)?.Name);
-                })
+                },
+                "UserManagementZoneNameById")
             .LoadAsync(zoneId);
 }
 
