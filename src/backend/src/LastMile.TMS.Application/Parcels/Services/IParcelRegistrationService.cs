@@ -7,5 +7,6 @@ public interface IParcelRegistrationService
     Task<ParcelDto> RegisterAsync(
         RegisterParcelDto dto,
         CancellationToken cancellationToken = default,
-        Guid? parcelImportId = null);
+        Guid? parcelImportId = null,
+        string? actorOverride = null);
 }

@@ -17,7 +17,8 @@ public sealed class ParcelRegistrationService(
     public async Task<ParcelDto> RegisterAsync(
         RegisterParcelDto dto,
         CancellationToken cancellationToken = default,
-        Guid? parcelImportId = null)
+        Guid? parcelImportId = null,
+        string? actorOverride = null)
     {
         var shipperExists = await db.Addresses
             .AnyAsync(a => a.Id == dto.ShipperAddressId, cancellationToken);
@@ -50,7 +51,7 @@ public sealed class ParcelRegistrationService(
             throw new InvalidOperationException($"Zone with ID '{zoneId}' was found but could not be loaded.");
         }
 
-        var actor = currentUser.UserName ?? currentUser.UserId;
+        var actor = actorOverride ?? currentUser.UserName ?? currentUser.UserId;
 
         var recipientAddress = dto.RecipientAddress.ToEntity();
         recipientAddress.CountryCode = recipientAddress.CountryCode.ToUpperInvariant();

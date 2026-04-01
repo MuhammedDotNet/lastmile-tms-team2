@@ -67,7 +67,8 @@ public sealed class ParcelImportProcessor(
                             await registrationService.RegisterAsync(
                                 mappedRow.Dto,
                                 cancellationToken,
-                                parcelImport.Id);
+                                parcelImport.Id,
+                                parcelImport.CreatedBy);
 
                             parcelImport.ImportedRows++;
                         }

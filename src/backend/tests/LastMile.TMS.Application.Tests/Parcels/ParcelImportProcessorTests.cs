@@ -165,6 +165,64 @@ public class ParcelImportProcessorTests
         importedParcel.TrackingNumber.Should().StartWith("LM");
     }
 
+    [Fact]
+    public async Task ProcessAsync_WithoutCurrentUser_UsesParcelImportCreatorForAuditFields()
+    {
+        var db = MakeDbContext();
+        var (shipperAddress, zone) = await SeedShipperAndZoneAsync(db);
+
+        var parcelImport = new ParcelImport
+        {
+            FileName = "parcels.csv",
+            FileFormat = ParcelImportFileFormat.Csv,
+            ShipperAddressId = shipperAddress.Id,
+            Status = ParcelImportStatus.Queued,
+            SourceFile = [1, 2, 3],
+            CreatedBy = "ops.manager",
+        };
+        db.ParcelImports.Add(parcelImport);
+        await db.SaveChangesAsync();
+
+        var parser = Substitute.For<IParcelImportFileParser>();
+        parser.ParseAsync(
+                Arg.Any<string>(),
+                Arg.Any<byte[]>(),
+                Arg.Any<CancellationToken>())
+            .Returns(new ParcelImportParsedFile(
+                1,
+                [
+                    new ParcelImportParsedRow(1, CreateRow(
+                        street1: "15 George Street",
+                        weight: "2.5")),
+                ]));
+
+        var geocoding = Substitute.For<IGeocodingService>();
+        geocoding.GeocodeAsync(
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>())
+            .Returns(MakePoint(151.3, -33.8));
+
+        var zoneMatching = Substitute.For<IZoneMatchingService>();
+        zoneMatching.FindZoneIdAsync(Arg.Any<Point>(), Arg.Any<CancellationToken>())
+            .Returns(zone.Id);
+
+        var currentUser = Substitute.For<LastMile.TMS.Application.Common.Interfaces.ICurrentUserService>();
+        currentUser.UserName.Returns((string?)null);
+        currentUser.UserId.Returns((string?)null);
+
+        var registrationService = new ParcelRegistrationService(db, geocoding, zoneMatching, currentUser);
+        var processor = new ParcelImportProcessor(db, parser, registrationService);
+
+        await processor.ProcessAsync(parcelImport.Id, CancellationToken.None);
+
+        var importedParcel = await db.Parcels
+            .Include(x => x.RecipientAddress)
+            .SingleAsync();
+
+        importedParcel.CreatedBy.Should().Be("ops.manager");
+        importedParcel.RecipientAddress.CreatedBy.Should().Be("ops.manager");
+    }
+
     private static Dictionary<string, string?> CreateRow(
         string street1,
         string weight)
