@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ParcelRegistrationForm } from "@/components/parcels/parcel-registration-form";
@@ -89,12 +89,21 @@ describe("ParcelRegistrationForm", () => {
     await user.click(screen.getByRole("button", { name: /select depot/i }));
     await user.click(await screen.findByRole("option", { name: /north depot/i }));
 
-    await user.type(screen.getAllByLabelText(/street address/i)[0], "15 George Street");
-    await user.type(screen.getByLabelText(/^city/i), "Sydney");
-    await user.type(screen.getByLabelText(/state \/ province/i), "NSW");
-    await user.type(screen.getByLabelText(/postal code/i), "2000");
-    await user.clear(screen.getByLabelText(/est\. delivery date/i));
-    await user.type(screen.getByLabelText(/est\. delivery date/i), "2030-01-15");
+    fireEvent.change(screen.getAllByLabelText(/street address/i)[0], {
+      target: { value: "15 George Street" },
+    });
+    fireEvent.change(screen.getByLabelText(/^city/i), {
+      target: { value: "Sydney" },
+    });
+    fireEvent.change(screen.getByLabelText(/state \/ province/i), {
+      target: { value: "NSW" },
+    });
+    fireEvent.change(screen.getByLabelText(/postal code/i), {
+      target: { value: "2000" },
+    });
+    fireEvent.change(screen.getByLabelText(/est\. delivery date/i), {
+      target: { value: "2030-01-15" },
+    });
 
     await user.click(screen.getByRole("button", { name: /register parcel/i }));
 

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UserManagementClient } from "@/components/users";
@@ -108,12 +108,24 @@ describe("UserManagementClient", () => {
     await user.click(screen.getByRole("button", { name: /new user/i }));
     const modal = await screen.findByTestId("user-form-modal");
 
-    await user.type(screen.getByLabelText(/first name/i), "  Casey");
-    await user.type(screen.getByLabelText(/last name/i), " Creator  ");
-    await user.type(screen.getByLabelText(/^email$/i), "casey@example.com");
-    await user.selectOptions(within(modal).getByLabelText(/^role$/i), "Dispatcher");
-    await user.selectOptions(within(modal).getByLabelText(/^depot$/i), "depot-1");
-    await user.selectOptions(within(modal).getByLabelText(/^zone$/i), "zone-1");
+    fireEvent.change(within(modal).getByLabelText(/first name/i), {
+      target: { value: "  Casey" },
+    });
+    fireEvent.change(within(modal).getByLabelText(/last name/i), {
+      target: { value: " Creator  " },
+    });
+    fireEvent.change(within(modal).getByLabelText(/^email$/i), {
+      target: { value: "casey@example.com" },
+    });
+    fireEvent.change(within(modal).getByLabelText(/^role$/i), {
+      target: { value: "Dispatcher" },
+    });
+    fireEvent.change(within(modal).getByLabelText(/^depot$/i), {
+      target: { value: "depot-1" },
+    });
+    fireEvent.change(within(modal).getByLabelText(/^zone$/i), {
+      target: { value: "zone-1" },
+    });
 
     await user.click(screen.getByRole("button", { name: /create user/i }));
 
