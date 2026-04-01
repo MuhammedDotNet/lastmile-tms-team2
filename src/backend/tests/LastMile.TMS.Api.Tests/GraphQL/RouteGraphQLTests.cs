@@ -75,7 +75,7 @@ public class RouteGraphQLTests(CustomWebApplicationFactory factory)
         route.GetProperty("parcelCount").GetInt32().Should().Be(1);
         route.GetProperty("parcelsDelivered").GetInt32().Should().Be(0);
 
-        await using var scope = factory.Services.CreateAsyncScope();
+        await using var scope = Factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
         var vehicle = await dbContext.Vehicles.FindAsync(DbSeeder.TestVehicleId);
@@ -220,13 +220,13 @@ public class RouteGraphQLTests(CustomWebApplicationFactory factory)
         routes.Should().OnlyContain(r => r.GetProperty("vehicleId").GetString() == vehicleAId.ToString());
     }
 
-    public Task InitializeAsync() => factory.ResetDatabaseAsync();
+    public Task InitializeAsync() => Factory.ResetDatabaseAsync();
 
     public Task DisposeAsync() => Task.CompletedTask;
 
     private async Task<Guid> SeedVehicleAsync(string plate)
     {
-        await using var scope = factory.Services.CreateAsyncScope();
+        await using var scope = Factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
         var vehicle = new Vehicle
@@ -248,7 +248,7 @@ public class RouteGraphQLTests(CustomWebApplicationFactory factory)
 
     private async Task<Guid> SeedRouteAsync(Guid vehicleId, RouteStatus status, int startMileage, int endMileage = 0)
     {
-        await using var scope = factory.Services.CreateAsyncScope();
+        await using var scope = Factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
         var route = new Route
@@ -271,7 +271,7 @@ public class RouteGraphQLTests(CustomWebApplicationFactory factory)
 
     private async Task SetVehicleStatusAsync(Guid vehicleId, VehicleStatus status)
     {
-        await using var scope = factory.Services.CreateAsyncScope();
+        await using var scope = Factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
         var vehicle = await dbContext.Vehicles.FindAsync(vehicleId);

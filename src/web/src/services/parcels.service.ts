@@ -1,11 +1,15 @@
 import {
+  PARCEL,
   PARCELS_FOR_ROUTE,
   REGISTER_PARCEL,
   REGISTERED_PARCELS,
 } from "@/graphql/parcels";
 import { graphqlRequest } from "@/lib/network/graphql-client";
-import type { GetRegisteredParcelsQuery } from "@/graphql/parcels";
+import { downloadAuthenticatedFile, saveBlobAsFile } from "@/lib/network/download";
+import type { GetParcelQuery, GetRegisteredParcelsQuery } from "@/graphql/parcels";
 import type {
+  LabelDownloadFormat,
+  ParcelDetail,
   ParcelOption,
   RegisterParcelFormData,
   RegisteredParcelResult,
@@ -33,13 +37,34 @@ export const parcelsService = {
 
   getRegisteredParcels: async (): Promise<GetRegisteredParcelsQuery["registeredParcels"]> => {
     if (USE_MOCK) {
-      return [];
+      return mockParcels;
     }
 
     const data = await graphqlRequest<{
       registeredParcels: GetRegisteredParcelsQuery["registeredParcels"];
     }>(REGISTERED_PARCELS);
     return data.registeredParcels;
+  },
+
+  getById: async (id: string): Promise<ParcelDetail> => {
+    if (USE_MOCK) {
+      const parcel = mockParcels.find((candidate) => candidate.id === id)?.detail;
+      if (!parcel) {
+        throw new Error("Parcel not found.");
+      }
+
+      return parcel;
+    }
+
+    const data = await graphqlRequest<{
+      parcel: GetParcelQuery["parcel"];
+    }>(PARCEL, { id });
+
+    if (!data.parcel) {
+      throw new Error("Parcel not found.");
+    }
+
+    return data.parcel as ParcelDetail;
   },
 
   register: async (form: RegisterParcelFormData): Promise<RegisteredParcelResult> => {
@@ -102,5 +127,82 @@ export const parcelsService = {
       },
     });
     return data.registerParcel;
+  },
+
+  downloadLabel: async (id: string, format: LabelDownloadFormat): Promise<string> => {
+    if (USE_MOCK) {
+      const parcel = mockParcels.find((candidate) => candidate.id === id);
+      if (!parcel) {
+        throw new Error("Parcel not found.");
+      }
+
+      const mockBody =
+        format === "zpl"
+          ? `^XA^FO40,40^A0N,40,40^FD${parcel.trackingNumber}^FS^XZ`
+          : `Mock A4 label for ${parcel.trackingNumber}`;
+
+      const blob = new Blob([mockBody], {
+        type: format === "zpl" ? "text/plain;charset=utf-8" : "application/pdf",
+      });
+
+      const fileName =
+        format === "zpl"
+          ? `parcel-${parcel.trackingNumber}.zpl`
+          : `parcel-${parcel.trackingNumber}-a4.pdf`;
+
+      saveBlobAsFile(blob, fileName);
+      return fileName;
+    }
+
+    return downloadAuthenticatedFile(
+      format === "zpl"
+        ? `/api/parcels/${id}/labels/4x6.zpl`
+        : `/api/parcels/${id}/labels/a4.pdf`,
+    );
+  },
+
+  downloadBulkLabels: async (
+    parcelIds: string[],
+    format: LabelDownloadFormat,
+  ): Promise<string> => {
+    if (parcelIds.length === 0) {
+      throw new Error("Select at least one parcel.");
+    }
+
+    if (USE_MOCK) {
+      const fileName =
+        format === "zpl" ? "parcel-labels-4x6.zpl" : "parcel-labels-a4.pdf";
+      const blob = new Blob(
+        [
+          format === "zpl"
+            ? parcelIds
+                .map((parcelId) => {
+                  const parcel = mockParcels.find((candidate) => candidate.id === parcelId);
+                  return `^XA^FO40,40^A0N,40,40^FD${parcel?.trackingNumber ?? parcelId}^FS^XZ`;
+                })
+                .join("\n")
+            : `Mock A4 labels for ${parcelIds.length} parcels`,
+        ],
+        {
+          type: format === "zpl" ? "text/plain;charset=utf-8" : "application/pdf",
+        },
+      );
+
+      saveBlobAsFile(blob, fileName);
+      return fileName;
+    }
+
+    return downloadAuthenticatedFile(
+      format === "zpl"
+        ? "/api/parcels/labels/4x6.zpl"
+        : "/api/parcels/labels/a4.pdf",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ parcelIds }),
+      },
+    );
   },
 };

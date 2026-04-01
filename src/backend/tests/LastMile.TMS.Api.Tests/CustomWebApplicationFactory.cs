@@ -1,4 +1,5 @@
 using LastMile.TMS.Application.Common.Interfaces;
+using LastMile.TMS.Application.Parcels.Services;
 using LastMile.TMS.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -70,6 +71,8 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
             // external HTTP calls or network dependency.
             services.RemoveAll<LastMile.TMS.Application.Parcels.Services.IGeocodingService>();
             services.AddScoped<LastMile.TMS.Application.Parcels.Services.IGeocodingService, TestGeocodingService>();
+            services.RemoveAll<IZplLabelRasterizer>();
+            services.AddSingleton<IZplLabelRasterizer, TestZplLabelRasterizer>();
 
             services.RemoveAll<AppDbContext>();
             services.RemoveAll<DbContextOptions<AppDbContext>>();

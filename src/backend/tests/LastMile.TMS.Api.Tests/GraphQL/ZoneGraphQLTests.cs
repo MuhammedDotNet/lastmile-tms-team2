@@ -47,7 +47,7 @@ public class ZoneGraphQLTests(CustomWebApplicationFactory factory)
         zones.Should().NotBeEmpty();
     }
 
-    public Task InitializeAsync() => factory.ResetDatabaseAsync();
+    public Task InitializeAsync() => Factory.ResetDatabaseAsync();
 
     public Task DisposeAsync() => Task.CompletedTask;
 }

@@ -165,7 +165,7 @@ public class DepotGraphQLTests(CustomWebApplicationFactory factory)
         sql.Should().NotContain("\"IsClosed\"");
     }
 
-    public Task InitializeAsync() => factory.ResetDatabaseAsync();
+    public Task InitializeAsync() => Factory.ResetDatabaseAsync();
 
     public Task DisposeAsync() => Task.CompletedTask;
 
@@ -177,7 +177,7 @@ public class DepotGraphQLTests(CustomWebApplicationFactory factory)
 
     private async Task<Guid> SeedDepotAsync()
     {
-        await using var scope = factory.Services.CreateAsyncScope();
+        await using var scope = Factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
         var depot = new Depot

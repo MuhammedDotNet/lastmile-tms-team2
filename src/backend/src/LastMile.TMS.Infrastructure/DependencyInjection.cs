@@ -6,6 +6,7 @@ using LastMile.TMS.Infrastructure.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using OpenIddict.Abstractions;
+using QuestPDF.Infrastructure;
 
 namespace LastMile.TMS.Infrastructure;
 
@@ -14,14 +15,29 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         var disableExternalInfrastructure = configuration.GetValue("Testing:DisableExternalInfrastructure", false);
+        var isInMemoryDatabase = string.Equals(
+            configuration.GetConnectionString("DefaultConnection"),
+            "InMemory",
+            StringComparison.OrdinalIgnoreCase);
+
+        QuestPDF.Settings.License = LicenseType.Community;
 
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<FrontendBaseUrlResolver>();
         services.AddScoped<IZoneBoundaryParser, ZoneBoundaryParser>();
+        services.AddSingleton<IZplLabelRasterizer, ZplLabelRasterizer>();
+        services.AddScoped<IParcelLabelGenerator, ParcelLabelGenerator>();
 
         // Parcel registration — geocoding and zone matching
-        services.AddHttpClient<IGeocodingService, NominatimGeocodingService>();
+        if (isInMemoryDatabase)
+        {
+            services.AddScoped<IGeocodingService, DeterministicGeocodingService>();
+        }
+        else
+        {
+            services.AddHttpClient<IGeocodingService, NominatimGeocodingService>();
+        }
         services.AddScoped<IZoneMatchingService, ZoneMatchingService>();
 
         if (disableExternalInfrastructure)
