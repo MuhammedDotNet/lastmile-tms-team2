@@ -19,6 +19,7 @@ public static class DependencyInjection
             configuration.GetConnectionString("DefaultConnection"),
             "InMemory",
             StringComparison.OrdinalIgnoreCase);
+        var enableTestSupport = configuration.GetValue("Testing:EnableTestSupport", false);
 
         QuestPDF.Settings.License = LicenseType.Community;
 
@@ -28,9 +29,16 @@ public static class DependencyInjection
         services.AddScoped<IZoneBoundaryParser, ZoneBoundaryParser>();
         services.AddSingleton<IZplLabelRasterizer, ZplLabelRasterizer>();
         services.AddScoped<IParcelLabelGenerator, ParcelLabelGenerator>();
+        services.AddScoped<IParcelImportFileParser, ParcelImportFileParser>();
+        services.AddScoped<IParcelImportTemplateGenerator, ParcelImportTemplateGenerator>();
+        services.AddScoped<ParcelImportBackgroundJob>();
 
-        // Parcel registration — geocoding and zone matching
-        if (isInMemoryDatabase)
+        // Parcel registration geocoding and zone matching
+        if (enableTestSupport)
+        {
+            services.AddScoped<IGeocodingService, TestSupportGeocodingService>();
+        }
+        else if (isInMemoryDatabase)
         {
             services.AddScoped<IGeocodingService, DeterministicGeocodingService>();
         }
@@ -38,15 +46,18 @@ public static class DependencyInjection
         {
             services.AddHttpClient<IGeocodingService, NominatimGeocodingService>();
         }
+
         services.AddScoped<IZoneMatchingService, ZoneMatchingService>();
 
         if (disableExternalInfrastructure)
         {
             services.AddScoped<IUserAccountEmailJobScheduler, NoOpUserAccountEmailJobScheduler>();
+            services.AddScoped<IParcelImportJobScheduler, ImmediateParcelImportJobScheduler>();
         }
         else
         {
             services.AddScoped<IUserAccountEmailJobScheduler, HangfireUserAccountEmailJobScheduler>();
+            services.AddScoped<IParcelImportJobScheduler, HangfireParcelImportJobScheduler>();
         }
 
         services.AddScoped<IUserAccountEmailService, UserAccountEmailService>();
@@ -59,7 +70,7 @@ public static class DependencyInjection
         var refreshTokenDays = configuration.GetValue("Authentication:RefreshTokenLifetimeDays", 14);
         var issuer = configuration.GetValue("Authentication:Issuer", "http://localhost");
 
-        // Configure OpenIddict server (password + refresh token grant → /connect/token)
+        // Configure OpenIddict server (password + refresh token grant -> /connect/token)
         services.AddOpenIddict()
             .AddServer(options =>
             {
@@ -91,7 +102,7 @@ public static class DependencyInjection
                 // Development certificates (persisted on disk, reused between restarts)
                 options.AddDevelopmentEncryptionCertificate()
                        .AddDevelopmentSigningCertificate()
-                       .DisableAccessTokenEncryption(); // plain JWT (not encrypted JWE)
+                       .DisableAccessTokenEncryption();
             })
             .AddValidation(options =>
             {

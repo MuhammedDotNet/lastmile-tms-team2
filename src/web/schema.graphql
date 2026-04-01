@@ -112,6 +112,45 @@ type ParcelDetailAddress {
   email: String
 }
 
+type ParcelImport {
+  id: UUID!
+  fileName: String!
+  fileFormat: String!
+  status: String!
+  totalRows: Int!
+  processedRows: Int!
+  importedRows: Int!
+  rejectedRows: Int!
+  depotName: String
+  failureMessage: String
+  createdAt: DateTime!
+  startedAt: DateTime
+  completedAt: DateTime
+  createdTrackingNumbers: [String!]!
+  rowFailuresPreview: [ParcelImportRowFailurePreview!]!
+}
+
+type ParcelImportHistory {
+  id: UUID!
+  fileName: String!
+  fileFormat: String!
+  status: String!
+  totalRows: Int!
+  processedRows: Int!
+  importedRows: Int!
+  rejectedRows: Int!
+  depotName: String
+  createdAt: DateTime!
+  startedAt: DateTime
+  completedAt: DateTime
+}
+
+type ParcelImportRowFailurePreview {
+  rowNumber: Int!
+  errorMessage: String!
+  originalRowValues: String!
+}
+
 type ParcelRouteOption {
   id: UUID!
   trackingNumber: String!
@@ -126,6 +165,8 @@ type Query @authorize(roles: [ "Admin" ]) {
   parcel(id: UUID!): ParcelDetail @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
   parcelsForRouteCreation: [ParcelRouteOption!]! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
   registeredParcels(where: ParcelFilterInput @cost(weight: "10") order: [ParcelSortInput!] @cost(weight: "10")): [RegisteredParcel!]! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
+  parcelImports: [ParcelImportHistory!]! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
+  parcelImport(id: UUID!): ParcelImport @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
   routes(where: RouteFilterInput @cost(weight: "10") order: [RouteSortInput!] @cost(weight: "10")): [Route!]! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
   users(search: String isActive: Boolean depotId: UUID zoneId: UUID where: UserManagementUserFilterInput @cost(weight: "10") order: [UserManagementUserSortInput!] @cost(weight: "10")): [UserManagementUser!]! @cost(weight: "10")
   user(id: UUID!): UserManagementUser @cost(weight: "10")

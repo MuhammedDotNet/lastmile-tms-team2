@@ -166,7 +166,9 @@ export function ParcelRegistrationForm({
         ? `${form.estimatedDeliveryDate}T00:00:00+00:00`
         : form.estimatedDeliveryDate;
 
-      const selectedDepot = depots.find(d => d.id === form.shipperAddressId);
+      const selectedDepot = depots.find(
+        (depot) => depot.addressId === form.shipperAddressId,
+      );
 
       const parcel = await registerParcel.mutateAsync({
         ...form,
@@ -284,7 +286,7 @@ export function ParcelRegistrationForm({
           <CardContent className="grid gap-4 md:grid-cols-2">
             <div className="md:col-span-2">
               <Label htmlFor="shipperAddressId" className="mb-1.5 block">
-                Depot
+                Select Depot
               </Label>
               {depotsLoading ? (
                 <Input disabled placeholder="Loading depots..." />
@@ -303,21 +305,25 @@ export function ParcelRegistrationForm({
                   {errors.shipperAddressId}
                 </p>
               )}
-              {form.shipperAddressId && (() => {
-                const selected = depots.find(
-                  (depot) => depot.addressId === form.shipperAddressId,
-                );
-                if (!selected?.address) return null;
-                const a = selected.address;
-                return (
-                  <p className="mt-2 rounded-xl border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-                    {a.street1}
-                    {a.street2 ? `, ${a.street2}` : ""}<br />
-                    {a.city}{a.state ? `, ${a.state}` : ""} {a.postalCode}<br />
-                    {a.countryCode}
-                  </p>
-                );
-              })()}
+              {form.shipperAddressId &&
+                (() => {
+                  const selected = depots.find(
+                    (depot) => depot.addressId === form.shipperAddressId,
+                  );
+                  if (!selected?.address) return null;
+                  const address = selected.address;
+                  return (
+                    <p className="mt-2 rounded-xl border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+                      {address.street1}
+                      {address.street2 ? `, ${address.street2}` : ""}
+                      <br />
+                      {address.city}
+                      {address.state ? `, ${address.state}` : ""} {address.postalCode}
+                      <br />
+                      {address.countryCode}
+                    </p>
+                  );
+                })()}
             </div>
           </CardContent>
         </Card>

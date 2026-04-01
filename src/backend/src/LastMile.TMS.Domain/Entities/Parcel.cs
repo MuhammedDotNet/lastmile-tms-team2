@@ -24,6 +24,7 @@ public class Parcel : BaseAuditableEntity
     public int DeliveryAttempts { get; set; }
     public string? ParcelType { get; set; }
     public Guid ZoneId { get; set; }
+    public Guid? ParcelImportId { get; set; }
 
     // Navigation properties
     public Address ShipperAddress { get; set; } = null!;
@@ -33,6 +34,7 @@ public class Parcel : BaseAuditableEntity
     public ICollection<TrackingEvent> TrackingEvents { get; set; } = new List<TrackingEvent>();
     public ICollection<ParcelWatcher> Watchers { get; set; } = new List<ParcelWatcher>();
     public Zone Zone { get; set; } = null!;
+    public ParcelImport? ParcelImport { get; set; }
 
     public static string GenerateTrackingNumber()
     {

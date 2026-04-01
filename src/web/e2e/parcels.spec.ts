@@ -1,3 +1,5 @@
+import fs from "node:fs/promises";
+
 import { expect, test, type APIRequestContext, type Page, type Response } from "@playwright/test";
 
 const backendUrl = "http://127.0.0.1:5100";
@@ -15,6 +17,10 @@ interface RegisteredParcelFixture {
   zoneName: string;
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function getFutureDate(daysAhead = 7): string {
   const date = new Date();
   date.setDate(date.getDate() + daysAhead);
@@ -22,17 +28,31 @@ function getFutureDate(daysAhead = 7): string {
 }
 
 async function resetAndSeedFixture(request: APIRequestContext): Promise<ParcelFixture> {
-  const response = await request.post(
-    `${backendUrl}/api/test-support/user-management/reset-and-seed`,
-    {
-      headers: {
-        "X-Test-Support-Key": supportKey,
-      },
-    },
-  );
+  let lastStatus = 0;
+  let lastBody = "";
 
-  expect(response.ok()).toBeTruthy();
-  return (await response.json()) as ParcelFixture;
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const response = await request.post(
+      `${backendUrl}/api/test-support/user-management/reset-and-seed`,
+      {
+        headers: {
+          "X-Test-Support-Key": supportKey,
+        },
+      },
+    );
+
+    if (response.ok()) {
+      return (await response.json()) as ParcelFixture;
+    }
+
+    lastStatus = response.status();
+    lastBody = await response.text();
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+
+  throw new Error(
+    `Could not reset the E2E fixture. Status: ${lastStatus}. Body: ${lastBody}`,
+  );
 }
 
 async function loginAsAdmin(page: Page, fixture: ParcelFixture) {
@@ -43,8 +63,8 @@ async function loginAsAdmin(page: Page, fixture: ParcelFixture) {
   await expect(page).toHaveURL(/\/dashboard$/, { timeout: 15_000 });
 }
 
-async function selectDepot(page: Page, depotName: string) {
-  await page.locator("#shipperAddressId").click();
+async function selectDepot(page: Page, selector: string, depotName: string) {
+  await page.locator(selector).click();
   const option = page.getByRole("option", { name: depotName, exact: true });
   await option.scrollIntoViewIfNeeded();
   await option.click();
@@ -57,7 +77,7 @@ async function registerParcel(
 ): Promise<RegisteredParcelFixture> {
   await expect(page.getByRole("heading", { name: /register parcel/i })).toBeVisible();
 
-  await selectDepot(page, fixture.depotName);
+  await selectDepot(page, "#shipperAddressId", fixture.depotName);
   await page.getByLabel(/street address/i).first().fill(`${suffix} Market Street`);
   await page.getByLabel(/^city/i).fill("Sydney");
   await page.getByLabel(/state \/ province/i).fill("NSW");
@@ -135,7 +155,7 @@ async function expectFileHeaders(
   await expect(contentDisposition).toMatch(fileNamePattern);
 }
 
-test.describe("Parcel label flow", () => {
+test.describe("Parcel flows", () => {
   test.describe.configure({ mode: "serial" });
 
   test("can register a parcel and reprint labels from success and detail views", async ({
@@ -244,5 +264,54 @@ test.describe("Parcel label flow", () => {
         fileNamePattern: /parcel-labels-a4\.pdf/,
       },
     );
+  });
+
+  test("can import a mixed CSV file and download the error report", async ({
+    page,
+    request,
+  }, testInfo) => {
+    const fixture = await resetAndSeedFixture(request);
+
+    await loginAsAdmin(page, fixture);
+    await page.goto("/parcels");
+
+    await expect(
+      page.getByRole("heading", { name: /warehouse intake queue/i }),
+    ).toBeVisible();
+    await expect(page.getByText(/bulk parcel import/i)).toBeVisible();
+
+    const templateDownloadPromise = page.waitForEvent("download");
+    await page.getByRole("button", { name: /csv template/i }).click();
+    const templateDownload = await templateDownloadPromise;
+    expect(templateDownload.suggestedFilename()).toBe("parcel-import-template.csv");
+
+    const csvPath = testInfo.outputPath("parcel-import.csv");
+    await fs.writeFile(
+      csvPath,
+      [
+        "recipient_street1,recipient_street2,recipient_city,recipient_state,recipient_postal_code,recipient_country_code,recipient_is_residential,recipient_contact_name,recipient_company_name,recipient_phone,recipient_email,description,parcel_type,service_type,weight,weight_unit,length,width,height,dimension_unit,declared_value,currency,estimated_delivery_date",
+        "15 George Street,,Sydney,NSW,2000,AU,true,Taylor Smith,Acme,+61000000000,taylor@example.com,Box,Package,STANDARD,2.5,KG,20,10,5,CM,100,AUD,2030-01-15",
+        "17 Pitt Street,,Sydney,NSW,2000,AU,true,Jordan Lee,Acme,+61000000001,jordan@example.com,Box,Package,STANDARD,abc,KG,20,10,5,CM,100,AUD,2030-01-15",
+      ].join("\n"),
+      "utf8",
+    );
+
+    await selectDepot(page, "#parcel-import-depot", fixture.depotName);
+    await page.getByLabel(/parcel import file/i).setInputFiles(csvPath);
+    await page.getByRole("button", { name: /start import/i }).click();
+
+    await expect(page.getByText("100% complete")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/completed with errors/i).first()).toBeVisible();
+    await expect(page.getByText("weight must be a valid number.")).toBeVisible();
+    await expect(page.getByText(/^LM\d{8}/).first()).toBeVisible();
+    await expect(page.getByText("parcel-import.csv").first()).toBeVisible();
+    await expect(
+      page.getByText(new RegExp(`^${escapeRegExp(fixture.depotName)}$`)).first(),
+    ).toBeVisible();
+
+    const errorsDownloadPromise = page.waitForEvent("download");
+    await page.getByRole("button", { name: /download error report/i }).click();
+    const errorsDownload = await errorsDownloadPromise;
+    await expect(errorsDownload.suggestedFilename()).toContain("-errors.csv");
   });
 });

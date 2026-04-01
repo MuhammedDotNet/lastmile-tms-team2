@@ -19,6 +19,8 @@ public interface IAppDbContext
     DbSet<OperatingHours> DepotOperatingHours { get; }
     DbSet<DriverAvailability> DriverAvailabilities { get; }
     DbSet<Parcel> Parcels { get; }
+    DbSet<ParcelImport> ParcelImports { get; }
+    DbSet<ParcelImportRowFailure> ParcelImportRowFailures { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

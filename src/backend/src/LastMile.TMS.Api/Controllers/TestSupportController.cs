@@ -85,11 +85,11 @@ public sealed class TestSupportController(
             Name = zoneName,
             Depot = depot,
             Boundary = geometryFactory.CreatePolygon([
-                new Coordinate(0, 0),
-                new Coordinate(0, 1),
-                new Coordinate(1, 1),
-                new Coordinate(1, 0),
-                new Coordinate(0, 0)
+                new Coordinate(151.0, -34.0),
+                new Coordinate(151.0, -33.0),
+                new Coordinate(152.0, -33.0),
+                new Coordinate(152.0, -34.0),
+                new Coordinate(151.0, -34.0)
             ]),
             CreatedAt = DateTimeOffset.UtcNow,
             CreatedBy = "test-support"

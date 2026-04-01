@@ -1,31 +1,74 @@
+import { getSession } from "next-auth/react";
+
 import {
+  GET_PARCEL_IMPORT,
+  GET_PARCEL_IMPORTS,
   PARCEL,
   PARCELS_FOR_ROUTE,
   REGISTER_PARCEL,
   REGISTERED_PARCELS,
 } from "@/graphql/parcels";
+import type {
+  GetParcelImportQuery,
+  GetParcelImportsQuery,
+  GetParcelQuery,
+  GetRegisteredParcelsQuery,
+} from "@/graphql/parcels";
+import { apiBaseUrl, parseApiErrorMessage } from "@/lib/network/api";
 import { graphqlRequest } from "@/lib/network/graphql-client";
 import { downloadAuthenticatedFile, saveBlobAsFile } from "@/lib/network/download";
-import type { GetParcelQuery, GetRegisteredParcelsQuery } from "@/graphql/parcels";
+import { mockParcels } from "@/mocks/parcels.mock";
 import type {
   LabelDownloadFormat,
   ParcelDetail,
+  ParcelImportDetail,
+  ParcelImportHistoryEntry,
+  ParcelImportTemplateFormat,
   ParcelOption,
   RegisterParcelFormData,
   RegisteredParcelResult,
+  UploadParcelImportRequest,
+  UploadParcelImportResult,
 } from "@/types/parcels";
-import { mockParcels } from "@/mocks/parcels.mock";
 
 const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK_DATA === "true";
+
+function buildApiUrl(path: string): string {
+  return `${apiBaseUrl().replace(/\/$/, "")}${path}`;
+}
+
+async function authenticatedRequest(
+  path: string,
+  init: RequestInit = {},
+): Promise<Response> {
+  const session = await getSession();
+  const headers = new Headers(init.headers);
+
+  if (session?.accessToken) {
+    headers.set("Authorization", `Bearer ${session.accessToken}`);
+  }
+
+  const response = await fetch(buildApiUrl(path), {
+    ...init,
+    headers,
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseApiErrorMessage(response));
+  }
+
+  return response;
+}
 
 export const parcelsService = {
   getForRouteCreation: async (): Promise<ParcelOption[]> => {
     if (USE_MOCK) {
-      return mockParcels.map((p) => ({
-        id: p.id,
-        trackingNumber: p.trackingNumber,
-        weight: p.weight,
-        weightUnit: (p.weightUnit as string) === "Lb" ? 0 : 1,
+      return mockParcels.map((parcel) => ({
+        id: parcel.id,
+        trackingNumber: parcel.trackingNumber,
+        weight: parcel.weight,
+        weightUnit: (parcel.weightUnit as string) === "Lb" ? 0 : 1,
       }));
     }
 
@@ -89,7 +132,7 @@ export const parcelsService = {
         createdAt: new Date().toISOString(),
         zoneId: "00000000-0000-0000-0000-000000000099",
         zoneName: "Mock Zone",
-        depotId: form.shipperAddressId,
+        depotId: "00000000-0000-0000-0000-000000000099",
         depotName: "Mock Depot",
       };
     }
@@ -204,5 +247,66 @@ export const parcelsService = {
         body: JSON.stringify({ parcelIds }),
       },
     );
+  },
+
+  getParcelImports: async (): Promise<ParcelImportHistoryEntry[]> => {
+    if (USE_MOCK) {
+      return [];
+    }
+
+    const data = await graphqlRequest<{
+      parcelImports: GetParcelImportsQuery["parcelImports"];
+    }>(GET_PARCEL_IMPORTS);
+
+    return data.parcelImports as ParcelImportHistoryEntry[];
+  },
+
+  getParcelImport: async (id: string): Promise<ParcelImportDetail | null> => {
+    if (USE_MOCK) {
+      return null;
+    }
+
+    const data = await graphqlRequest<{
+      parcelImport: GetParcelImportQuery["parcelImport"];
+    }>(GET_PARCEL_IMPORT, { id });
+
+    return (data.parcelImport as ParcelImportDetail | null) ?? null;
+  },
+
+  uploadParcelImport: async (
+    request: UploadParcelImportRequest,
+  ): Promise<UploadParcelImportResult> => {
+    if (USE_MOCK) {
+      return { importId: "mock-import-1" };
+    }
+
+    const formData = new FormData();
+    formData.append("shipperAddressId", request.shipperAddressId);
+    formData.append("file", request.file);
+
+    const response = await authenticatedRequest("/api/parcel-imports", {
+      method: "POST",
+      body: formData,
+    });
+
+    return (await response.json()) as UploadParcelImportResult;
+  },
+
+  downloadParcelImportTemplate: async (
+    format: ParcelImportTemplateFormat,
+  ): Promise<void> => {
+    if (USE_MOCK) {
+      return;
+    }
+
+    await downloadAuthenticatedFile(`/api/parcel-imports/template.${format}`);
+  },
+
+  downloadParcelImportErrors: async (id: string): Promise<void> => {
+    if (USE_MOCK) {
+      return;
+    }
+
+    await downloadAuthenticatedFile(`/api/parcel-imports/${id}/errors.csv`);
   },
 };

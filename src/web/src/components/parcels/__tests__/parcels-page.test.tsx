@@ -52,6 +52,14 @@ vi.mock("@/services/parcels.service", () => ({
   },
 }));
 
+vi.mock("@/components/parcels/parcel-import-panel", () => ({
+  ParcelImportPanel: () => <div data-testid="parcel-import-panel" />,
+}));
+
+vi.mock("@/components/parcels/parcel-import-history-table", () => ({
+  ParcelImportHistoryTable: () => <div data-testid="parcel-import-history-table" />,
+}));
+
 describe("ParcelsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();

@@ -72,10 +72,7 @@ export interface ParcelOption {
 export type LabelDownloadFormat = "zpl" | "pdf";
 
 export interface RegisterParcelFormData {
-  // Shipper (depot)
   shipperAddressId: string;
-
-  // Recipient address
   recipientStreet1: string;
   recipientStreet2: string;
   recipientCity: string;
@@ -87,8 +84,6 @@ export interface RegisterParcelFormData {
   recipientCompanyName: string;
   recipientPhone: string;
   recipientEmail: string;
-
-  // Parcel details
   description: string;
   parcelType: string;
   serviceType: GraphQLServiceType;
@@ -146,3 +141,50 @@ export interface ParcelDetail extends RegisteredParcelResult {
   lastModifiedAt: string | null;
   recipientAddress: ParcelDetailAddress;
 }
+
+export type ParcelImportFileFormat = "Csv" | "Xlsx";
+
+export type ParcelImportStatus =
+  | "Queued"
+  | "Processing"
+  | "Completed"
+  | "CompletedWithErrors"
+  | "Failed";
+
+export interface ParcelImportHistoryEntry {
+  id: string;
+  fileName: string;
+  fileFormat: ParcelImportFileFormat;
+  status: ParcelImportStatus;
+  totalRows: number;
+  processedRows: number;
+  importedRows: number;
+  rejectedRows: number;
+  depotName: string | null;
+  createdAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+}
+
+export interface ParcelImportRowFailurePreview {
+  rowNumber: number;
+  errorMessage: string;
+  originalRowValues: string;
+}
+
+export interface ParcelImportDetail extends ParcelImportHistoryEntry {
+  failureMessage: string | null;
+  createdTrackingNumbers: string[];
+  rowFailuresPreview: ParcelImportRowFailurePreview[];
+}
+
+export interface UploadParcelImportRequest {
+  shipperAddressId: string;
+  file: File;
+}
+
+export interface UploadParcelImportResult {
+  importId: string;
+}
+
+export type ParcelImportTemplateFormat = "csv" | "xlsx";

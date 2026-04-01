@@ -122,9 +122,7 @@ describe("ParcelRegistrationForm", () => {
     });
   });
 
-  it("shows success actions and calls the download/detail flows", async () => {
-    render(<ParcelRegistrationForm onViewQueue={mockOnViewQueue} />);
-
+  async function fillRequiredFields() {
     const user = userEvent.setup();
 
     await user.selectOptions(screen.getByTestId("shipperAddressId"), "address-1");
@@ -144,6 +142,28 @@ describe("ParcelRegistrationForm", () => {
       target: { value: "2026-04-08" },
     });
 
+    return user;
+  }
+
+  it("submits the selected depot addressId as shipperAddressId", async () => {
+    render(<ParcelRegistrationForm />);
+
+    const user = await fillRequiredFields();
+    await user.click(screen.getByRole("button", { name: /register parcel/i }));
+
+    await waitFor(() => {
+      expect(mockMutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          shipperAddressId: "address-1",
+        }),
+      );
+    });
+  });
+
+  it("shows success actions and calls the download/detail flows", async () => {
+    render(<ParcelRegistrationForm onViewQueue={mockOnViewQueue} />);
+
+    const user = await fillRequiredFields();
     await user.click(screen.getByRole("button", { name: /register parcel/i }));
 
     expect(await screen.findByText(/parcel registered/i)).toBeInTheDocument();
