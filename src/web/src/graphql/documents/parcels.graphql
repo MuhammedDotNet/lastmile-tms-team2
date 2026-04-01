@@ -12,6 +12,47 @@ query GetRegisteredParcels {
   }
 }
 
+query GetParcelImports {
+  parcelImports {
+    id
+    fileName
+    fileFormat
+    status
+    totalRows
+    processedRows
+    importedRows
+    rejectedRows
+    depotName
+    createdAt
+    startedAt
+    completedAt
+  }
+}
+
+query GetParcelImport($id: UUID!) {
+  parcelImport(id: $id) {
+    id
+    fileName
+    fileFormat
+    status
+    totalRows
+    processedRows
+    importedRows
+    rejectedRows
+    depotName
+    failureMessage
+    createdAt
+    startedAt
+    completedAt
+    createdTrackingNumbers
+    rowFailuresPreview {
+      rowNumber
+      errorMessage
+      originalRowValues
+    }
+  }
+}
+
 query GetParcelsForRouteCreation {
   parcelsForRouteCreation {
     id
