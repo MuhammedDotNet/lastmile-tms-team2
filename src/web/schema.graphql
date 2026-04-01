@@ -15,6 +15,7 @@ type Address {
   companyName: String
   phone: String
   email: String
+  geoLocation: GeoLocation @cost(weight: "10")
 }
 
 type Depot {
@@ -37,6 +38,11 @@ type Driver {
   email: String
   depotId: UUID!
   status: DriverStatus!
+}
+
+type GeoLocation {
+  latitude: Float!
+  longitude: Float!
 }
 
 type Mutation @authorize(roles: [ "Admin" ]) {
@@ -74,48 +80,24 @@ type ParcelRouteOption {
 }
 
 type Query @authorize(roles: [ "Admin" ]) {
-  depots(order: [DepotSortInput!] @cost(weight: "10") where: DepotFilterInput @cost(weight: "10")): [Depot!]! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
+  depots(where: DepotFilterInput @cost(weight: "10") order: [DepotSortInput!] @cost(weight: "10")): [Depot!]! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
   depot(id: UUID!): Depot @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
   drivers(depotId: UUID): [Driver!]! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
   parcelsForRouteCreation: [ParcelRouteOption!]! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
-  registeredParcels(order: [ParcelSortInput!] @cost(weight: "10") where: ParcelFilterInput @cost(weight: "10")): [RegisteredParcel!]! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
-  routes(order: [RouteSortInput!] @cost(weight: "10") where: RouteFilterInput @cost(weight: "10")): [Route!]! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
-  users(search: String isActive: Boolean depotId: UUID zoneId: UUID order: [UserManagementUserSortInput!] @cost(weight: "10") where: UserManagementUserFilterInput @cost(weight: "10")): [UserManagementUser!]! @cost(weight: "10")
+  registeredParcels(where: ParcelFilterInput @cost(weight: "10") order: [ParcelSortInput!] @cost(weight: "10")): [RegisteredParcel!]! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
+  routes(where: RouteFilterInput @cost(weight: "10") order: [RouteSortInput!] @cost(weight: "10")): [Route!]! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
+  users(search: String isActive: Boolean depotId: UUID zoneId: UUID where: UserManagementUserFilterInput @cost(weight: "10") order: [UserManagementUserSortInput!] @cost(weight: "10")): [UserManagementUser!]! @cost(weight: "10")
   user(id: UUID!): UserManagementUser @cost(weight: "10")
   userManagementLookups: UserManagementLookupsDto! @cost(weight: "10")
-  vehicles(order: [VehicleSortInput!] @cost(weight: "10") where: VehicleFilterInput @cost(weight: "10")): [Vehicle!]! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
-  zones(order: [ZoneSortInput!] @cost(weight: "10") where: ZoneFilterInput @cost(weight: "10")): [Zone!]! @cost(weight: "10")
+  vehicles(where: VehicleFilterInput @cost(weight: "10") order: [VehicleSortInput!] @cost(weight: "10")): [Vehicle!]! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
+  zones(where: ZoneFilterInput @cost(weight: "10") order: [ZoneSortInput!] @cost(weight: "10")): [Zone!]! @cost(weight: "10")
   zone(id: UUID!): Zone @cost(weight: "10")
-}
-
-type Parcel {
-  id: UUID!
-  trackingNumber: String!
-  description: String
-  serviceType: ServiceType!
-  status: ParcelStatus!
-  weight: Decimal!
-  weightUnit: WeightUnit!
-  length: Decimal!
-  width: Decimal!
-  height: Decimal!
-  dimensionUnit: DimensionUnit!
-  declaredValue: Decimal!
-  currency: String!
-  parcelType: String
-  estimatedDeliveryDate: DateTime!
-  deliveryAttempts: Int!
-  createdAt: DateTime!
-  lastModifiedAt: DateTime
-  recipientAddress: Address
-  zone: Zone
-  zoneId: UUID!
-  shipperAddressId: UUID!
 }
 
 type RegisteredParcel {
   id: UUID!
   trackingNumber: String!
+  barcode: String!
   description: String
   serviceType: String!
   status: String!
@@ -220,6 +202,7 @@ type Zone {
   id: UUID!
   name: String!
   boundary: String @cost(weight: "10")
+  boundaryGeoJson: String @cost(weight: "10")
   isActive: Boolean!
   depotId: UUID!
   depotName: String @cost(weight: "10")
@@ -383,6 +366,13 @@ input DepotSortInput {
   updatedAt: SortEnumType @cost(weight: "10")
 }
 
+input DimensionUnitOperationFilterInput {
+  eq: DimensionUnit @cost(weight: "10")
+  neq: DimensionUnit @cost(weight: "10")
+  in: [DimensionUnit!] @cost(weight: "10")
+  nin: [DimensionUnit!] @cost(weight: "10")
+}
+
 input IntOperationFilterInput {
   eq: Int @cost(weight: "10")
   neq: Int @cost(weight: "10")
@@ -421,6 +411,46 @@ input OperatingHoursListFilterInput {
   any: Boolean @cost(weight: "10")
 }
 
+input ParcelFilterInput {
+  and: [ParcelFilterInput!]
+  or: [ParcelFilterInput!]
+  id: UuidOperationFilterInput
+  trackingNumber: StringOperationFilterInput
+  status: ParcelStatusOperationFilterInput
+  serviceType: ServiceTypeOperationFilterInput
+  weight: DecimalOperationFilterInput
+  weightUnit: WeightUnitOperationFilterInput
+  length: DecimalOperationFilterInput
+  width: DecimalOperationFilterInput
+  height: DecimalOperationFilterInput
+  dimensionUnit: DimensionUnitOperationFilterInput
+  declaredValue: DecimalOperationFilterInput
+  currency: StringOperationFilterInput
+  parcelType: StringOperationFilterInput
+  description: StringOperationFilterInput
+  deliveryAttempts: IntOperationFilterInput
+  estimatedDeliveryDate: DateTimeOperationFilterInput
+  createdAt: DateTimeOperationFilterInput
+  lastModifiedAt: DateTimeOperationFilterInput
+}
+
+input ParcelSortInput {
+  id: SortEnumType @cost(weight: "10")
+  trackingNumber: SortEnumType @cost(weight: "10")
+  status: SortEnumType @cost(weight: "10")
+  serviceType: SortEnumType @cost(weight: "10")
+  weight: SortEnumType @cost(weight: "10")
+  createdAt: SortEnumType @cost(weight: "10")
+  lastModifiedAt: SortEnumType @cost(weight: "10")
+}
+
+input ParcelStatusOperationFilterInput {
+  eq: ParcelStatus @cost(weight: "10")
+  neq: ParcelStatus @cost(weight: "10")
+  in: [ParcelStatus!] @cost(weight: "10")
+  nin: [ParcelStatus!] @cost(weight: "10")
+}
+
 input RegisterParcelInput {
   shipperAddressId: UUID!
   recipientAddress: RegisterParcelRecipientAddressInput!
@@ -450,48 +480,6 @@ input RegisterParcelRecipientAddressInput {
   companyName: String
   phone: String
   email: String
-}
-
-input ParcelStatusOperationFilterInput {
-  eq: ParcelStatus @cost(weight: "10")
-  neq: ParcelStatus @cost(weight: "10")
-  in: [ParcelStatus!] @cost(weight: "10")
-  nin: [ParcelStatus!] @cost(weight: "10")
-}
-
-input ServiceTypeOperationFilterInput {
-  eq: ServiceType @cost(weight: "10")
-  neq: ServiceType @cost(weight: "10")
-  in: [ServiceType!] @cost(weight: "10")
-  nin: [ServiceType!] @cost(weight: "10")
-}
-
-input WeightUnitOperationFilterInput {
-  eq: WeightUnit @cost(weight: "10")
-  neq: WeightUnit @cost(weight: "10")
-  in: [WeightUnit!] @cost(weight: "10")
-  nin: [WeightUnit!] @cost(weight: "10")
-}
-
-input ParcelFilterInput {
-  and: [ParcelFilterInput!]
-  or: [ParcelFilterInput!]
-  id: UuidOperationFilterInput
-  trackingNumber: StringOperationFilterInput
-  status: ParcelStatusOperationFilterInput
-  serviceType: ServiceTypeOperationFilterInput
-  weight: DecimalOperationFilterInput
-  weightUnit: WeightUnitOperationFilterInput
-  createdAt: DateTimeOperationFilterInput
-}
-
-input ParcelSortInput {
-  id: SortEnumType
-  trackingNumber: SortEnumType
-  status: SortEnumType
-  serviceType: SortEnumType
-  weight: SortEnumType
-  createdAt: SortEnumType
 }
 
 input RouteFilterInput {
@@ -525,6 +513,13 @@ input RouteStatusOperationFilterInput {
   neq: RouteStatus @cost(weight: "10")
   in: [RouteStatus!] @cost(weight: "10")
   nin: [RouteStatus!] @cost(weight: "10")
+}
+
+input ServiceTypeOperationFilterInput {
+  eq: ServiceType @cost(weight: "10")
+  neq: ServiceType @cost(weight: "10")
+  in: [ServiceType!] @cost(weight: "10")
+  nin: [ServiceType!] @cost(weight: "10")
 }
 
 input StringOperationFilterInput {
@@ -677,6 +672,13 @@ input VehicleTypeOperationFilterInput {
   nin: [VehicleType!] @cost(weight: "10")
 }
 
+input WeightUnitOperationFilterInput {
+  eq: WeightUnit @cost(weight: "10")
+  neq: WeightUnit @cost(weight: "10")
+  in: [WeightUnit!] @cost(weight: "10")
+  nin: [WeightUnit!] @cost(weight: "10")
+}
+
 input ZoneFilterInput {
   and: [ZoneFilterInput!]
   or: [ZoneFilterInput!]
@@ -729,20 +731,6 @@ enum DriverStatus {
   SUSPENDED
 }
 
-enum RouteStatus {
-  PLANNED
-  IN_PROGRESS
-  COMPLETED
-  CANCELLED
-}
-
-enum ServiceType {
-  ECONOMY
-  STANDARD
-  EXPRESS
-  OVERNIGHT
-}
-
 enum ParcelStatus {
   REGISTERED
   RECEIVED_AT_DEPOT
@@ -755,6 +743,20 @@ enum ParcelStatus {
   RETURNED_TO_DEPOT
   CANCELLED
   EXCEPTION
+}
+
+enum RouteStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum ServiceType {
+  ECONOMY
+  STANDARD
+  EXPRESS
+  OVERNIGHT
 }
 
 enum SortEnumType {

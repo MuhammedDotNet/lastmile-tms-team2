@@ -26,6 +26,12 @@ export interface DepotAddress {
   companyName: string | null;
   phone: string | null;
   email: string | null;
+  geoLocation: DepotGeoLocation | null;
+}
+
+export interface DepotGeoLocation {
+  latitude: number;
+  longitude: number;
 }
 
 export interface DepotOperatingHours {

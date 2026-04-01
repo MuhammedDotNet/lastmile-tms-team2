@@ -15,6 +15,10 @@ query GetDepots {
       companyName
       phone
       email
+      geoLocation {
+        latitude
+        longitude
+      }
     }
     operatingHours {
       dayOfWeek
@@ -45,6 +49,10 @@ query GetDepot($id: UUID!) {
       companyName
       phone
       email
+      geoLocation {
+        latitude
+        longitude
+      }
     }
     operatingHours {
       dayOfWeek
@@ -75,6 +83,10 @@ mutation CreateDepot($input: CreateDepotInput!) {
       companyName
       phone
       email
+      geoLocation {
+        latitude
+        longitude
+      }
     }
     operatingHours {
       dayOfWeek
@@ -105,6 +117,10 @@ mutation UpdateDepot($id: UUID!, $input: UpdateDepotInput!) {
       companyName
       phone
       email
+      geoLocation {
+        latitude
+        longitude
+      }
     }
     operatingHours {
       dayOfWeek

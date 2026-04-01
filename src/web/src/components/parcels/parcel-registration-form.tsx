@@ -161,7 +161,13 @@ export function ParcelRegistrationForm({
         ? `${form.estimatedDeliveryDate}T00:00:00+00:00`
         : form.estimatedDeliveryDate;
 
-      const parcel = await registerParcel.mutateAsync({ ...form, estimatedDeliveryDate: isoDate });
+      const selectedDepot = depots.find(d => d.id === form.shipperAddressId);
+
+      const parcel = await registerParcel.mutateAsync({
+        ...form,
+        shipperAddressId: selectedDepot?.addressId ?? form.shipperAddressId,
+        estimatedDeliveryDate: isoDate,
+      });
       setResult(parcel);
       onSuccess?.(parcel);
     } catch {
@@ -502,7 +508,7 @@ export function ParcelRegistrationForm({
                 <Label htmlFor="weight" className="mb-1.5 block">
                   Weight <span className="text-destructive">*</span>
                 </Label>
-                <div className="flex gap-2">
+                <div className="flex min-w-0 gap-2">
                   <Input
                     id="weight"
                     type="number"
@@ -517,7 +523,7 @@ export function ParcelRegistrationForm({
                     options={weightUnitOptions}
                     value={form.weightUnit}
                     onChange={(v) => set("weightUnit", v)}
-                    className="w-20 shrink-0"
+                    className="shrink-0"
                   />
                 </div>
                 {errors.weight && (
@@ -529,7 +535,7 @@ export function ParcelRegistrationForm({
                 <Label htmlFor="declaredValue" className="mb-1.5 block">
                   Declared Value
                 </Label>
-                <div className="flex gap-2">
+                <div className="flex min-w-0 gap-2">
                   <Input
                     id="declaredValue"
                     type="number"
