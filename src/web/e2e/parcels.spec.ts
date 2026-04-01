@@ -45,7 +45,9 @@ async function loginAsAdmin(page: Page, fixture: ParcelFixture) {
 
 async function selectDepot(page: Page, depotName: string) {
   await page.locator("#shipperAddressId").click();
-  await page.getByRole("option", { name: depotName, exact: true }).click();
+  const option = page.getByRole("option", { name: depotName, exact: true });
+  await option.scrollIntoViewIfNeeded();
+  await option.click();
 }
 
 async function registerParcel(

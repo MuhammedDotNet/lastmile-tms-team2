@@ -15,7 +15,6 @@ namespace LastMile.TMS.Api.Controllers;
 [Route("api/test-support/user-management")]
 public sealed class TestSupportController(
     AppDbContext dbContext,
-    UserManager<ApplicationUser> userManager,
     RoleManager<ApplicationRole> roleManager,
     IOptions<TestingOptions> testingOptions,
     IConfiguration configuration,
