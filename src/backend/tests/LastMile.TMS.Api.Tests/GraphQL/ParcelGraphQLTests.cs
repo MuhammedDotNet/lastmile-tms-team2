@@ -1,6 +1,8 @@
 using System.Net;
 using FluentAssertions;
 using LastMile.TMS.Persistence;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace LastMile.TMS.Api.Tests.GraphQL;
 
@@ -401,6 +403,304 @@ public class ParcelGraphQLTests(CustomWebApplicationFactory factory)
         parcel.GetProperty("zoneName").GetString().Should().NotBeNullOrEmpty();
         parcel.GetProperty("recipientAddress").GetProperty("contactName").GetString().Should().Be("Mona Saleh");
         parcel.GetProperty("recipientAddress").GetProperty("street1").GetString().Should().Be("42 Parcel Detail Ave");
+    }
+
+    [Fact]
+    public async Task GetPreLoadParcels_ReturnsPreLoadStatuses()
+    {
+        var token = await GetAdminAccessTokenAsync();
+
+        using var registerDoc = await PostGraphQLAsync(
+            """
+            mutation RegisterParcel($input: RegisterParcelInput!) {
+              registerParcel(input: $input) {
+                trackingNumber
+              }
+            }
+            """,
+            variables: new
+            {
+                input = new
+                {
+                    shipperAddressId = TestParcelShipperAddressId.ToString(),
+                    recipientAddress = new
+                    {
+                        street1 = "20 Preload Avenue",
+                        city = "Cairo",
+                        state = "Cairo",
+                        postalCode = "11511",
+                        countryCode = "EG",
+                        isResidential = true,
+                        contactName = "Nour Fathi",
+                        phone = "+201111111111",
+                        email = "nour@example.com"
+                    },
+                    serviceType = "STANDARD",
+                    weight = 2.0,
+                    weightUnit = "KG",
+                    length = 20.0,
+                    width = 10.0,
+                    height = 5.0,
+                    dimensionUnit = "CM",
+                    declaredValue = 100.0,
+                    currency = "USD",
+                    estimatedDeliveryDate = DateTimeOffset.UtcNow.AddDays(2).ToString("o")
+                }
+            },
+            accessToken: token);
+
+        var registeredTracking = registerDoc.RootElement
+            .GetProperty("data")
+            .GetProperty("registerParcel")
+            .GetProperty("trackingNumber")
+            .GetString();
+
+        using var queryDoc = await PostGraphQLAsync(
+            """
+            query GetPreLoadParcels {
+              preLoadParcels {
+                trackingNumber
+                status
+              }
+            }
+            """,
+            accessToken: token);
+
+        queryDoc.RootElement.TryGetProperty("errors", out var errors)
+            .Should().BeFalse("preLoadParcels should not return errors: {0}", errors.ToString());
+
+        var parcels = queryDoc.RootElement
+            .GetProperty("data")
+            .GetProperty("preLoadParcels")
+            .EnumerateArray()
+            .ToList();
+
+        parcels.Should().Contain(parcel =>
+            parcel.GetProperty("trackingNumber").GetString() == registeredTracking
+            && parcel.GetProperty("status").GetString() == "Registered");
+        parcels.Should().Contain(parcel => parcel.GetProperty("status").GetString() == "Sorted");
+    }
+
+    [Fact]
+    public async Task UpdateParcel_ValidInput_ReturnsUpdatedDetailAndHistory()
+    {
+        var token = await GetAdminAccessTokenAsync();
+
+        using var registerDoc = await PostGraphQLAsync(
+            """
+            mutation RegisterParcel($input: RegisterParcelInput!) {
+              registerParcel(input: $input) {
+                id
+              }
+            }
+            """,
+            variables: new
+            {
+                input = new
+                {
+                    shipperAddressId = TestParcelShipperAddressId.ToString(),
+                    recipientAddress = new
+                    {
+                        street1 = "10 Edit Street",
+                        city = "Cairo",
+                        state = "Cairo",
+                        postalCode = "11511",
+                        countryCode = "EG",
+                        isResidential = true,
+                        contactName = "Edit Me",
+                        phone = "+201222222222",
+                        email = "edit@example.com"
+                    },
+                    description = "Original description",
+                    serviceType = "STANDARD",
+                    weight = 1.2,
+                    weightUnit = "KG",
+                    length = 12.0,
+                    width = 10.0,
+                    height = 8.0,
+                    dimensionUnit = "CM",
+                    declaredValue = 55.0,
+                    currency = "USD",
+                    estimatedDeliveryDate = DateTimeOffset.UtcNow.AddDays(2).ToString("o")
+                }
+            },
+            accessToken: token);
+
+        var parcelId = registerDoc.RootElement
+            .GetProperty("data")
+            .GetProperty("registerParcel")
+            .GetProperty("id")
+            .GetString();
+
+        using var updateDoc = await PostGraphQLAsync(
+            """
+            mutation UpdateParcel($input: UpdateParcelInput!) {
+              updateParcel(input: $input) {
+                id
+                description
+                recipientAddress {
+                  street1
+                }
+                changeHistory {
+                  fieldName
+                  beforeValue
+                  afterValue
+                }
+              }
+            }
+            """,
+            variables: new
+            {
+                input = new
+                {
+                    id = parcelId,
+                    shipperAddressId = TestParcelShipperAddressId.ToString(),
+                    recipientAddress = new
+                    {
+                        street1 = "11 Updated Street",
+                        city = "Cairo",
+                        state = "Cairo",
+                        postalCode = "11511",
+                        countryCode = "EG",
+                        isResidential = true,
+                        contactName = "Edit Me",
+                        phone = "+201222222222",
+                        email = "edit@example.com"
+                    },
+                    description = "Updated description",
+                    serviceType = "STANDARD",
+                    weight = 1.2,
+                    weightUnit = "KG",
+                    length = 12.0,
+                    width = 10.0,
+                    height = 8.0,
+                    dimensionUnit = "CM",
+                    declaredValue = 55.0,
+                    currency = "USD",
+                    estimatedDeliveryDate = DateTimeOffset.UtcNow.AddDays(3).ToString("o")
+                }
+            },
+            accessToken: token);
+
+        updateDoc.RootElement.TryGetProperty("errors", out var errors)
+            .Should().BeFalse("updateParcel should not return errors: {0}", errors.ToString());
+
+        var updatedParcel = updateDoc.RootElement
+            .GetProperty("data")
+            .GetProperty("updateParcel");
+
+        updatedParcel.GetProperty("description").GetString().Should().Be("Updated description");
+        updatedParcel.GetProperty("recipientAddress").GetProperty("street1").GetString().Should().Be("11 Updated Street");
+        updatedParcel.GetProperty("changeHistory").EnumerateArray().Should().Contain(entry =>
+            entry.GetProperty("fieldName").GetString() == "Description"
+            && entry.GetProperty("beforeValue").GetString() == "Original description"
+            && entry.GetProperty("afterValue").GetString() == "Updated description");
+    }
+
+    [Fact]
+    public async Task CancelParcel_ValidInput_CancelsParcelAndRemovesItFromPreLoadQuery()
+    {
+        var token = await GetAdminAccessTokenAsync();
+
+        using var registerDoc = await PostGraphQLAsync(
+            """
+            mutation RegisterParcel($input: RegisterParcelInput!) {
+              registerParcel(input: $input) {
+                id
+                trackingNumber
+              }
+            }
+            """,
+            variables: new
+            {
+                input = new
+                {
+                    shipperAddressId = TestParcelShipperAddressId.ToString(),
+                    recipientAddress = new
+                    {
+                        street1 = "18 Cancel Street",
+                        city = "Cairo",
+                        state = "Cairo",
+                        postalCode = "11511",
+                        countryCode = "EG",
+                        isResidential = true,
+                        contactName = "Cancel Me",
+                        phone = "+201333333333",
+                        email = "cancel@example.com"
+                    },
+                    serviceType = "STANDARD",
+                    weight = 1.0,
+                    weightUnit = "KG",
+                    length = 10.0,
+                    width = 10.0,
+                    height = 10.0,
+                    dimensionUnit = "CM",
+                    declaredValue = 40.0,
+                    currency = "USD",
+                    estimatedDeliveryDate = DateTimeOffset.UtcNow.AddDays(2).ToString("o")
+                }
+            },
+            accessToken: token);
+
+        var registeredParcel = registerDoc.RootElement
+            .GetProperty("data")
+            .GetProperty("registerParcel");
+
+        var parcelId = registeredParcel.GetProperty("id").GetString();
+        var trackingNumber = registeredParcel.GetProperty("trackingNumber").GetString();
+
+        using var cancelDoc = await PostGraphQLAsync(
+            """
+            mutation CancelParcel($input: CancelParcelInput!) {
+              cancelParcel(input: $input) {
+                status
+                cancellationReason
+                canCancel
+              }
+            }
+            """,
+            variables: new
+            {
+                input = new
+                {
+                    id = parcelId,
+                    reason = "Customer cancelled before dispatch"
+                }
+            },
+            accessToken: token);
+
+        cancelDoc.RootElement.TryGetProperty("errors", out var cancelErrors)
+            .Should().BeFalse("cancelParcel should not return errors: {0}", cancelErrors.ToString());
+
+        var cancelledParcel = cancelDoc.RootElement
+            .GetProperty("data")
+            .GetProperty("cancelParcel");
+
+        cancelledParcel.GetProperty("status").GetString().Should().Be("Cancelled");
+        cancelledParcel.GetProperty("cancellationReason").GetString().Should().Be("Customer cancelled before dispatch");
+        cancelledParcel.GetProperty("canCancel").GetBoolean().Should().BeFalse();
+
+        using var queryDoc = await PostGraphQLAsync(
+            """
+            query GetPreLoadParcels {
+              preLoadParcels {
+                trackingNumber
+              }
+            }
+            """,
+            accessToken: token);
+
+        queryDoc.RootElement
+            .GetProperty("data")
+            .GetProperty("preLoadParcels")
+            .EnumerateArray()
+            .Should()
+            .NotContain(parcel => parcel.GetProperty("trackingNumber").GetString() == trackingNumber);
+
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var parcel = await dbContext.Parcels.SingleAsync(p => p.Id == Guid.Parse(parcelId!));
+        parcel.CancellationReason.Should().Be("Customer cancelled before dispatch");
     }
 
     #endregion

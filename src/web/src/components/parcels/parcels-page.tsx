@@ -14,8 +14,11 @@ import {
   listDataTableHeadRowClass,
   listDataTableTdClass,
   listDataTableThClass,
+  listDataTableThRightClass,
 } from "@/components/list";
 import { OverflowTooltipCell } from "@/components/list/overflow-tooltip-cell";
+import { CancelParcelDialog } from "@/components/parcels/cancel-parcel-dialog";
+import { ParcelRowActions } from "@/components/parcels/parcel-row-actions";
 import { Button } from "@/components/ui/button";
 import {
   formatParcelServiceType,
@@ -25,21 +28,30 @@ import {
 import { getErrorMessage } from "@/lib/network/error-message";
 import { appToast } from "@/lib/toast/app-toast";
 import { cn } from "@/lib/utils";
-import { useRegisteredParcels } from "@/queries/parcels";
+import { useCancelParcel, usePreLoadParcels } from "@/queries/parcels";
 import { parcelsService } from "@/services/parcels.service";
 import { ParcelImportHistoryTable } from "./parcel-import-history-table";
 import { ParcelImportPanel } from "./parcel-import-panel";
 import { ParcelRegistrationForm } from "./parcel-registration-form";
 
+type PendingCancellation = {
+  id: string;
+  trackingNumber: string;
+} | null;
+
 export default function ParcelsPage() {
   const { status: sessionStatus } = useSession();
-  const { data = [], isLoading, error } = useRegisteredParcels();
+  const { data = [], isLoading, error } = usePreLoadParcels();
+  const cancelParcel = useCancelParcel();
+
   const [showForm, setShowForm] = useState(false);
   const [selectedImportId, setSelectedImportId] = useState<string | null>(null);
   const [selectedParcelIds, setSelectedParcelIds] = useState<string[]>([]);
   const [isDownloading, setIsDownloading] = useState<false | "zpl" | "pdf">(
     false,
   );
+  const [pendingCancellation, setPendingCancellation] =
+    useState<PendingCancellation>(null);
 
   const allVisibleSelected =
     data.length > 0 &&
@@ -82,6 +94,22 @@ export default function ParcelsPage() {
     }
   }
 
+  async function handleCancelParcel(reason: string) {
+    if (!pendingCancellation) {
+      return;
+    }
+
+    await cancelParcel.mutateAsync({
+      id: pendingCancellation.id,
+      reason,
+    });
+
+    setSelectedParcelIds((current) =>
+      current.filter((parcelId) => parcelId !== pendingCancellation.id),
+    );
+    setPendingCancellation(null);
+  }
+
   if (sessionStatus === "loading" || isLoading) {
     return <ListPageLoading />;
   }
@@ -119,8 +147,8 @@ export default function ParcelsPage() {
   return (
     <>
       <ListPageHeader
-        title="Warehouse Intake Queue"
-        description="Parcels registered and awaiting processing at the depot. Upload imports, register individual shipments, and print labels from one queue."
+        title="Warehouse Pre-load Queue"
+        description="Parcels still eligible for edits or cancellation before they are loaded for delivery. Manage imports, register shipments, print labels, and correct mistakes from one queue."
         icon={<Package strokeWidth={1.75} aria-hidden />}
         action={
           <>
@@ -157,9 +185,10 @@ export default function ParcelsPage() {
 
         {data.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border p-12 text-center">
-            <p className="font-medium">No parcels registered yet</p>
+            <p className="font-medium">No parcels are waiting before load</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Registered parcels will appear here in the warehouse intake queue.
+              Registered, received, sorted, or staged parcels will appear here until
+              they are loaded for delivery.
             </p>
           </div>
         ) : (
@@ -184,7 +213,7 @@ export default function ParcelsPage() {
               </p>
             </div>
 
-            <ListDataTable minWidthClassName="min-w-[1040px]">
+            <ListDataTable minWidthClassName="min-w-[1140px]">
               <thead>
                 <tr className={listDataTableHeadRowClass}>
                   <th className={cn(listDataTableThClass, "w-14")}>Select</th>
@@ -195,6 +224,7 @@ export default function ParcelsPage() {
                   <th className={listDataTableThClass}>Zone</th>
                   <th className={listDataTableThClass}>Created</th>
                   <th className={listDataTableThClass}>Status</th>
+                  <th className={listDataTableThRightClass}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -276,6 +306,19 @@ export default function ParcelsPage() {
                         </span>
                       </OverflowTooltipCell>
                     </td>
+                    <td className={cn(listDataTableTdClass, "text-right")}>
+                      <ParcelRowActions
+                        parcelId={parcel.id}
+                        trackingNumber={parcel.trackingNumber}
+                        onCancel={() =>
+                          setPendingCancellation({
+                            id: parcel.id,
+                            trackingNumber: parcel.trackingNumber,
+                          })
+                        }
+                        cancelDisabled={cancelParcel.isPending}
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -288,6 +331,18 @@ export default function ParcelsPage() {
           onSelectImport={setSelectedImportId}
         />
       </div>
+
+      <CancelParcelDialog
+        open={pendingCancellation !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPendingCancellation(null);
+          }
+        }}
+        trackingNumber={pendingCancellation?.trackingNumber ?? ""}
+        onConfirm={handleCancelParcel}
+        isPending={cancelParcel.isPending}
+      />
     </>
   );
 }

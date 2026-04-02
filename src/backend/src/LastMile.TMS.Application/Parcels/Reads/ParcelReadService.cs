@@ -10,6 +10,8 @@ namespace LastMile.TMS.Application.Parcels.Reads;
 public sealed class ParcelReadService(IAppDbContext dbContext) : IParcelReadService
 {
     private static readonly ParcelStatus[] RouteCreationStatuses = [ParcelStatus.Sorted, ParcelStatus.Staged];
+    private static readonly ParcelStatus[] PreLoadStatuses =
+        [ParcelStatus.Registered, ParcelStatus.ReceivedAtDepot, ParcelStatus.Sorted, ParcelStatus.Staged];
 
     public IQueryable<Parcel> GetParcelsForRouteCreation() =>
         dbContext.Parcels
@@ -26,11 +28,21 @@ public sealed class ParcelReadService(IAppDbContext dbContext) : IParcelReadServ
             .OrderByDescending(p => p.CreatedAt)
             .Select(p => p.ToDto());
 
+    public IQueryable<ParcelDto> GetPreLoadParcels() =>
+        dbContext.Parcels
+            .AsNoTracking()
+            .Include(p => p.Zone)
+            .ThenInclude(z => z!.Depot)
+            .Where(p => PreLoadStatuses.Contains(p.Status))
+            .OrderByDescending(p => p.CreatedAt)
+            .Select(p => p.ToDto());
+
     public async Task<ParcelDetailDto?> GetParcelByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var parcel = await dbContext.Parcels
             .AsNoTracking()
             .Include(p => p.RecipientAddress)
+            .Include(p => p.ChangeHistory)
             .Include(p => p.Zone)
             .ThenInclude(z => z!.Depot)
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);

@@ -2,12 +2,15 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 
 import { parcelsService } from "@/services/parcels.service";
+import type { MutationToastMeta } from "@/lib/query/mutation-toast-meta";
 import type {
+  CancelParcelRequest,
   ParcelDetail,
+  ParcelFormData,
   ParcelImportDetail,
   ParcelImportTemplateFormat,
-  RegisterParcelFormData,
   RegisteredParcelResult,
+  UpdateParcelRequest,
   UploadParcelImportRequest,
   UploadParcelImportResult,
 } from "@/types/parcels";
@@ -16,6 +19,7 @@ const parcelImportPollingStatuses = new Set(["Queued", "Processing"]);
 
 export const parcelKeys = {
   all: ["parcels"] as const,
+  preLoad: () => [...parcelKeys.all, "preLoad"] as const,
   forRoute: () => [...parcelKeys.all, "forRoute"] as const,
   registered: () => [...parcelKeys.all, "registered"] as const,
   details: () => [...parcelKeys.all, "detail"] as const,
@@ -29,6 +33,15 @@ export function useParcelsForRouteCreation() {
   return useQuery({
     queryKey: parcelKeys.forRoute(),
     queryFn: () => parcelsService.getForRouteCreation(),
+    enabled: status === "authenticated",
+  });
+}
+
+export function usePreLoadParcels() {
+  const { status } = useSession();
+  return useQuery({
+    queryKey: parcelKeys.preLoad(),
+    queryFn: () => parcelsService.getPreLoadParcels(),
     enabled: status === "authenticated",
   });
 }
@@ -47,11 +60,47 @@ export function useRegisterParcel() {
   return useMutation<
     RegisteredParcelResult,
     Error,
-    RegisterParcelFormData
+    ParcelFormData
   >({
-    mutationFn: (form: RegisterParcelFormData) => parcelsService.register(form),
+    mutationFn: (form: ParcelFormData) => parcelsService.register(form),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: parcelKeys.all });
+    },
+  });
+}
+
+export function useUpdateParcel() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: (request: UpdateParcelRequest) => parcelsService.update(request),
+    meta: {
+      successToast: {
+        title: "Parcel updated",
+        describe: () => "Parcel changes were saved successfully.",
+      },
+    } satisfies MutationToastMeta,
+    onSuccess: (_, variables) => {
+      qc.invalidateQueries({ queryKey: parcelKeys.all });
+      qc.invalidateQueries({ queryKey: parcelKeys.detail(variables.id) });
+    },
+  });
+}
+
+export function useCancelParcel() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: (request: CancelParcelRequest) => parcelsService.cancel(request),
+    meta: {
+      successToast: {
+        title: "Parcel cancelled",
+        describe: () => "The parcel was removed from the pre-load queue.",
+      },
+    } satisfies MutationToastMeta,
+    onSuccess: (_, variables) => {
+      qc.invalidateQueries({ queryKey: parcelKeys.all });
+      qc.invalidateQueries({ queryKey: parcelKeys.detail(variables.id) });
     },
   });
 }

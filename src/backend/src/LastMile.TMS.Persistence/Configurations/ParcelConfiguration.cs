@@ -19,6 +19,9 @@ public class ParcelConfiguration : IEntityTypeConfiguration<Parcel>
         builder.Property(p => p.Description)            
             .HasMaxLength(1000);
 
+        builder.Property(p => p.CancellationReason)
+            .HasMaxLength(1000);
+
         builder.Property(p => p.ServiceType)
             .HasConversion<string>()
             .IsRequired();

@@ -22,6 +22,7 @@ public sealed record ParcelDetailDto
     public Guid Id { get; init; }
     public string TrackingNumber { get; init; } = string.Empty;
     public string Status { get; init; } = string.Empty;
+    public Guid ShipperAddressId { get; init; }
     public string ServiceType { get; init; } = string.Empty;
     public decimal Weight { get; init; }
     public string WeightUnit { get; init; } = string.Empty;
@@ -33,6 +34,7 @@ public sealed record ParcelDetailDto
     public string Currency { get; init; } = string.Empty;
     public string? Description { get; init; }
     public string? ParcelType { get; init; }
+    public string? CancellationReason { get; init; }
     public DateTimeOffset EstimatedDeliveryDate { get; init; }
     public int DeliveryAttempts { get; init; }
     public Guid ZoneId { get; init; }
@@ -41,7 +43,22 @@ public sealed record ParcelDetailDto
     public string? DepotName { get; init; }
     public DateTimeOffset CreatedAt { get; init; }
     public DateTimeOffset? LastModifiedAt { get; init; }
+    public bool CanEdit { get; init; }
+    public bool CanCancel { get; init; }
     public ParcelDetailAddressDto RecipientAddress { get; init; } = new();
+    public IReadOnlyList<ParcelChangeHistoryDto> ChangeHistory { get; init; } = [];
 
     public ParcelDetailDto() { }
+}
+
+public sealed record ParcelChangeHistoryDto
+{
+    public string Action { get; init; } = string.Empty;
+    public string FieldName { get; init; } = string.Empty;
+    public string? BeforeValue { get; init; }
+    public string? AfterValue { get; init; }
+    public DateTimeOffset ChangedAt { get; init; }
+    public string? ChangedBy { get; init; }
+
+    public ParcelChangeHistoryDto() { }
 }

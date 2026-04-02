@@ -7,6 +7,7 @@ public interface IParcelReadService
 {
     IQueryable<Parcel> GetParcelsForRouteCreation();
     IQueryable<ParcelDto> GetRegisteredParcels();
+    IQueryable<ParcelDto> GetPreLoadParcels();
     Task<ParcelDetailDto?> GetParcelByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ParcelLabelDataDto>> GetParcelLabelDataAsync(
         IReadOnlyCollection<Guid> parcelIds,

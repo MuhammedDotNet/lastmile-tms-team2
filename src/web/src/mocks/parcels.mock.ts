@@ -14,6 +14,7 @@ function makeMockParcel(
     trackingNumber,
     barcode: trackingNumber,
     status: "REGISTERED",
+    shipperAddressId: "address-1",
     serviceType: "STANDARD",
     weight: 2.5,
     weightUnit: "KG",
@@ -31,7 +32,10 @@ function makeMockParcel(
     zoneName: "North Zone",
     depotId: "80000000-0000-0000-0000-000000000001",
     depotName: "North Depot",
+    cancellationReason: null,
     deliveryAttempts: 0,
+    canEdit: true,
+    canCancel: true,
     lastModifiedAt: "2026-04-01T09:15:00Z",
     recipientAddress: {
       street1: "123 Main St",
@@ -46,6 +50,7 @@ function makeMockParcel(
       phone: "+1 555 0100",
       email: "jamie@example.com",
     },
+    changeHistory: [],
     ...overrides,
   };
 

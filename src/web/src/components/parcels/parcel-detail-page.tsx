@@ -1,8 +1,16 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, MapPin, Package, Printer, UserRound } from "lucide-react";
+import {
+  ArrowLeft,
+  MapPin,
+  Package,
+  Pencil,
+  Printer,
+  UserRound,
+} from "lucide-react";
 import { useSession } from "next-auth/react";
 
 import {
@@ -19,6 +27,7 @@ import {
   DETAIL_PAGE_CONTENT_PADDING,
 } from "@/components/detail";
 import { QueryErrorAlert } from "@/components/feedback/query-error-alert";
+import { CancelParcelDialog } from "@/components/parcels/cancel-parcel-dialog";
 import { buttonVariants } from "@/components/ui/button";
 import {
   formatParcelServiceType,
@@ -28,7 +37,7 @@ import {
 import { getErrorMessage } from "@/lib/network/error-message";
 import { appToast } from "@/lib/toast/app-toast";
 import { cn } from "@/lib/utils";
-import { useParcel } from "@/queries/parcels";
+import { useCancelParcel, useParcel } from "@/queries/parcels";
 import { parcelsService } from "@/services/parcels.service";
 
 function formatAddressLineTwo(
@@ -42,10 +51,16 @@ function formatAddressLineTwo(
     .join(", ");
 }
 
+function formatHistoryValue(value: string | null) {
+  return value && value.trim() ? value : "-";
+}
+
 export default function ParcelDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { status: sessionStatus } = useSession();
   const { data: parcel, isLoading, error } = useParcel(id);
+  const cancelParcel = useCancelParcel();
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
 
   async function handleDownload(format: "zpl" | "pdf") {
     if (!parcel) {
@@ -96,6 +111,10 @@ export default function ParcelDetailPage() {
     parcel.recipientAddress.contactName ??
     parcel.recipientAddress.companyName ??
     "Recipient";
+  const changeHistory = [...parcel.changeHistory].sort(
+    (left, right) =>
+      new Date(right.changedAt).getTime() - new Date(left.changedAt).getTime(),
+  );
 
   return (
     <DetailShell variant="neutral">
@@ -131,6 +150,24 @@ export default function ParcelDetailPage() {
           }
           actions={
             <>
+              {parcel.canEdit ? (
+                <Link
+                  href={`/parcels/${parcel.id}/edit`}
+                  className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                >
+                  <Pencil className="mr-2 size-4" aria-hidden />
+                  Edit parcel
+                </Link>
+              ) : null}
+              {parcel.canCancel ? (
+                <button
+                  type="button"
+                  className={cn(buttonVariants({ variant: "destructive", size: "sm" }))}
+                  onClick={() => setIsCancelDialogOpen(true)}
+                >
+                  Cancel parcel
+                </button>
+              ) : null}
               <button
                 type="button"
                 className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
@@ -205,6 +242,12 @@ export default function ParcelDetailPage() {
             <DetailField label="Declared value">
               {parcel.declaredValue} {parcel.currency}
             </DetailField>
+            <DetailField label="Est. delivery date">
+              {new Date(parcel.estimatedDeliveryDate).toLocaleDateString()}
+            </DetailField>
+            <DetailField label="Cancellation reason">
+              {parcel.cancellationReason ?? "-"}
+            </DetailField>
             <DetailField label="Created">
               {new Date(parcel.createdAt).toLocaleString()}
             </DetailField>
@@ -254,7 +297,67 @@ export default function ParcelDetailPage() {
             </DetailField>
           </DetailFieldGrid>
         </DetailPanel>
+
+        <DetailPanel
+          title="Change history"
+          description="Field-level edits and cancellation activity, newest changes first."
+        >
+          {changeHistory.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No changes have been recorded for this parcel yet.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border/60 text-left text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                    <th className="px-3 py-3 font-semibold">When</th>
+                    <th className="px-3 py-3 font-semibold">Who</th>
+                    <th className="px-3 py-3 font-semibold">Action</th>
+                    <th className="px-3 py-3 font-semibold">Field</th>
+                    <th className="px-3 py-3 font-semibold">Before</th>
+                    <th className="px-3 py-3 font-semibold">After</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {changeHistory.map((entry, index) => (
+                    <tr
+                      key={`${entry.changedAt}-${entry.fieldName}-${index}`}
+                      className="border-b border-border/40 last:border-b-0"
+                    >
+                      <td className="px-3 py-3 align-top tabular-nums">
+                        {new Date(entry.changedAt).toLocaleString()}
+                      </td>
+                      <td className="px-3 py-3 align-top">
+                        {entry.changedBy ?? "System"}
+                      </td>
+                      <td className="px-3 py-3 align-top">{entry.action}</td>
+                      <td className="px-3 py-3 align-top">{entry.fieldName}</td>
+                      <td className="px-3 py-3 align-top text-muted-foreground">
+                        {formatHistoryValue(entry.beforeValue)}
+                      </td>
+                      <td className="px-3 py-3 align-top">
+                        {formatHistoryValue(entry.afterValue)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </DetailPanel>
       </DetailContainer>
+
+      <CancelParcelDialog
+        open={isCancelDialogOpen}
+        onOpenChange={setIsCancelDialogOpen}
+        trackingNumber={parcel.trackingNumber}
+        onConfirm={async (reason) => {
+          await cancelParcel.mutateAsync({ id: parcel.id, reason });
+          setIsCancelDialogOpen(false);
+        }}
+        isPending={cancelParcel.isPending}
+      />
     </DetailShell>
   );
 }

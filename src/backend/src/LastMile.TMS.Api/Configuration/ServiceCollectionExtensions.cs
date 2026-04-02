@@ -87,6 +87,7 @@ public static class ServiceCollectionExtensions
             .AddType<ParcelType>()
             .AddType<ParcelDetailType>()
             .AddType<ParcelDetailAddressType>()
+            .AddType<ParcelChangeHistoryType>()
             .AddType<ParcelImportHistoryType>()
             .AddType<ParcelImportDetailType>()
             .AddType<ParcelImportRowFailurePreviewType>()

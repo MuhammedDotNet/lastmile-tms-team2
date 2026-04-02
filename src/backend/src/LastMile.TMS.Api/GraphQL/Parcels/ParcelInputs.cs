@@ -34,3 +34,28 @@ public sealed class RegisterParcelInput
     public DateTimeOffset EstimatedDeliveryDate { get; set; }
     public string? ParcelType { get; set; }
 }
+
+public sealed class UpdateParcelInput
+{
+    public Guid Id { get; set; }
+    public Guid ShipperAddressId { get; set; }
+    public RegisterParcelRecipientAddressInput RecipientAddress { get; set; } = null!;
+    public string? Description { get; set; }
+    public ServiceType ServiceType { get; set; } = ServiceType.Standard;
+    public decimal Weight { get; set; }
+    public WeightUnit WeightUnit { get; set; } = WeightUnit.Kg;
+    public decimal Length { get; set; }
+    public decimal Width { get; set; }
+    public decimal Height { get; set; }
+    public DimensionUnit DimensionUnit { get; set; } = DimensionUnit.Cm;
+    public decimal DeclaredValue { get; set; }
+    public string Currency { get; set; } = "USD";
+    public DateTimeOffset EstimatedDeliveryDate { get; set; }
+    public string? ParcelType { get; set; }
+}
+
+public sealed class CancelParcelInput
+{
+    public Guid Id { get; set; }
+    public string Reason { get; set; } = string.Empty;
+}

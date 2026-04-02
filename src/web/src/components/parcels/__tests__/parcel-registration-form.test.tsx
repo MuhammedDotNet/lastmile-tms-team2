@@ -300,7 +300,7 @@ describe("ParcelRegistrationForm", () => {
     await user.click(screen.getByRole("button", { name: /download 4x6 zpl/i }));
     await user.click(screen.getByRole("button", { name: /download a4 pdf/i }));
     await user.click(screen.getByRole("button", { name: /open parcel detail/i }));
-    await user.click(screen.getByRole("button", { name: /view intake queue/i }));
+    await user.click(screen.getByRole("button", { name: /view pre-load queue/i }));
 
     await waitFor(() => {
       expect(mockDownloadLabel).toHaveBeenNthCalledWith(1, "parcel-1", "zpl");

@@ -9,6 +9,7 @@ public class Parcel : BaseAuditableEntity
     public string? Description { get; set; } = string.Empty;
     public ServiceType ServiceType { get; set; }
     public ParcelStatus Status { get; set; }
+    public string? CancellationReason { get; set; }
     public Guid ShipperAddressId { get; set; }
     public Guid RecipientAddressId { get; set; }
     public decimal Weight { get; set; }
@@ -31,6 +32,7 @@ public class Parcel : BaseAuditableEntity
     public Address RecipientAddress { get; set; } = null!;
     public DeliveryConfirmation? DeliveryConfirmation { get; set; }
     public ICollection<ParcelContentItem> ContentItems { get; set; } = new List<ParcelContentItem>();
+    public ICollection<ParcelChangeHistoryEntry> ChangeHistory { get; set; } = new List<ParcelChangeHistoryEntry>();
     public ICollection<TrackingEvent> TrackingEvents { get; set; } = new List<TrackingEvent>();
     public ICollection<ParcelWatcher> Watchers { get; set; } = new List<ParcelWatcher>();
     public Zone Zone { get; set; } = null!;
@@ -74,4 +76,12 @@ public class Parcel : BaseAuditableEntity
         }
         Status = newStatus;
     }
+
+    public bool CanEditBeforeLoad() =>
+        Status == ParcelStatus.Registered
+        || Status == ParcelStatus.ReceivedAtDepot
+        || Status == ParcelStatus.Sorted
+        || Status == ParcelStatus.Staged;
+
+    public bool CanCancelBeforeLoad() => CanEditBeforeLoad();
 }

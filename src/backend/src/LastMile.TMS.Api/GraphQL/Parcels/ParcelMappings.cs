@@ -10,5 +10,7 @@ public static partial class ParcelInputMapper
 
     public static partial LastMile.TMS.Application.Parcels.DTOs.RegisterParcelDto ToDto(this RegisterParcelInput input);
 
+    public static partial LastMile.TMS.Application.Parcels.DTOs.UpdateParcelDto ToDto(this UpdateParcelInput input);
+
     private static DateTime DateTimeOffsetToUtc(DateTimeOffset value) => value.UtcDateTime;
 }

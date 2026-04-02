@@ -1,11 +1,13 @@
+import type { ReactNode } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import ParcelsPage from "@/components/parcels/parcels-page";
 
-const { mockDownloadBulkLabels } = vi.hoisted(() => ({
+const { mockDownloadBulkLabels, mockCancelParcel } = vi.hoisted(() => ({
   mockDownloadBulkLabels: vi.fn(),
+  mockCancelParcel: vi.fn(),
 }));
 
 vi.mock("next-auth/react", () => ({
@@ -15,8 +17,18 @@ vi.mock("next-auth/react", () => ({
   }),
 }));
 
+vi.mock("radix-ui", () => ({
+  Tooltip: {
+    Root: ({ children }: { children: ReactNode }) => <>{children}</>,
+    Trigger: ({ children }: { children: ReactNode }) => <>{children}</>,
+    Portal: ({ children }: { children: ReactNode }) => <>{children}</>,
+    Content: ({ children }: { children: ReactNode }) => <>{children}</>,
+    Arrow: () => null,
+  },
+}));
+
 vi.mock("@/queries/parcels", () => ({
-  useRegisteredParcels: () => ({
+  usePreLoadParcels: () => ({
     data: [
       {
         id: "parcel-1",
@@ -32,7 +44,7 @@ vi.mock("@/queries/parcels", () => ({
       {
         id: "parcel-2",
         trackingNumber: "LM202604010002",
-        status: "REGISTERED",
+        status: "STAGED",
         serviceType: "EXPRESS",
         weight: 1.1,
         weightUnit: "KG",
@@ -43,6 +55,10 @@ vi.mock("@/queries/parcels", () => ({
     ],
     isLoading: false,
     error: null,
+  }),
+  useCancelParcel: () => ({
+    mutateAsync: mockCancelParcel,
+    isPending: false,
   }),
 }));
 
@@ -96,6 +112,30 @@ describe("ParcelsPage", () => {
         ["parcel-1", "parcel-2"],
         "pdf",
       );
+    });
+  });
+
+  it("requires a cancellation reason before cancelling a parcel", async () => {
+    render(<ParcelsPage />);
+
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: /cancel lm202604010001/i }));
+    await user.click(screen.getByRole("button", { name: /^cancel parcel$/i }));
+
+    expect(screen.getByText(/cancellation reason is required/i)).toBeInTheDocument();
+
+    await user.type(
+      screen.getByLabelText(/cancellation reason/i),
+      "Duplicate order",
+    );
+    await user.click(screen.getByRole("button", { name: /^cancel parcel$/i }));
+
+    await waitFor(() => {
+      expect(mockCancelParcel).toHaveBeenCalledWith({
+        id: "parcel-1",
+        reason: "Duplicate order",
+      });
     });
   });
 });

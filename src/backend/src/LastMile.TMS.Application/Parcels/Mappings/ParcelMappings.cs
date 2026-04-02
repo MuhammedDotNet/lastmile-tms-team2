@@ -1,4 +1,5 @@
 using LastMile.TMS.Application.Parcels.DTOs;
+using LastMile.TMS.Application.Parcels.Support;
 using LastMile.TMS.Domain.Entities;
 using Riok.Mapperly.Abstractions;
 
@@ -24,6 +25,8 @@ public static partial class ParcelMappings
     [MapperIgnoreSource(nameof(Parcel.RecipientAddress))]
     [MapperIgnoreSource(nameof(Parcel.DeliveryConfirmation))]
     [MapperIgnoreSource(nameof(Parcel.ContentItems))]
+    [MapperIgnoreSource(nameof(Parcel.CancellationReason))]
+    [MapperIgnoreSource(nameof(Parcel.ChangeHistory))]
     [MapperIgnoreSource(nameof(Parcel.TrackingEvents))]
     [MapperIgnoreSource(nameof(Parcel.Watchers))]
     [MapperIgnoreSource(nameof(Parcel.CreatedBy))]
@@ -67,20 +70,59 @@ public static partial class ParcelMappings
     [MapperIgnoreSource(nameof(Parcel.CreatedBy))]
     [MapperIgnoreSource(nameof(Parcel.LastModifiedBy))]
     [MapperIgnoreSource(nameof(Parcel.ZoneId))]
-    [MapProperty("Zone.Id", nameof(ParcelDetailDto.ZoneId))]
-    [MapProperty("Zone.Name", nameof(ParcelDetailDto.ZoneName))]
-    [MapProperty("Zone.DepotId", nameof(ParcelDetailDto.DepotId))]
-    [MapProperty("Zone.Depot.Name", nameof(ParcelDetailDto.DepotName))]
-    [MapProperty(nameof(Parcel.ServiceType), nameof(ParcelDetailDto.ServiceType))]
-    [MapProperty(nameof(Parcel.Status), nameof(ParcelDetailDto.Status))]
-    [MapProperty(nameof(Parcel.WeightUnit), nameof(ParcelDetailDto.WeightUnit))]
-    [MapProperty(nameof(Parcel.DimensionUnit), nameof(ParcelDetailDto.DimensionUnit))]
-    [MapProperty(nameof(Parcel.RecipientAddress), nameof(ParcelDetailDto.RecipientAddress))]
-    public static partial ParcelDetailDto ToDetailDto(this Parcel parcel);
+    [MapperIgnoreSource(nameof(Parcel.ChangeHistory))]
+    public static ParcelDetailDto ToDetailDto(this Parcel parcel)
+    {
+        var history = parcel.ChangeHistory
+            .OrderByDescending(entry => entry.ChangedAt)
+            .Select(entry => new ParcelChangeHistoryDto
+            {
+                Action = ParcelChangeSupport.FormatEnum(entry.Action),
+                FieldName = entry.FieldName,
+                BeforeValue = entry.BeforeValue,
+                AfterValue = entry.AfterValue,
+                ChangedAt = entry.ChangedAt,
+                ChangedBy = entry.ChangedBy,
+            })
+            .ToArray();
+
+        return new ParcelDetailDto
+        {
+            Id = parcel.Id,
+            TrackingNumber = parcel.TrackingNumber,
+            Status = parcel.Status.ToString(),
+            ShipperAddressId = parcel.ShipperAddressId,
+            ServiceType = parcel.ServiceType.ToString(),
+            Weight = parcel.Weight,
+            WeightUnit = parcel.WeightUnit.ToString(),
+            Length = parcel.Length,
+            Width = parcel.Width,
+            Height = parcel.Height,
+            DimensionUnit = parcel.DimensionUnit.ToString(),
+            DeclaredValue = parcel.DeclaredValue,
+            Currency = parcel.Currency,
+            Description = parcel.Description,
+            ParcelType = parcel.ParcelType,
+            CancellationReason = parcel.CancellationReason,
+            EstimatedDeliveryDate = parcel.EstimatedDeliveryDate,
+            DeliveryAttempts = parcel.DeliveryAttempts,
+            ZoneId = parcel.Zone.Id,
+            ZoneName = parcel.Zone.Name,
+            DepotId = parcel.Zone.DepotId,
+            DepotName = parcel.Zone.Depot?.Name,
+            CreatedAt = parcel.CreatedAt,
+            LastModifiedAt = parcel.LastModifiedAt,
+            CanEdit = parcel.CanEditBeforeLoad(),
+            CanCancel = parcel.CanCancelBeforeLoad(),
+            RecipientAddress = parcel.RecipientAddress.ToDetailDto(),
+            ChangeHistory = history,
+        };
+    }
 
     [MapperIgnoreSource(nameof(Parcel.Description))]
     [MapperIgnoreSource(nameof(Parcel.ServiceType))]
     [MapperIgnoreSource(nameof(Parcel.Status))]
+    [MapperIgnoreSource(nameof(Parcel.CancellationReason))]
     [MapperIgnoreSource(nameof(Parcel.ShipperAddressId))]
     [MapperIgnoreSource(nameof(Parcel.RecipientAddressId))]
     [MapperIgnoreSource(nameof(Parcel.Weight))]
@@ -98,6 +140,7 @@ public static partial class ParcelMappings
     [MapperIgnoreSource(nameof(Parcel.ShipperAddress))]
     [MapperIgnoreSource(nameof(Parcel.DeliveryConfirmation))]
     [MapperIgnoreSource(nameof(Parcel.ContentItems))]
+    [MapperIgnoreSource(nameof(Parcel.ChangeHistory))]
     [MapperIgnoreSource(nameof(Parcel.TrackingEvents))]
     [MapperIgnoreSource(nameof(Parcel.Watchers))]
     [MapperIgnoreSource(nameof(Parcel.CreatedAt))]
