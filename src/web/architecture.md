@@ -58,6 +58,7 @@ src/web/src/
     auth/
     dashboard/
     depots/
+    drivers/
     detail/
     feedback/
     form/
@@ -120,6 +121,7 @@ Rules:
 
 Examples:
 - domain page: [vehicles-page.tsx](/C:/Users/mesut/source/repos/lastmile-tms-team2/src/web/src/components/vehicles/vehicles-page.tsx)
+- domain page: [drivers-page.tsx](/C:/Users/mesut/source/repos/lastmile-tms-team2/src/web/src/components/drivers/drivers-page.tsx)
 - domain-heavy admin page: [user-management-page.tsx](/C:/Users/mesut/source/repos/lastmile-tms-team2/src/web/src/components/users/user-management-page.tsx)
 
 ### `queries/`
@@ -142,6 +144,7 @@ Both patterns are acceptable today. Do not mix them inside the same domain modul
 
 Examples:
 - session-aware hooks: [vehicles.ts](/C:/Users/mesut/source/repos/lastmile-tms-team2/src/web/src/queries/vehicles.ts)
+- session-aware hooks: [drivers.ts](/C:/Users/mesut/source/repos/lastmile-tms-team2/src/web/src/queries/drivers.ts)
 - token-parameter hooks: [users.ts](/C:/Users/mesut/source/repos/lastmile-tms-team2/src/web/src/queries/users.ts)
 
 ### `services/`
@@ -160,6 +163,7 @@ Rules:
 
 Examples:
 - normalized service object style: [vehicles.service.ts](/C:/Users/mesut/source/repos/lastmile-tms-team2/src/web/src/services/vehicles.service.ts)
+- normalized service object style: [drivers.service.ts](/C:/Users/mesut/source/repos/lastmile-tms-team2/src/web/src/services/drivers.service.ts)
 - function-based service style: [users.service.ts](/C:/Users/mesut/source/repos/lastmile-tms-team2/src/web/src/services/users.service.ts)
 
 Both export styles are acceptable. Prefer consistency within a given domain over repo-wide mechanical rewrites.
@@ -182,7 +186,9 @@ Rules:
 
 Examples:
 - document file: [vehicles.graphql](/C:/Users/mesut/source/repos/lastmile-tms-team2/src/web/src/graphql/documents/vehicles.graphql)
+- document file: [drivers.graphql](/C:/Users/mesut/source/repos/lastmile-tms-team2/src/web/src/graphql/documents/drivers.graphql)
 - domain re-export: [vehicles.ts](/C:/Users/mesut/source/repos/lastmile-tms-team2/src/web/src/graphql/vehicles.ts)
+- domain re-export: [drivers.ts](/C:/Users/mesut/source/repos/lastmile-tms-team2/src/web/src/graphql/drivers.ts)
 
 ### `types/`
 Purpose:
@@ -198,6 +204,7 @@ Rules:
 
 Examples:
 - local UI model around generated enums: [vehicles.ts](/C:/Users/mesut/source/repos/lastmile-tms-team2/src/web/src/types/vehicles.ts)
+- local UI model for forms and commands: [drivers.ts](/C:/Users/mesut/source/repos/lastmile-tms-team2/src/web/src/types/drivers.ts)
 - user management local request and view models: [users.ts](/C:/Users/mesut/source/repos/lastmile-tms-team2/src/web/src/types/users.ts)
 
 ### `hooks/`
@@ -218,7 +225,7 @@ Current accepted subfolders include:
 - `lib/navigation/`
 - `lib/validation/`
 - `lib/toast/`
-- small domain helper folders such as `lib/depots/` or `lib/parcels/` when the helper is not a service and not UI
+- small domain helper folders such as `lib/depots/`, `lib/labels/`, `lib/parcels/`, or `lib/time/` when the helper is not a service and not UI
 
 Rules:
 - keep helpers small and focused

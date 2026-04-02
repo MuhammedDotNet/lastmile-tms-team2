@@ -7,14 +7,20 @@ using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace LastMile.TMS.Api.Tests.GraphQL;
 
-public abstract class GraphQLTestBase(CustomWebApplicationFactory factory)
+public abstract class GraphQLTestBase
 {
-    protected CustomWebApplicationFactory Factory { get; } = factory;
-
-    protected HttpClient Client { get; } = factory.CreateClient(new WebApplicationFactoryClientOptions
+    protected GraphQLTestBase(CustomWebApplicationFactory factory)
     {
-        BaseAddress = new Uri("https://localhost")
-    });
+        Factory = factory;
+        Client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost")
+        });
+    }
+
+    protected CustomWebApplicationFactory Factory { get; }
+
+    protected HttpClient Client { get; }
 
     protected Task<string> GetAdminAccessTokenAsync() =>
         GetAccessTokenAsync("admin@lastmile.com", "Admin@12345");

@@ -21,10 +21,7 @@ import {
   ParcelWeightUnit,
   ParcelWeightUnitOptions,
 } from "@/types/parcels";
-import type {
-  GraphQLServiceType,
-  RegisteredParcelResult,
-} from "@/types/parcels";
+import type { GraphQLServiceType, RegisteredParcelResult } from "@/types/parcels";
 
 type ParcelFormState = {
   // Shipper
@@ -166,11 +163,9 @@ export function ParcelRegistrationForm({
         ? `${form.estimatedDeliveryDate}T00:00:00+00:00`
         : form.estimatedDeliveryDate;
 
-      const selectedDepot = depots.find(d => d.id === form.shipperAddressId);
-
       const parcel = await registerParcel.mutateAsync({
         ...form,
-        shipperAddressId: selectedDepot?.addressId ?? form.shipperAddressId,
+        shipperAddressId: form.shipperAddressId,
         estimatedDeliveryDate: isoDate,
       });
       setResult(parcel);
@@ -284,7 +279,7 @@ export function ParcelRegistrationForm({
           <CardContent className="grid gap-4 md:grid-cols-2">
             <div className="md:col-span-2">
               <Label htmlFor="shipperAddressId" className="mb-1.5 block">
-                Depot
+                Select Depot
               </Label>
               {depotsLoading ? (
                 <Input disabled placeholder="Loading depots..." />

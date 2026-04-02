@@ -57,7 +57,8 @@ public sealed class ZoneType : EntityObjectType<Zone>
                     return ids.ToDictionary(
                         id => id,
                         id => depots.FirstOrDefault(d => d.Id == id)?.Name);
-                })
+                },
+                "ZoneDepotNameByDepotId")
             .LoadAsync(depotId);
 }
 

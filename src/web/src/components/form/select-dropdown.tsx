@@ -14,6 +14,8 @@ interface SelectDropdownProps<T extends string | number> {
   onChange: (value: T) => void;
   placeholder?: string;
   className?: string;
+  /** Extra classes for the trigger button (e.g. compact size). */
+  triggerClassName?: string;
   id?: string;
   disabled?: boolean;
   /** Validation error styling on trigger. */
@@ -26,6 +28,7 @@ export function SelectDropdown<T extends string | number>({
   onChange,
   placeholder = "Select...",
   className = "",
+  triggerClassName,
   id,
   disabled = false,
   invalid = false,
@@ -124,6 +127,7 @@ export function SelectDropdown<T extends string | number>({
           invalid &&
             "border-destructive bg-destructive/[0.06] ring-1 ring-destructive/35 focus-visible:ring-destructive/40 dark:bg-destructive/10 dark:ring-destructive/45",
           disabled && "pointer-events-none opacity-50",
+          triggerClassName,
         )}
         data-invalid={invalid || undefined}
         aria-expanded={dropdownOpen}

@@ -56,7 +56,8 @@ public sealed class VehicleType : EntityObjectType<Vehicle>
                     return ids.ToDictionary(
                         id => id,
                         id => depots.FirstOrDefault(d => d.Id == id)?.Name);
-                })
+                },
+                "VehicleDepotNameByDepotId")
             .LoadAsync(depotId);
 
     private static Task<VehicleRouteStats?> LoadStatsAsync(IResolverContext ctx)
@@ -83,7 +84,8 @@ public sealed class VehicleType : EntityObjectType<Vehicle>
                     return ids.ToDictionary(
                         id => id,
                         id => stats.FirstOrDefault(s => s.VehicleId == id) ?? VehicleRouteStats.Empty(id));
-                })
+                },
+                "VehicleRouteStatsByVehicleId")
             .LoadAsync(vehicleId);
     }
 

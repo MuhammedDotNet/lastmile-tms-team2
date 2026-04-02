@@ -1,0 +1,5 @@
+import DriversPageComponent from "@/components/drivers/drivers-page";
+
+export default function Page() {
+  return <DriversPageComponent />;
+}

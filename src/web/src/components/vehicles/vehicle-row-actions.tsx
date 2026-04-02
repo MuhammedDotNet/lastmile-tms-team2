@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 type VehicleRowActionsProps = {
   vehicleId: string;
   registrationPlate: string;
-  onDelete: () => void;
+  onDeleteAction: () => void;
   deleteDisabled?: boolean;
 };
 
@@ -27,7 +27,7 @@ const deleteBtn = cn(
 export function VehicleRowActions({
   vehicleId,
   registrationPlate,
-  onDelete,
+  onDeleteAction,
   deleteDisabled,
 }: VehicleRowActionsProps) {
   return (
@@ -83,7 +83,7 @@ export function VehicleRowActions({
             className={deleteBtn}
             disabled={deleteDisabled}
             aria-label={`Delete ${registrationPlate}`}
-            onClick={onDelete}
+            onClick={onDeleteAction}
           >
             <Trash2 className="size-3.5" strokeWidth={2} aria-hidden />
           </button>

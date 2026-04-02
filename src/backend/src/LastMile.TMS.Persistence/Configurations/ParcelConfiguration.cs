@@ -76,6 +76,8 @@ public class ParcelConfiguration : IEntityTypeConfiguration<Parcel>
 
         builder.HasIndex(p => p.EstimatedDeliveryDate);
 
+        builder.HasIndex(p => p.ParcelImportId);
+
         builder.HasOne(p => p.ShipperAddress)
             .WithMany(a => a.ShipperParcels)
             .HasForeignKey(p => p.ShipperAddressId)
@@ -90,5 +92,10 @@ public class ParcelConfiguration : IEntityTypeConfiguration<Parcel>
             .WithMany(z => z.Parcels)
             .HasForeignKey(p => p.ZoneId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(p => p.ParcelImport)
+            .WithMany(i => i.Parcels)
+            .HasForeignKey(p => p.ParcelImportId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

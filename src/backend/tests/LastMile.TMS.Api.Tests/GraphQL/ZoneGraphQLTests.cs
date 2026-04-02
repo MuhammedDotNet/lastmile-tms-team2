@@ -9,11 +9,14 @@ using NetTopologySuite.Geometries;
 namespace LastMile.TMS.Api.Tests.GraphQL;
 
 [Collection(ApiTestCollection.Name)]
-public class ZoneGraphQLTests(CustomWebApplicationFactory factory)
-    : GraphQLTestBase(factory), IAsyncLifetime
+public class ZoneGraphQLTests : GraphQLTestBase, IAsyncLifetime
 {
     private static readonly GeometryFactory GeometryFactory =
         NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
+
+    public ZoneGraphQLTests(CustomWebApplicationFactory factory) : base(factory)
+    {
+    }
 
     [Fact]
     public async Task Zones_WithAdminToken_ReturnsBoundaryGeoJson()

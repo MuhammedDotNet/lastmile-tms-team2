@@ -34,6 +34,33 @@ public sealed class ParcelDetailAddressType : ObjectType<ParcelDetailAddressDto>
     }
 }
 
+public sealed class ParcelImportHistoryType : ObjectType<ParcelImportHistoryDto>
+{
+    protected override void Configure(IObjectTypeDescriptor<ParcelImportHistoryDto> descriptor)
+    {
+        descriptor.Name("ParcelImportHistory");
+        descriptor.BindFieldsImplicitly();
+    }
+}
+
+public sealed class ParcelImportDetailType : ObjectType<ParcelImportDetailDto>
+{
+    protected override void Configure(IObjectTypeDescriptor<ParcelImportDetailDto> descriptor)
+    {
+        descriptor.Name("ParcelImport");
+        descriptor.BindFieldsImplicitly();
+    }
+}
+
+public sealed class ParcelImportRowFailurePreviewType : ObjectType<ParcelImportRowFailurePreviewDto>
+{
+    protected override void Configure(IObjectTypeDescriptor<ParcelImportRowFailurePreviewDto> descriptor)
+    {
+        descriptor.Name("ParcelImportRowFailurePreview");
+        descriptor.BindFieldsImplicitly();
+    }
+}
+
 public sealed class ParcelRouteOptionType : EntityObjectType<Parcel>
 {
     protected override void ConfigureFields(IObjectTypeDescriptor<Parcel> descriptor)

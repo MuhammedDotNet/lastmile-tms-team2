@@ -23,9 +23,9 @@ function mapRoute(raw: NonNullable<GetRoutesQuery["routes"]>[number]): Route {
   return {
     id: raw.id,
     vehicleId: raw.vehicleId,
-    vehiclePlate: raw.vehiclePlate ?? "Unknown vehicle",
+    vehiclePlate: raw.vehiclePlate?.trim() || "Unknown vehicle",
     driverId: raw.driverId,
-    driverName: raw.driverName ?? "Unknown driver",
+    driverName: raw.driverName?.trim() || "Unknown driver",
     startDate: raw.startDate,
     endDate: raw.endDate ?? null,
     startMileage: raw.startMileage,

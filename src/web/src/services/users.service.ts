@@ -48,6 +48,14 @@ export async function getUsers(
   return data.users;
 }
 
+export async function getUsersForSelect(): Promise<UserManagementUser[]> {
+  const data = await graphqlRequest<{ users: UserManagementUser[] }>(
+    USERS_LIST,
+    {}
+  );
+  return data.users;
+}
+
 export async function createUser(
   accessToken: string,
   input: CreateUserInput

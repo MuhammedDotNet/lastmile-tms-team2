@@ -3,6 +3,7 @@ using Hangfire;
 using LastMile.TMS.Api.Configuration;
 using LastMile.TMS.Application;
 using LastMile.TMS.Infrastructure;
+using LastMile.TMS.Infrastructure.Services;
 using LastMile.TMS.Persistence;
 using Serilog;
 
@@ -50,9 +51,17 @@ try
     app.UseAuthentication();
     app.UseAuthorization();
 
+    var webRoot = System.IO.Path.Combine(app.Environment.ContentRootPath, "wwwroot");
+    Directory.CreateDirectory(System.IO.Path.Combine(webRoot, "uploads", "drivers"));
+    app.UseStaticFiles();
+
     if (!disableExternalInfrastructure)
     {
         app.UseHangfireDashboard("/hangfire", HangfireDashboardConfiguration.CreateOptions(builder.Configuration));
+        RecurringJob.AddOrUpdate<DriverPhotoOrphanCleanupJob>(
+            "driver-photo-orphan-cleanup",
+            job => job.ExecuteAsync(JobCancellationToken.Null),
+            Cron.Daily());
     }
 
     app.MapControllers();

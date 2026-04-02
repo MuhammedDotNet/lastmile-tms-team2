@@ -10,9 +10,12 @@ using NetTopologySuite.Geometries;
 namespace LastMile.TMS.Api.Tests.GraphQL;
 
 [Collection(ApiTestCollection.Name)]
-public class DepotGraphQLTests(CustomWebApplicationFactory factory)
-    : GraphQLTestBase(factory), IAsyncLifetime
+public class DepotGraphQLTests : GraphQLTestBase, IAsyncLifetime
 {
+    public DepotGraphQLTests(CustomWebApplicationFactory factory) : base(factory)
+    {
+    }
+
     private static readonly GeometryFactory GeometryFactory =
         NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
 

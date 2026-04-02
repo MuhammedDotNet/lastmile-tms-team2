@@ -213,7 +213,7 @@ export default function VehiclesPage() {
                 <VehicleRowActions
                   vehicleId={vehicle.id}
                   registrationPlate={vehicle.registrationPlate}
-                  onDelete={() =>
+                  onDeleteAction={() =>
                     setDeleteTarget({
                       id: vehicle.id,
                       plate: vehicle.registrationPlate,

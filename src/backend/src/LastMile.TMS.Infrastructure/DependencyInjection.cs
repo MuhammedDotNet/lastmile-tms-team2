@@ -15,6 +15,7 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         var disableExternalInfrastructure = configuration.GetValue("Testing:DisableExternalInfrastructure", false);
+        var enableTestSupport = configuration.GetValue("Testing:EnableTestSupport", false);
         var isInMemoryDatabase = string.Equals(
             configuration.GetConnectionString("DefaultConnection"),
             "InMemory",
@@ -24,13 +25,22 @@ public static class DependencyInjection
 
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
+        services.AddScoped<IDriverPhotoFileCleanup, DriverPhotoFileCleanup>();
+        services.AddScoped<DriverPhotoOrphanCleanupJob>();
         services.AddScoped<FrontendBaseUrlResolver>();
         services.AddScoped<IZoneBoundaryParser, ZoneBoundaryParser>();
         services.AddSingleton<IZplLabelRasterizer, ZplLabelRasterizer>();
         services.AddScoped<IParcelLabelGenerator, ParcelLabelGenerator>();
+        services.AddScoped<IParcelImportFileParser, ParcelImportFileParser>();
+        services.AddScoped<IParcelImportTemplateGenerator, ParcelImportTemplateGenerator>();
+        services.AddScoped<ParcelImportBackgroundJob>();
 
-        // Parcel registration — geocoding and zone matching
-        if (isInMemoryDatabase)
+        // Parcel registration geocoding and zone matching
+        if (enableTestSupport)
+        {
+            services.AddScoped<IGeocodingService, TestSupportGeocodingService>();
+        }
+        else if (isInMemoryDatabase)
         {
             services.AddScoped<IGeocodingService, DeterministicGeocodingService>();
         }
@@ -38,15 +48,18 @@ public static class DependencyInjection
         {
             services.AddHttpClient<IGeocodingService, NominatimGeocodingService>();
         }
+
         services.AddScoped<IZoneMatchingService, ZoneMatchingService>();
 
         if (disableExternalInfrastructure)
         {
             services.AddScoped<IUserAccountEmailJobScheduler, NoOpUserAccountEmailJobScheduler>();
+            services.AddScoped<IParcelImportJobScheduler, ImmediateParcelImportJobScheduler>();
         }
         else
         {
             services.AddScoped<IUserAccountEmailJobScheduler, HangfireUserAccountEmailJobScheduler>();
+            services.AddScoped<IParcelImportJobScheduler, HangfireParcelImportJobScheduler>();
         }
 
         services.AddScoped<IUserAccountEmailService, UserAccountEmailService>();
@@ -59,7 +72,7 @@ public static class DependencyInjection
         var refreshTokenDays = configuration.GetValue("Authentication:RefreshTokenLifetimeDays", 14);
         var issuer = configuration.GetValue("Authentication:Issuer", "http://localhost");
 
-        // Configure OpenIddict server (password + refresh token grant → /connect/token)
+        // Configure OpenIddict server (password + refresh token grant -> /connect/token)
         services.AddOpenIddict()
             .AddServer(options =>
             {

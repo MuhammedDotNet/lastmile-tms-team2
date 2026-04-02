@@ -57,7 +57,7 @@ Transport and composition root.
 Responsibilities:
 - application startup and DI composition
 - GraphQL schema, types, queries, and mutations
-- REST controllers for auth and technical endpoints
+- REST controllers for auth and technical endpoints (e.g. driver photo upload; returned URL is stored via GraphQL)
 - transport-level auth, error translation, CORS, Swagger, middleware
 
 GraphQL feature structure:
@@ -77,6 +77,9 @@ LastMile.TMS.Api/GraphQL/
     DepotQueries.cs
     DepotTypes.cs
   Drivers/
+    DriverInputs.cs
+    DriverMappings.cs
+    DriverMutations.cs
     DriverQueries.cs
     DriverTypes.cs
   Parcels/
@@ -93,7 +96,7 @@ Rules:
   - `*Inputs.cs`
   - `*Mappings.cs`
   - `*Types.cs`
-- Omit files that a feature does not need. Example: `Drivers` currently has queries and types only.
+- Omit files that a feature does not need.
 - `*Inputs.cs` contains GraphQL input contracts only.
 - `*Mappings.cs` contains Mapperly input mappers only.
 - `*Types.cs` contains output types plus related filter/sort/nested GraphQL types.
@@ -133,6 +136,26 @@ LastMile.TMS.Application/
       DeleteDepot/
         DeleteDepotCommand.cs
         DeleteDepotCommandHandler.cs
+    DTOs/
+    Mappings/
+    Reads/
+  Drivers/
+    Commands/
+      CreateDriver/
+        CreateDriverCommand.cs
+        CreateDriverCommandValidator.cs
+        CreateDriverCommandHandler.cs
+      UpdateDriver/
+        UpdateDriverCommand.cs
+        UpdateDriverCommandValidator.cs
+        UpdateDriverCommandHandler.cs
+      DeleteDriver/
+        DeleteDriverCommand.cs
+        DeleteDriverCommandHandler.cs
+    Queries/
+      GetDriver/
+        GetDriverQuery.cs
+        GetDriverQueryHandler.cs
     DTOs/
     Mappings/
     Reads/
@@ -183,6 +206,7 @@ Adapters for external or runtime concerns.
 Responsibilities:
 - current user resolution
 - email and background jobs
+- file or storage maintenance jobs (e.g. orphan driver photo cleanup)
 - geocoding and zone support
 - auth server/validation wiring
 - options binding for external services

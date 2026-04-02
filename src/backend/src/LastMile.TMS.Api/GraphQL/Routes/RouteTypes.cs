@@ -16,14 +16,19 @@ public sealed class RouteType : EntityObjectType<RouteEntity>
     {
         descriptor.Name("Route");
         descriptor.Field(r => r.Id).IsProjected(true);
+        // FKs: keep projected when clients request vehicleId/driverId; also useful for filters.
         descriptor.Field(r => r.VehicleId).IsProjected(true);
+        descriptor.Field(r => r.DriverId).IsProjected(true);
+        // Resolve plate/name by Route.Id + EF join — does not rely on VehicleId/DriverId on the
+        // (possibly partial) parent entity when UseProjection materializes Route.
         descriptor.Field("vehiclePlate")
             .Type<StringType>()
-            .Resolve(async ctx => await LoadVehiclePlateAsync(ctx, ctx.Parent<RouteEntity>().VehicleId));
-        descriptor.Field(r => r.DriverId).IsProjected(true);
+            .Resolve(async ctx =>
+                (await LoadRouteLabelsAsync(ctx, ctx.Parent<RouteEntity>().Id)).VehiclePlate);
         descriptor.Field("driverName")
             .Type<StringType>()
-            .Resolve(async ctx => await LoadDriverNameAsync(ctx, ctx.Parent<RouteEntity>().DriverId));
+            .Resolve(async ctx =>
+                (await LoadRouteLabelsAsync(ctx, ctx.Parent<RouteEntity>().Id)).DriverName);
         descriptor.Field(r => r.StartDate);
         descriptor.Field(r => r.EndDate);
         descriptor.Field(r => r.StartMileage);
@@ -45,43 +50,47 @@ public sealed class RouteType : EntityObjectType<RouteEntity>
         descriptor.Field(r => r.CreatedAt);
     }
 
-    private static Task<string?> LoadVehiclePlateAsync(IResolverContext ctx, Guid vehicleId) =>
-        ctx.BatchDataLoader<Guid, string?>(
-                async (ids, ct) =>
+    /// <summary>
+    /// Single batch loader for plate and driver name. Two separate string batch loaders with the
+    /// same Guid key risk mixing results between GraphQL fields in Hot Chocolate.
+    /// </summary>
+    private static async Task<RouteLabels> LoadRouteLabelsAsync(IResolverContext ctx, Guid routeId)
+    {
+        var labels = await ctx.BatchDataLoader<Guid, RouteLabels>(
+                async (routeIds, ct) =>
                 {
                     var dbContext = ctx.Service<IAppDbContext>();
-                    var vehicles = await dbContext.Vehicles
+                    var rows = await dbContext.Routes
                         .AsNoTracking()
-                        .Where(v => ids.Contains(v.Id))
-                        .Select(v => new { v.Id, v.RegistrationPlate })
+                        .Where(r => routeIds.Contains(r.Id))
+                        .Select(r => new
+                        {
+                            r.Id,
+                            Plate = r.Vehicle.RegistrationPlate,
+                            DriverName = $"{r.Driver.FirstName} {r.Driver.LastName}".Trim(),
+                        })
                         .ToListAsync(ct);
 
-                    return ids.ToDictionary(
-                        id => id,
-                        id => vehicles.FirstOrDefault(v => v.Id == id)?.RegistrationPlate);
-                })
-            .LoadAsync(vehicleId);
-
-    private static Task<string?> LoadDriverNameAsync(IResolverContext ctx, Guid driverId) =>
-        ctx.BatchDataLoader<Guid, string?>(
-                async (ids, ct) =>
-                {
-                    var dbContext = ctx.Service<IAppDbContext>();
-                    var drivers = await dbContext.Drivers
-                        .AsNoTracking()
-                        .Where(d => ids.Contains(d.Id))
-                        .Select(d => new { d.Id, d.FirstName, d.LastName })
-                        .ToListAsync(ct);
-
-                    return ids.ToDictionary(
+                    return routeIds.ToDictionary(
                         id => id,
                         id =>
                         {
-                            var driver = drivers.FirstOrDefault(d => d.Id == id);
-                            return driver is null ? null : $"{driver.FirstName} {driver.LastName}".Trim();
+                            var row = rows.FirstOrDefault(x => x.Id == id);
+                            return row is null
+                                ? RouteLabels.Empty
+                                : new RouteLabels(row.Plate, row.DriverName);
                         });
-                })
-            .LoadAsync(driverId);
+                },
+                "RouteLabelsByRouteId")
+            .LoadAsync(routeId);
+
+        return labels ?? RouteLabels.Empty;
+    }
+
+    private sealed record RouteLabels(string VehiclePlate, string DriverName)
+    {
+        public static RouteLabels Empty { get; } = new(string.Empty, string.Empty);
+    }
 
     private static Task<RouteParcelStats?> LoadParcelStatsAsync(IResolverContext ctx)
     {
@@ -103,7 +112,8 @@ public sealed class RouteType : EntityObjectType<RouteEntity>
                     return ids.ToDictionary(
                         id => id,
                         id => stats.FirstOrDefault(s => s.RouteId == id) ?? RouteParcelStats.Empty(id));
-                })
+                },
+                "RouteParcelStatsByRouteId")
             .LoadAsync(routeId);
     }
 

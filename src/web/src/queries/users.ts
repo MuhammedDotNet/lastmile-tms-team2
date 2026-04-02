@@ -4,12 +4,14 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import { useSession } from "next-auth/react";
 import type { MutationToastMeta } from "@/lib/query/mutation-toast-meta";
 import {
   createUser,
   deactivateUser,
   getUserManagementLookups,
   getUsers,
+  getUsersForSelect,
   sendPasswordResetEmail,
   updateUser,
 } from "@/services/users.service";
@@ -23,7 +25,17 @@ export const usersKeys = {
   all: ["users"] as const,
   lookups: () => [...usersKeys.all, "lookups"] as const,
   list: (filters: GetUsersInput) => [...usersKeys.all, "list", filters] as const,
+  select: () => [...usersKeys.all, "select"] as const,
 };
+
+export function useUsersForSelect() {
+  const { status } = useSession();
+  return useQuery({
+    queryKey: usersKeys.select(),
+    queryFn: () => getUsersForSelect(),
+    enabled: status === "authenticated",
+  });
+}
 
 export function useUsersLookups(accessToken: string, enabled = true) {
   return useQuery({

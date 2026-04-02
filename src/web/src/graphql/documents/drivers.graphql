@@ -1,6 +1,116 @@
-query GetDrivers($depotId: UUID) {
-  drivers(depotId: $depotId) {
+query GetDrivers($where: DriverFilterInput, $order: [DriverSortInput!]) {
+  drivers(where: $where, order: $order) {
     id
     displayName
+    firstName
+    lastName
+    phone
+    email
+    licenseNumber
+    licenseExpiryDate
+    photoUrl
+    zoneId
+    depotId
+    status
+    userId
+    zoneName
+    depotName
+    userName
+    createdAt
+    updatedAt
   }
+}
+
+query GetDriver($id: UUID!) {
+  driver(id: $id) {
+    id
+    displayName
+    firstName
+    lastName
+    phone
+    email
+    licenseNumber
+    licenseExpiryDate
+    photoUrl
+    zoneId
+    depotId
+    status
+    userId
+    zoneName
+    depotName
+    userName
+    availabilitySchedule {
+      id
+      dayOfWeek
+      shiftStart
+      shiftEnd
+      isAvailable
+    }
+    createdAt
+    updatedAt
+  }
+}
+
+mutation CreateDriver($input: CreateDriverInput!) {
+  createDriver(input: $input) {
+    id
+    displayName
+    firstName
+    lastName
+    phone
+    email
+    licenseNumber
+    licenseExpiryDate
+    photoUrl
+    zoneId
+    depotId
+    status
+    userId
+    zoneName
+    depotName
+    userName
+    availabilitySchedule {
+      id
+      dayOfWeek
+      shiftStart
+      shiftEnd
+      isAvailable
+    }
+    createdAt
+    updatedAt
+  }
+}
+
+mutation UpdateDriver($id: UUID!, $input: UpdateDriverInput!) {
+  updateDriver(id: $id, input: $input) {
+    id
+    displayName
+    firstName
+    lastName
+    phone
+    email
+    licenseNumber
+    licenseExpiryDate
+    photoUrl
+    zoneId
+    depotId
+    status
+    userId
+    zoneName
+    depotName
+    userName
+    availabilitySchedule {
+      id
+      dayOfWeek
+      shiftStart
+      shiftEnd
+      isAvailable
+    }
+    createdAt
+    updatedAt
+  }
+}
+
+mutation DeleteDriver($id: UUID!) {
+  deleteDriver(id: $id)
 }

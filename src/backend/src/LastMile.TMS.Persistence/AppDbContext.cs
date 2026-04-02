@@ -20,6 +20,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<DriverAvailability> DriverAvailabilities => Set<DriverAvailability>();
     public DbSet<Route> Routes => Set<Route>();
     public DbSet<Parcel> Parcels => Set<Parcel>();
+    public DbSet<ParcelImport> ParcelImports => Set<ParcelImport>();
+    public DbSet<ParcelImportRowFailure> ParcelImportRowFailures => Set<ParcelImportRowFailure>();
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {

@@ -13,9 +13,9 @@ import { cn } from "@/lib/utils";
 export const DETAIL_PAGE_CONTENT_PADDING =
   "px-3 py-10 sm:px-5 sm:py-12 lg:px-6 lg:py-16";
 
-export type DetailSection = "neutral" | "vehicle" | "route";
+export type DetailSection = "neutral" | "vehicle" | "route" | "driver";
 
-const DetailPageSectionContext = createContext<"vehicle" | "route" | null>(
+const DetailPageSectionContext = createContext<"vehicle" | "route" | "driver" | null>(
   null,
 );
 
@@ -24,7 +24,7 @@ export function DetailPageSectionProvider({
   section,
   children,
 }: {
-  section: "vehicle" | "route";
+  section: "vehicle" | "route" | "driver";
   children: ReactNode;
 }) {
   return (
@@ -61,6 +61,14 @@ const detailShellBg: Record<
       "before:bg-[radial-gradient(ellipse_100%_52%_at_50%_-8%,oklch(0.92_0.05_290/0.48),transparent_58%)]",
     radialDark:
       "before:dark:bg-[radial-gradient(ellipse_100%_48%_at_50%_-6%,oklch(0.25_0.05_285/0.48),transparent_55%)]",
+  },
+  driver: {
+    gradient:
+      "bg-linear-to-b from-blue-500/11 via-background via-40% to-slate-950/10 dark:from-blue-950/38 dark:via-background dark:via-40% dark:to-slate-950/18",
+    radial:
+      "before:bg-[radial-gradient(ellipse_100%_52%_at_50%_-8%,oklch(0.92_0.04_250/0.48),transparent_58%)]",
+    radialDark:
+      "before:dark:bg-[radial-gradient(ellipse_100%_48%_at_50%_-6%,oklch(0.25_0.04_250/0.48),transparent_55%)]",
   },
 };
 
@@ -153,7 +161,7 @@ export function DetailBreadcrumb({
 }
 
 const heroIconTile: Record<
-  "vehicle" | "route",
+  "vehicle" | "route" | "driver",
   { tile: string; eyebrowLine: string; blobA: string; blobC: string }
 > = {
   vehicle: {
@@ -173,6 +181,15 @@ const heroIconTile: Record<
       "bg-[radial-gradient(circle,oklch(0.72_0.11_290/0.22),transparent_68%)]",
     blobC:
       "bg-[radial-gradient(circle,oklch(0.68_0.1_300/0.14),transparent_72%)]",
+  },
+  driver: {
+    tile:
+      "bg-blue-500/14 text-blue-800 shadow-sm ring-blue-500/15 dark:bg-blue-400/12 dark:text-blue-200 dark:ring-blue-400/25",
+    eyebrowLine: "from-blue-600/80 to-transparent dark:from-blue-400/70",
+    blobA:
+      "bg-[radial-gradient(circle,oklch(0.72_0.11_250/0.22),transparent_68%)]",
+    blobC:
+      "bg-[radial-gradient(circle,oklch(0.68_0.1_280/0.14),transparent_72%)]",
   },
 };
 
@@ -194,7 +211,7 @@ export function DetailHero({
   /** Short label above title, e.g. "Fleet" */
   eyebrow?: string;
   /** Visual accent: fleet (teal) vs dispatch (violet). */
-  section?: "vehicle" | "route";
+  section?: "vehicle" | "route" | "driver";
 }) {
   const hi = heroIconTile[section];
   return (
@@ -368,7 +385,7 @@ export function DetailMetricStrip({
 }
 
 const panelTitleAccent: Record<
-  "neutral" | "vehicle" | "route",
+  "neutral" | "vehicle" | "route" | "driver",
   string
 > = {
   neutral:
@@ -377,6 +394,8 @@ const panelTitleAccent: Record<
     "bg-linear-to-r from-teal-500/90 to-teal-500/20 dark:from-teal-400/80 dark:to-teal-400/15",
   route:
     "bg-linear-to-r from-violet-500/90 to-violet-500/20 dark:from-violet-400/80 dark:to-violet-400/15",
+  driver:
+    "bg-linear-to-r from-blue-500/90 to-blue-500/20 dark:from-blue-400/80 dark:to-blue-400/15",
 };
 
 export function DetailPanel({
@@ -390,7 +409,7 @@ export function DetailPanel({
   description?: string;
   children: ReactNode;
   className?: string;
-  section?: "neutral" | "vehicle" | "route";
+  section?: "neutral" | "vehicle" | "route" | "driver";
 }) {
   return (
     <section className={cn("mt-10", className)}>
@@ -457,7 +476,9 @@ export function DetailField({
   const dot =
     pageSection === "route"
       ? "bg-violet-600/85 shadow-[0_0_0_2px_oklch(0.72_0.12_290/0.22)] dark:bg-violet-400/85 dark:shadow-[0_0_0_2px_oklch(0.35_0.1_290/0.35)]"
-      : "bg-teal-600/85 shadow-[0_0_0_2px_oklch(0.72_0.1_195/0.2)] dark:bg-teal-400/80 dark:shadow-[0_0_0_2px_oklch(0.35_0.08_195/0.35)]";
+      : pageSection === "driver"
+        ? "bg-blue-600/85 shadow-[0_0_0_2px_oklch(0.72_0.12_250/0.22)] dark:bg-blue-400/85 dark:shadow-[0_0_0_2px_oklch(0.35_0.1_250/0.35)]"
+        : "bg-teal-600/85 shadow-[0_0_0_2px_oklch(0.72_0.1_195/0.2)] dark:bg-teal-400/80 dark:shadow-[0_0_0_2px_oklch(0.35_0.08_195/0.35)]";
   return (
     <div className="min-w-0">
       <dt className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">

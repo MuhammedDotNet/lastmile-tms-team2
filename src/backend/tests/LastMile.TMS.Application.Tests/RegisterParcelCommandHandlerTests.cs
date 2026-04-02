@@ -1,4 +1,5 @@
 using FluentAssertions;
+using LastMile.TMS.Application.Common.Interfaces;
 using LastMile.TMS.Application.Parcels.Commands;
 using LastMile.TMS.Application.Parcels.DTOs;
 using LastMile.TMS.Application.Parcels.Services;
@@ -65,6 +66,18 @@ public class RegisterParcelCommandHandlerTests
         return p;
     }
 
+    private static RegisterParcelCommandHandler MakeHandler(
+        AppDbContext db,
+        IGeocodingService geocoding,
+        IZoneMatchingService zoneMatching)
+    {
+        var currentUser = Substitute.For<ICurrentUserService>();
+        currentUser.UserName.Returns("ops.manager");
+
+        var registrationService = new ParcelRegistrationService(db, geocoding, zoneMatching, currentUser);
+        return new RegisterParcelCommandHandler(registrationService);
+    }
+
     #region Scenario 1 — Shipper address not found
 
     [Fact]
@@ -73,7 +86,7 @@ public class RegisterParcelCommandHandlerTests
         var db = MakeDbContext();
         var geocoding = Substitute.For<IGeocodingService>();
         var zoneMatching = Substitute.For<IZoneMatchingService>();
-        var handler = new RegisterParcelCommandHandler(db, geocoding, zoneMatching);
+        var handler = MakeHandler(db, geocoding, zoneMatching);
 
         var shipperAddressId = Guid.NewGuid();
         var command = MakeCommand(shipperAddressId);
@@ -108,7 +121,7 @@ public class RegisterParcelCommandHandlerTests
             .Returns((Point?)null);
 
         var zoneMatching = Substitute.For<IZoneMatchingService>();
-        var handler = new RegisterParcelCommandHandler(db, geocoding, zoneMatching);
+        var handler = MakeHandler(db, geocoding, zoneMatching);
 
         var command = MakeCommand(shipperAddress.Id);
 
@@ -149,7 +162,7 @@ public class RegisterParcelCommandHandlerTests
         zoneMatching.FindZoneIdAsync(Arg.Any<Point>(), Arg.Any<CancellationToken>())
             .Returns((Guid?)null);
 
-        var handler = new RegisterParcelCommandHandler(db, geocoding, zoneMatching);
+        var handler = MakeHandler(db, geocoding, zoneMatching);
         var command = MakeCommand(shipperAddress.Id);
 
         var act = () => handler.Handle(command, CancellationToken.None);
@@ -233,7 +246,7 @@ public class RegisterParcelCommandHandlerTests
         zoneMatching.FindZoneIdAsync(Arg.Any<Point>(), Arg.Any<CancellationToken>())
             .Returns(zone.Id);
 
-        var handler = new RegisterParcelCommandHandler(db, geocoding, zoneMatching);
+        var handler = MakeHandler(db, geocoding, zoneMatching);
         var command = MakeCommand(shipperAddress.Id);
 
         var result = await handler.Handle(command, CancellationToken.None);
@@ -324,7 +337,7 @@ public class RegisterParcelCommandHandlerTests
         zoneMatching.FindZoneIdAsync(Arg.Any<Point>(), Arg.Any<CancellationToken>())
             .Returns(zone.Id);
 
-        var handler = new RegisterParcelCommandHandler(db, geocoding, zoneMatching);
+        var handler = MakeHandler(db, geocoding, zoneMatching);
         var command = MakeCommand(shipperAddress.Id);
 
         await handler.Handle(command, CancellationToken.None);
@@ -415,7 +428,7 @@ public class RegisterParcelCommandHandlerTests
         zoneMatching.FindZoneIdAsync(Arg.Any<Point>(), Arg.Any<CancellationToken>())
             .Returns((Guid?)null);
 
-        var handler = new RegisterParcelCommandHandler(db, geocoding, zoneMatching);
+        var handler = MakeHandler(db, geocoding, zoneMatching);
         var command = MakeCommand(shipperAddress.Id);
 
         var act = () => handler.Handle(command, CancellationToken.None);

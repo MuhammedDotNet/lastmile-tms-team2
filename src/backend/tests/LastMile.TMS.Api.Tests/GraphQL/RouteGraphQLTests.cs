@@ -9,9 +9,12 @@ using Microsoft.Extensions.DependencyInjection;
 namespace LastMile.TMS.Api.Tests.GraphQL;
 
 [Collection(ApiTestCollection.Name)]
-public class RouteGraphQLTests(CustomWebApplicationFactory factory)
-    : GraphQLTestBase(factory), IAsyncLifetime
+public class RouteGraphQLTests : GraphQLTestBase, IAsyncLifetime
 {
+    public RouteGraphQLTests(CustomWebApplicationFactory factory) : base(factory)
+    {
+    }
+
     [Fact]
     public async Task Routes_WithoutToken_ReturnsAuthorizationError()
     {

@@ -34,7 +34,10 @@ public class Driver : BaseAuditableEntity
     public Guid UserId { get; set; }
     public ApplicationUser User { get; set; } = null!;
 
-    // Availability calendar
+    /// <summary>
+    /// Weekly recurring shift template (day of week + times). Not a date-specific calendar;
+    /// use <see cref="Status"/> (e.g. OnLeave) for longer absence when needed.
+    /// </summary>
     public ICollection<DriverAvailability> AvailabilitySchedule { get; set; } = new List<DriverAvailability>();
 
     /// <summary>

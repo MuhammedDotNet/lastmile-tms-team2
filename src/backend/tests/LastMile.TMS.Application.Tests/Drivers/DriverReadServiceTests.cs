@@ -38,7 +38,7 @@ public class DriverReadServiceTests
     }
 
     [Fact]
-    public async Task GetDrivers_ReturnsOnlyActiveDrivers()
+    public async Task GetDrivers_ReturnsAllDrivers()
     {
         var db = MakeDbContext();
         var depotId = Guid.NewGuid();
@@ -52,28 +52,7 @@ public class DriverReadServiceTests
         var service = new DriverReadService(db);
         var result = await service.GetDrivers().ToListAsync();
 
-        result.Should().HaveCount(2);
-        result.Select(d => d.FirstName).Should().Contain("Ali", "Omar")
-            .And.NotContain("Sara");
-    }
-
-    [Fact]
-    public async Task GetDrivers_WithDepotId_FiltersByDepot()
-    {
-        var db = MakeDbContext();
-        var depot1 = Guid.NewGuid();
-        var depot2 = Guid.NewGuid();
-
-        db.Drivers.AddRange(
-            MakeDriver("Ali", "Ahmed", DriverStatus.Active, depot1),
-            MakeDriver("Sara", "Mohamed", DriverStatus.Active, depot2));
-        await db.SaveChangesAsync();
-
-        var service = new DriverReadService(db);
-        var result = await service.GetDrivers(depot1).ToListAsync();
-
-        result.Should().HaveCount(1);
-        result[0].FirstName.Should().Be("Ali");
+        result.Should().HaveCount(3);
     }
 
     [Fact]

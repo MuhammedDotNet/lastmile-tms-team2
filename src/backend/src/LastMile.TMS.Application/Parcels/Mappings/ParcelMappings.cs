@@ -29,6 +29,8 @@ public static partial class ParcelMappings
     [MapperIgnoreSource(nameof(Parcel.CreatedBy))]
     [MapperIgnoreSource(nameof(Parcel.LastModifiedBy))]
     [MapperIgnoreSource(nameof(Parcel.ZoneId))]
+    [MapperIgnoreSource(nameof(Parcel.ParcelImportId))]
+    [MapperIgnoreSource(nameof(Parcel.ParcelImport))]
     [MapProperty("Zone.Id", nameof(ParcelDto.ZoneId))]
     [MapProperty("Zone.Name", nameof(ParcelDto.ZoneName))]
     [MapProperty("Zone.DepotId", nameof(ParcelDto.DepotId))]

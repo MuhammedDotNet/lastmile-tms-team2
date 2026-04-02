@@ -4,8 +4,10 @@ using HotChocolate.Data;
 using HotChocolate.Data.Filters;
 using HotChocolate.Data.Sorting;
 using LastMile.TMS.Application.Parcels.DTOs;
+using LastMile.TMS.Application.Parcels.Queries;
 using LastMile.TMS.Application.Parcels.Reads;
 using LastMile.TMS.Domain.Entities;
+using MediatR;
 
 namespace LastMile.TMS.Api.GraphQL.Parcels;
 
@@ -31,4 +33,17 @@ public sealed class ParcelQueries
     public IQueryable<ParcelDto> GetRegisteredParcels(
         [Service] IParcelReadService readService = null!) =>
         readService.GetRegisteredParcels();
+
+    [Authorize(Roles = new[] { "OperationsManager", "Admin", "Dispatcher", "WarehouseOperator" })]
+    public Task<IReadOnlyList<ParcelImportHistoryDto>> GetParcelImports(
+        [Service] ISender mediator,
+        CancellationToken cancellationToken) =>
+        mediator.Send(new GetParcelImportsQuery(), cancellationToken);
+
+    [Authorize(Roles = new[] { "OperationsManager", "Admin", "Dispatcher", "WarehouseOperator" })]
+    public Task<ParcelImportDetailDto?> GetParcelImport(
+        Guid id,
+        [Service] ISender mediator,
+        CancellationToken cancellationToken) =>
+        mediator.Send(new GetParcelImportQuery(id), cancellationToken);
 }

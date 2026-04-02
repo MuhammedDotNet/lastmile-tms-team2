@@ -6,6 +6,16 @@ export function apiBaseUrl(): string {
   return url;
 }
 
+/** Builds a browser-usable URL for API-hosted static files (e.g. uploaded driver photos). */
+export function absoluteApiAssetUrl(pathOrUrl: string | null | undefined): string | undefined {
+  if (!pathOrUrl?.trim()) return undefined;
+  const s = pathOrUrl.trim();
+  if (s.startsWith("http://") || s.startsWith("https://")) return s;
+  const base = apiBaseUrl().replace(/\/$/, "");
+  const path = s.startsWith("/") ? s : `/${s}`;
+  return `${base}${path}`;
+}
+
 /**
  * Collects human-readable messages from `errors` whether the API returns:
  * - GraphQL / FluentValidation: `[{ message: "..." }]`
