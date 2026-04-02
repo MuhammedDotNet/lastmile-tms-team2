@@ -73,7 +73,7 @@ interface DriverFormData {
 
 interface DriverFormPhotoAreaProps {
   photoPreview: string | null;
-  serverPhotoUrl: string | undefined;
+  serverPhotoUrl: string | null | undefined;
   onRemove: () => void;
 }
 
