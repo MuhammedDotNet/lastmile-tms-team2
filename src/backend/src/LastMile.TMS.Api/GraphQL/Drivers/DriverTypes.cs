@@ -87,7 +87,8 @@ public sealed class DriverType : EntityObjectType<Driver>
                                 ? new DriverLabels(null, null, null)
                                 : new DriverLabels(row.ZoneName, row.DepotName, row.UserName);
                         });
-                })
+                },
+                "DriverLabelsByDriverId")
             .LoadAsync(driverId);
 
         return labels ?? new DriverLabels(null, null, null);
@@ -109,7 +110,8 @@ public sealed class DriverType : EntityObjectType<Driver>
                     return driverIds.ToDictionary(
                         id => id,
                         id => availabilities.Where(a => a.DriverId == id).ToList());
-                })
+                },
+                "DriverAvailabilitiesByDriverId")
             .LoadAsync(driverId);
 
         return list ?? [];

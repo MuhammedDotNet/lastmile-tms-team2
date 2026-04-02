@@ -80,7 +80,8 @@ public sealed class RouteType : EntityObjectType<RouteEntity>
                                 ? RouteLabels.Empty
                                 : new RouteLabels(row.Plate, row.DriverName);
                         });
-                })
+                },
+                "RouteLabelsByRouteId")
             .LoadAsync(routeId);
 
         return labels ?? RouteLabels.Empty;
@@ -111,7 +112,8 @@ public sealed class RouteType : EntityObjectType<RouteEntity>
                     return ids.ToDictionary(
                         id => id,
                         id => stats.FirstOrDefault(s => s.RouteId == id) ?? RouteParcelStats.Empty(id));
-                })
+                },
+                "RouteParcelStatsByRouteId")
             .LoadAsync(routeId);
     }
 
