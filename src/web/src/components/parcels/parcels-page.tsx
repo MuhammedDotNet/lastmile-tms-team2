@@ -5,6 +5,7 @@ import Link from "next/link";
 import { FileText, Package, PackagePlus, Printer } from "lucide-react";
 import { useSession } from "next-auth/react";
 
+import { SelectDropdown } from "@/components/form/select-dropdown";
 import { QueryErrorAlert } from "@/components/feedback/query-error-alert";
 import {
   ListDataTable,
@@ -14,43 +15,83 @@ import {
   listDataTableHeadRowClass,
   listDataTableTdClass,
   listDataTableThClass,
+  listDataTableThRightClass,
 } from "@/components/list";
 import { OverflowTooltipCell } from "@/components/list/overflow-tooltip-cell";
+import { CancelParcelDialog } from "@/components/parcels/cancel-parcel-dialog";
+import { ParcelRowActions } from "@/components/parcels/parcel-row-actions";
 import { Button } from "@/components/ui/button";
 import {
   formatParcelServiceType,
   formatParcelStatus,
+  normalizeParcelStatusForFilter,
   parcelStatusBadgeClass,
 } from "@/lib/labels/parcels";
 import { getErrorMessage } from "@/lib/network/error-message";
 import { appToast } from "@/lib/toast/app-toast";
 import { cn } from "@/lib/utils";
-import { useRegisteredParcels } from "@/queries/parcels";
+import { useCancelParcel, usePreLoadParcels } from "@/queries/parcels";
 import { parcelsService } from "@/services/parcels.service";
+import type { SelectOption } from "@/types/forms";
 import { ParcelImportHistoryTable } from "./parcel-import-history-table";
 import { ParcelImportPanel } from "./parcel-import-panel";
 import { ParcelRegistrationForm } from "./parcel-registration-form";
 
+type PendingCancellation = {
+  id: string;
+  trackingNumber: string;
+} | null;
+
+/** Matches backend `PreLoadStatuses` in `ParcelReadService.GetPreLoadParcels` — only these rows are returned. */
+type PreloadQueueStatusFilter =
+  | ""
+  | "REGISTERED"
+  | "RECEIVED_AT_DEPOT"
+  | "SORTED"
+  | "STAGED";
+
+const PRELOAD_QUEUE_STATUS_OPTIONS: SelectOption<PreloadQueueStatusFilter>[] = [
+  { value: "", label: "All statuses" },
+  { value: "REGISTERED", label: "Registered" },
+  { value: "RECEIVED_AT_DEPOT", label: "Received at Depot" },
+  { value: "SORTED", label: "Sorted" },
+  { value: "STAGED", label: "Staged" },
+];
+
 export default function ParcelsPage() {
   const { status: sessionStatus } = useSession();
-  const { data = [], isLoading, error } = useRegisteredParcels();
+  const [statusFilter, setStatusFilter] = useState<PreloadQueueStatusFilter>("");
+  const { data = [], isLoading, error } = usePreLoadParcels();
+  const cancelParcel = useCancelParcel();
+
+  const filteredParcels = useMemo(() => {
+    if (!statusFilter) {
+      return data;
+    }
+    const target = normalizeParcelStatusForFilter(statusFilter);
+    return data.filter(
+      (parcel) => normalizeParcelStatusForFilter(parcel.status) === target,
+    );
+  }, [data, statusFilter]);
   const [showForm, setShowForm] = useState(false);
   const [selectedImportId, setSelectedImportId] = useState<string | null>(null);
   const [selectedParcelIds, setSelectedParcelIds] = useState<string[]>([]);
   const [isDownloading, setIsDownloading] = useState<false | "zpl" | "pdf">(
     false,
   );
+  const [pendingCancellation, setPendingCancellation] =
+    useState<PendingCancellation>(null);
 
   const allVisibleSelected =
-    data.length > 0 &&
-    data.every((parcel) => selectedParcelIds.includes(parcel.id));
+    filteredParcels.length > 0 &&
+    filteredParcels.every((parcel) => selectedParcelIds.includes(parcel.id));
 
   const selectedTrackingNumbers = useMemo(
     () =>
-      data
+      filteredParcels
         .filter((parcel) => selectedParcelIds.includes(parcel.id))
         .map((parcel) => parcel.trackingNumber),
-    [data, selectedParcelIds],
+    [filteredParcels, selectedParcelIds],
   );
 
   function toggleParcelSelection(parcelId: string) {
@@ -62,7 +103,7 @@ export default function ParcelsPage() {
   }
 
   function toggleSelectAllVisible(checked: boolean) {
-    setSelectedParcelIds(checked ? data.map((parcel) => parcel.id) : []);
+    setSelectedParcelIds(checked ? filteredParcels.map((parcel) => parcel.id) : []);
   }
 
   async function handleBulkDownload(format: "zpl" | "pdf") {
@@ -80,6 +121,22 @@ export default function ParcelsPage() {
     } finally {
       setIsDownloading(false);
     }
+  }
+
+  async function handleCancelParcel(reason: string) {
+    if (!pendingCancellation) {
+      return;
+    }
+
+    await cancelParcel.mutateAsync({
+      id: pendingCancellation.id,
+      reason,
+    });
+
+    setSelectedParcelIds((current) =>
+      current.filter((parcelId) => parcelId !== pendingCancellation.id),
+    );
+    setPendingCancellation(null);
   }
 
   if (sessionStatus === "loading" || isLoading) {
@@ -119,8 +176,8 @@ export default function ParcelsPage() {
   return (
     <>
       <ListPageHeader
-        title="Warehouse Intake Queue"
-        description="Parcels registered and awaiting processing at the depot. Upload imports, register individual shipments, and print labels from one queue."
+        title="Warehouse Pre-load Queue"
+        description="Parcels still eligible for edits or cancellation before they are loaded for delivery. Manage imports, register shipments, print labels, and correct mistakes from one queue."
         icon={<Package strokeWidth={1.75} aria-hidden />}
         action={
           <>
@@ -155,11 +212,41 @@ export default function ParcelsPage() {
           showHistory={false}
         />
 
+        <div className="flex items-center justify-between gap-4 rounded-2xl border border-border/60 bg-card/80 px-5 py-4 shadow-sm">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-foreground">Filter by status:</span>
+            <SelectDropdown
+              options={PRELOAD_QUEUE_STATUS_OPTIONS}
+              value={statusFilter}
+              onChange={(value) => setStatusFilter(value)}
+              placeholder="All statuses"
+              className="w-48"
+            />
+          </div>
+          {statusFilter && (
+            <button
+              type="button"
+              onClick={() => setStatusFilter("")}
+              className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              Clear filter
+            </button>
+          )}
+        </div>
+
         {data.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border p-12 text-center">
-            <p className="font-medium">No parcels registered yet</p>
+            <p className="font-medium">No parcels are waiting before load</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Registered parcels will appear here in the warehouse intake queue.
+              Registered, received, sorted, or staged parcels will appear here until
+              they are loaded for delivery.
+            </p>
+          </div>
+        ) : filteredParcels.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-border p-12 text-center">
+            <p className="font-medium">No parcels match this status</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Try clearing the filter or pick another status.
             </p>
           </div>
         ) : (
@@ -184,7 +271,7 @@ export default function ParcelsPage() {
               </p>
             </div>
 
-            <ListDataTable minWidthClassName="min-w-[1040px]">
+            <ListDataTable minWidthClassName="min-w-[1140px]">
               <thead>
                 <tr className={listDataTableHeadRowClass}>
                   <th className={cn(listDataTableThClass, "w-14")}>Select</th>
@@ -195,10 +282,11 @@ export default function ParcelsPage() {
                   <th className={listDataTableThClass}>Zone</th>
                   <th className={listDataTableThClass}>Created</th>
                   <th className={listDataTableThClass}>Status</th>
+                  <th className={listDataTableThRightClass}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {data.map((parcel) => (
+                {filteredParcels.map((parcel) => (
                   <tr key={parcel.id} className={listDataTableBodyRowClass}>
                     <td className={cn(listDataTableTdClass, "w-14 align-middle")}>
                       <input
@@ -276,6 +364,19 @@ export default function ParcelsPage() {
                         </span>
                       </OverflowTooltipCell>
                     </td>
+                    <td className={cn(listDataTableTdClass, "text-right")}>
+                      <ParcelRowActions
+                        parcelId={parcel.id}
+                        trackingNumber={parcel.trackingNumber}
+                        onCancel={() =>
+                          setPendingCancellation({
+                            id: parcel.id,
+                            trackingNumber: parcel.trackingNumber,
+                          })
+                        }
+                        cancelDisabled={cancelParcel.isPending}
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -288,6 +389,18 @@ export default function ParcelsPage() {
           onSelectImport={setSelectedImportId}
         />
       </div>
+
+      <CancelParcelDialog
+        open={pendingCancellation !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPendingCancellation(null);
+          }
+        }}
+        trackingNumber={pendingCancellation?.trackingNumber ?? ""}
+        onConfirm={handleCancelParcel}
+        isPending={cancelParcel.isPending}
+      />
     </>
   );
 }

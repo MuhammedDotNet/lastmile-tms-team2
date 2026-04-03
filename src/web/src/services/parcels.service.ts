@@ -1,32 +1,46 @@
 import { getSession } from "next-auth/react";
 
 import {
+  CANCEL_PARCEL,
   GET_PARCEL_IMPORT,
   GET_PARCEL_IMPORTS,
+  GET_PARCEL_TRACKING_EVENTS,
   PARCEL,
+  PRELOAD_PARCELS,
   PARCELS_FOR_ROUTE,
   REGISTER_PARCEL,
   REGISTERED_PARCELS,
+  TRANSITION_PARCEL_STATUS,
+  UPDATE_PARCEL,
 } from "@/graphql/parcels";
 import type {
+  CancelParcelMutation,
   GetParcelImportQuery,
   GetParcelImportsQuery,
   GetParcelQuery,
+  GetParcelTrackingEventsQuery,
+  GetPreLoadParcelsQuery,
   GetRegisteredParcelsQuery,
+  TransitionParcelStatusMutation,
+  UpdateParcelMutation,
 } from "@/graphql/parcels";
 import { apiBaseUrl, parseApiErrorMessage } from "@/lib/network/api";
 import { graphqlRequest } from "@/lib/network/graphql-client";
 import { downloadAuthenticatedFile, saveBlobAsFile } from "@/lib/network/download";
 import { mockParcels } from "@/mocks/parcels.mock";
 import type {
+  CancelParcelRequest,
   LabelDownloadFormat,
   ParcelDetail,
+  ParcelFormData,
   ParcelImportDetail,
   ParcelImportHistoryEntry,
   ParcelImportTemplateFormat,
   ParcelOption,
-  RegisterParcelFormData,
   RegisteredParcelResult,
+  TrackingEvent,
+  TransitionParcelStatusRequest,
+  UpdateParcelRequest,
   UploadParcelImportRequest,
   UploadParcelImportResult,
 } from "@/types/parcels";
@@ -35,6 +49,32 @@ const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK_DATA === "true";
 
 function buildApiUrl(path: string): string {
   return `${apiBaseUrl().replace(/\/$/, "")}${path}`;
+}
+
+function extractFileName(
+  contentDisposition: string | null,
+  fallbackFileName: string,
+): string {
+  if (!contentDisposition) {
+    return fallbackFileName;
+  }
+
+  const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) {
+    return decodeURIComponent(utf8Match[1]);
+  }
+
+  const quotedMatch = contentDisposition.match(/filename="([^"]+)"/i);
+  if (quotedMatch?.[1]) {
+    return quotedMatch[1];
+  }
+
+  const plainMatch = contentDisposition.match(/filename=([^;]+)/i);
+  if (plainMatch?.[1]) {
+    return plainMatch[1].trim();
+  }
+
+  return fallbackFileName;
 }
 
 async function authenticatedRequest(
@@ -61,7 +101,38 @@ async function authenticatedRequest(
   return response;
 }
 
+async function triggerDownload(
+  response: Response,
+  fallbackFileName: string,
+): Promise<void> {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const blob = await response.blob();
+  const downloadUrl = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = downloadUrl;
+  link.download = extractFileName(
+    response.headers.get("Content-Disposition"),
+    fallbackFileName,
+  );
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(downloadUrl);
+}
+
 export const parcelsService = {
+  getPreLoadParcels: async (): Promise<GetPreLoadParcelsQuery["preLoadParcels"]> => {
+    if (USE_MOCK) {
+      return mockParcels;
+    }
+
+    const data = await graphqlRequest<GetPreLoadParcelsQuery>(PRELOAD_PARCELS);
+    return data.preLoadParcels;
+  },
+
   getForRouteCreation: async (): Promise<ParcelOption[]> => {
     if (USE_MOCK) {
       return mockParcels.map((parcel) => ({
@@ -78,14 +149,14 @@ export const parcelsService = {
     return data.parcelsForRouteCreation;
   },
 
-  getRegisteredParcels: async (): Promise<GetRegisteredParcelsQuery["registeredParcels"]> => {
+  getRegisteredParcels: async (
+    _statusFilter?: string | null,
+  ): Promise<GetRegisteredParcelsQuery["registeredParcels"]> => {
     if (USE_MOCK) {
       return mockParcels;
     }
 
-    const data = await graphqlRequest<{
-      registeredParcels: GetRegisteredParcelsQuery["registeredParcels"];
-    }>(REGISTERED_PARCELS);
+    const data = await graphqlRequest<GetRegisteredParcelsQuery>(REGISTERED_PARCELS);
     return data.registeredParcels;
   },
 
@@ -99,9 +170,7 @@ export const parcelsService = {
       return parcel;
     }
 
-    const data = await graphqlRequest<{
-      parcel: GetParcelQuery["parcel"];
-    }>(PARCEL, { id });
+    const data = await graphqlRequest<GetParcelQuery>(PARCEL, { id });
 
     if (!data.parcel) {
       throw new Error("Parcel not found.");
@@ -110,7 +179,7 @@ export const parcelsService = {
     return data.parcel as ParcelDetail;
   },
 
-  register: async (form: RegisterParcelFormData): Promise<RegisteredParcelResult> => {
+  register: async (form: ParcelFormData): Promise<RegisteredParcelResult> => {
     if (USE_MOCK) {
       return {
         id: "40000000-0000-0000-0000-000000000099",
@@ -137,9 +206,9 @@ export const parcelsService = {
       };
     }
 
-    const data = await graphqlRequest<{
-      registerParcel: RegisteredParcelResult;
-    }>(REGISTER_PARCEL, {
+    const data = await graphqlRequest<{ registerParcel: RegisteredParcelResult }>(
+      REGISTER_PARCEL,
+      {
       input: {
         shipperAddressId: form.shipperAddressId,
         recipientAddress: {
@@ -166,10 +235,142 @@ export const parcelsService = {
         dimensionUnit: form.dimensionUnit === "CM" ? "CM" : "IN",
         declaredValue: form.declaredValue,
         currency: form.currency,
-        estimatedDeliveryDate: form.estimatedDeliveryDate,
+        estimatedDeliveryDate: `${form.estimatedDeliveryDate}T00:00:00+00:00`,
+      },
+      },
+    );
+    return data.registerParcel;
+  },
+
+  update: async ({ id, data }: UpdateParcelRequest): Promise<ParcelDetail> => {
+    if (USE_MOCK) {
+      const parcel = mockParcels.find((candidate) => candidate.id === id)?.detail;
+      if (!parcel) {
+        throw new Error("Parcel not found.");
+      }
+
+      return {
+        ...parcel,
+        shipperAddressId: data.shipperAddressId,
+        description: data.description || null,
+        parcelType: data.parcelType || null,
+        serviceType: data.serviceType,
+        weight: data.weight,
+        weightUnit: data.weightUnit === 1 ? "KG" : "LB",
+        length: data.length,
+        width: data.width,
+        height: data.height,
+        dimensionUnit: data.dimensionUnit,
+        declaredValue: data.declaredValue,
+        currency: data.currency,
+        estimatedDeliveryDate: `${data.estimatedDeliveryDate}T00:00:00+00:00`,
+        lastModifiedAt: new Date().toISOString(),
+        recipientAddress: {
+          street1: data.recipientStreet1,
+          street2: data.recipientStreet2 || null,
+          city: data.recipientCity,
+          state: data.recipientState,
+          postalCode: data.recipientPostalCode,
+          countryCode: data.recipientCountryCode,
+          isResidential: data.recipientIsResidential,
+          contactName: data.recipientContactName || null,
+          companyName: data.recipientCompanyName || null,
+          phone: data.recipientPhone || null,
+          email: data.recipientEmail || null,
+        },
+        changeHistory: [
+          {
+            action: "Updated",
+            fieldName: "Description",
+            beforeValue: parcel.description,
+            afterValue: data.description || null,
+            changedAt: new Date().toISOString(),
+            changedBy: "Mock User",
+          },
+        ],
+      };
+    }
+
+    const result = await graphqlRequest<UpdateParcelMutation>(UPDATE_PARCEL, {
+        input: {
+          id,
+          shipperAddressId: data.shipperAddressId,
+          recipientAddress: {
+            street1: data.recipientStreet1,
+            street2: data.recipientStreet2 || null,
+            city: data.recipientCity,
+            state: data.recipientState,
+            postalCode: data.recipientPostalCode,
+            countryCode: data.recipientCountryCode,
+            isResidential: data.recipientIsResidential,
+            contactName: data.recipientContactName || null,
+            companyName: data.recipientCompanyName || null,
+            phone: data.recipientPhone || null,
+            email: data.recipientEmail || null,
+          },
+          description: data.description || null,
+          parcelType: data.parcelType || null,
+          serviceType: data.serviceType,
+          weight: data.weight,
+          weightUnit: data.weightUnit === 1 ? "KG" : "LB",
+          length: data.length,
+          width: data.width,
+          height: data.height,
+          dimensionUnit: data.dimensionUnit === "CM" ? "CM" : "IN",
+          declaredValue: data.declaredValue,
+          currency: data.currency,
+          estimatedDeliveryDate: `${data.estimatedDeliveryDate}T00:00:00+00:00`,
+        },
+      });
+
+    if (!result.updateParcel) {
+      throw new Error("Parcel not found.");
+    }
+
+    return result.updateParcel as ParcelDetail;
+  },
+
+  cancel: async ({ id, reason }: CancelParcelRequest): Promise<ParcelDetail> => {
+    if (USE_MOCK) {
+      const parcel = mockParcels.find((candidate) => candidate.id === id)?.detail;
+      if (!parcel) {
+        throw new Error("Parcel not found.");
+      }
+
+      return {
+        ...parcel,
+        status: "Cancelled",
+        cancellationReason: reason,
+        canEdit: false,
+        canCancel: false,
+        allowedNextStatuses: [],
+        lastModifiedAt: new Date().toISOString(),
+        changeHistory: [
+          {
+            action: "Cancelled",
+            fieldName: "Cancellation reason",
+            beforeValue: null,
+            afterValue: reason,
+            changedAt: new Date().toISOString(),
+            changedBy: "Mock User",
+          },
+          ...parcel.changeHistory,
+        ],
+      };
+    }
+
+    const result = await graphqlRequest<CancelParcelMutation>(CANCEL_PARCEL, {
+      input: {
+        id,
+        reason,
       },
     });
-    return data.registerParcel;
+
+    if (!result.cancelParcel) {
+      throw new Error("Parcel not found.");
+    }
+
+    return result.cancelParcel as ParcelDetail;
   },
 
   downloadLabel: async (id: string, format: LabelDownloadFormat): Promise<string> => {
@@ -299,7 +500,12 @@ export const parcelsService = {
       return;
     }
 
-    await downloadAuthenticatedFile(`/api/parcel-imports/template.${format}`);
+    const response = await authenticatedRequest(
+      `/api/parcel-imports/template.${format}`,
+      { method: "GET" },
+    );
+
+    await triggerDownload(response, `parcel-import-template.${format}`);
   },
 
   downloadParcelImportErrors: async (id: string): Promise<void> => {
@@ -307,6 +513,66 @@ export const parcelsService = {
       return;
     }
 
-    await downloadAuthenticatedFile(`/api/parcel-imports/${id}/errors.csv`);
+    const response = await authenticatedRequest(
+      `/api/parcel-imports/${id}/errors.csv`,
+      { method: "GET" },
+    );
+
+    await triggerDownload(response, "parcel-import-errors.csv");
+  },
+
+  getTrackingEvents: async (parcelId: string): Promise<TrackingEvent[]> => {
+    if (USE_MOCK) {
+      return [];
+    }
+
+    const data = await graphqlRequest<{
+      parcelTrackingEvents: GetParcelTrackingEventsQuery["parcelTrackingEvents"];
+    }>(GET_PARCEL_TRACKING_EVENTS, { parcelId });
+
+    return data.parcelTrackingEvents as TrackingEvent[];
+  },
+
+  transitionStatus: async (
+    request: TransitionParcelStatusRequest,
+  ): Promise<RegisteredParcelResult> => {
+    if (USE_MOCK) {
+      return {
+        id: request.parcelId,
+        trackingNumber: "MOCK001",
+        barcode: "MOCK001",
+        status: request.newStatus,
+        serviceType: "STANDARD",
+        weight: 0,
+        weightUnit: "KG",
+        length: 0,
+        width: 0,
+        height: 0,
+        dimensionUnit: "CM",
+        declaredValue: 0,
+        currency: "USD",
+        description: null,
+        parcelType: null,
+        estimatedDeliveryDate: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        zoneId: "00000000-0000-0000-0000-000000000000",
+        zoneName: null,
+        depotId: "00000000-0000-0000-0000-000000000000",
+        depotName: null,
+      };
+    }
+
+    const data = await graphqlRequest<{
+      transitionParcelStatus: TransitionParcelStatusMutation["transitionParcelStatus"];
+    }>(TRANSITION_PARCEL_STATUS, {
+      input: {
+        parcelId: request.parcelId,
+        newStatus: request.newStatus,
+        location: request.location ?? null,
+        description: request.description ?? null,
+      },
+    });
+
+    return data.transitionParcelStatus as RegisteredParcelResult;
   },
 };

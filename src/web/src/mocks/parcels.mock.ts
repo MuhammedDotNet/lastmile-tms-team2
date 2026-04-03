@@ -4,6 +4,31 @@ type MockParcel = RegisteredParcelResult & {
   detail: ParcelDetail;
 };
 
+/**
+ * Tracking events for mock parcels. Kept as a constant for reference;
+ * note `getById` returns `ParcelDetail` which intentionally does not
+ * include trackingEvents (those are fetched separately via
+ * `getTrackingEvents`, which the mock returns as an empty array).
+ */
+const MOCK_TRACKING_EVENTS = [
+  {
+    id: "evt-0001",
+    timestamp: "2026-04-01T09:15:00Z",
+    eventType: "LabelCreated",
+    description: "Parcel registered",
+    location: "Online Portal",
+    operator: "System",
+  },
+  {
+    id: "evt-0002",
+    timestamp: "2026-04-01T11:30:00Z",
+    eventType: "ArrivedAtFacility",
+    description: "Received at depot intake",
+    location: "North Depot",
+    operator: "admin",
+  },
+];
+
 function makeMockParcel(
   id: string,
   trackingNumber: string,
@@ -14,6 +39,7 @@ function makeMockParcel(
     trackingNumber,
     barcode: trackingNumber,
     status: "REGISTERED",
+    shipperAddressId: "address-1",
     serviceType: "STANDARD",
     weight: 2.5,
     weightUnit: "KG",
@@ -31,7 +57,10 @@ function makeMockParcel(
     zoneName: "North Zone",
     depotId: "80000000-0000-0000-0000-000000000001",
     depotName: "North Depot",
+    cancellationReason: null,
     deliveryAttempts: 0,
+    canEdit: true,
+    canCancel: true,
     lastModifiedAt: "2026-04-01T09:15:00Z",
     recipientAddress: {
       street1: "123 Main St",
@@ -46,6 +75,8 @@ function makeMockParcel(
       phone: "+1 555 0100",
       email: "jamie@example.com",
     },
+    changeHistory: [],
+    allowedNextStatuses: ["RECEIVED_AT_DEPOT", "CANCELLED"],
     ...overrides,
   };
 

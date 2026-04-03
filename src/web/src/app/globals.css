@@ -173,6 +173,12 @@
     animation: list-page-rise 0.52s cubic-bezier(0.22, 1, 0.36, 1) 0.18s both;
   }
 
+  .parcel-address-search mapbox-search-box {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+  }
+
   /* Detail pages: hero + metrics entrance */
   .detail-hero-animate {
     animation: list-page-rise 0.58s cubic-bezier(0.22, 1, 0.36, 1) both;

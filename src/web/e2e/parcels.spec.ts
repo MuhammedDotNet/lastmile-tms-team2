@@ -167,7 +167,7 @@ test.describe("Parcel flows", () => {
     await loginAsAdmin(page, fixture);
     await page.goto("/parcels");
     await expect(
-      page.getByRole("heading", { name: /warehouse intake queue/i }),
+      page.getByRole("heading", { name: /warehouse pre-load queue/i }),
     ).toBeVisible();
 
     await page.getByRole("button", { name: /register parcel/i }).click();
@@ -212,6 +212,58 @@ test.describe("Parcel flows", () => {
     );
   });
 
+  test("can edit and cancel a parcel before it is loaded", async ({
+    page,
+    request,
+  }) => {
+    const fixture = await resetAndSeedFixture(request);
+
+    await loginAsAdmin(page, fixture);
+    await page.goto("/parcels");
+    await expect(
+      page.getByRole("heading", { name: /warehouse pre-load queue/i }),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: /register parcel/i }).click();
+    const parcel = await registerParcel(page, fixture, "Gamma");
+
+    await page.getByRole("button", { name: /open parcel detail/i }).click();
+    await expect(page).toHaveURL(/\/parcels\/[0-9a-f-]+$/, { timeout: 15_000 });
+
+    await page.getByRole("link", { name: /edit parcel/i }).click();
+    await expect(page).toHaveURL(/\/parcels\/[0-9a-f-]+\/edit$/, { timeout: 15_000 });
+
+    await page.getByLabel(/recipient name/i).fill("Jamie Gamma Updated");
+    await page.getByLabel(/parcel type/i).fill("Crate");
+    await page.getByLabel(/notes \/ description/i).fill("Updated parcel note");
+    await page.getByRole("button", { name: /save changes/i }).click();
+
+    await expect(page).toHaveURL(/\/parcels\/[0-9a-f-]+$/, { timeout: 15_000 });
+    await expect(page.getByText("Jamie Gamma Updated", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("Crate", { exact: true }).first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: /change history/i })).toBeVisible();
+    await expect(page.getByText("Updated parcel note", { exact: true })).toBeVisible();
+
+    await page.getByRole("button", { name: /^cancel parcel$/i }).click();
+    await page.getByRole("button", { name: /^cancel parcel$/i }).nth(1).click();
+    await expect(page.getByText(/cancellation reason is required/i)).toBeVisible();
+    await page.getByLabel(/cancellation reason/i).fill("Customer cancelled order");
+    await page.getByRole("button", { name: /^cancel parcel$/i }).nth(1).click();
+
+    await expect(page.getByText("Customer cancelled order", { exact: true })).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(
+      page.getByText(/cancelled/i).filter({ hasText: "Cancelled" }).first(),
+    ).toBeVisible();
+
+    await page.getByRole("link", { name: /back to queue/i }).click();
+    await expect(page).toHaveURL(/\/parcels$/, { timeout: 15_000 });
+    await expect(
+      page.getByRole("link", { name: parcel.trackingNumber }),
+    ).toHaveCount(0);
+  });
+
   test("can bulk download labels for multiple registered parcels from the intake queue", async ({
     page,
     request,
@@ -221,7 +273,7 @@ test.describe("Parcel flows", () => {
     await loginAsAdmin(page, fixture);
     await page.goto("/parcels");
     await expect(
-      page.getByRole("heading", { name: /warehouse intake queue/i }),
+      page.getByRole("heading", { name: /warehouse pre-load queue/i }),
     ).toBeVisible();
 
     await page.getByRole("button", { name: /register parcel/i }).click();
@@ -230,11 +282,15 @@ test.describe("Parcel flows", () => {
     await page.getByRole("button", { name: /register another/i }).click();
     const secondParcel = await registerParcel(page, fixture, "Beta");
 
-    await page.getByRole("button", { name: /view intake queue/i }).click();
+    await page.getByRole("button", { name: /view pre-load queue/i }).click();
     await expect(page).toHaveURL(/\/parcels$/, { timeout: 15_000 });
 
-    await expect(page.getByRole("link", { name: firstParcel.trackingNumber })).toBeVisible();
-    await expect(page.getByRole("link", { name: secondParcel.trackingNumber })).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: firstParcel.trackingNumber, exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: secondParcel.trackingNumber, exact: true }),
+    ).toBeVisible();
 
     await page.getByLabel(`Select parcel ${firstParcel.trackingNumber}`).check();
     await page.getByLabel(`Select parcel ${secondParcel.trackingNumber}`).check();
@@ -276,19 +332,14 @@ test.describe("Parcel flows", () => {
     await page.goto("/parcels");
 
     await expect(
-      page.getByRole("heading", { name: /warehouse intake queue/i }),
+      page.getByRole("heading", { name: /warehouse pre-load queue/i }),
     ).toBeVisible();
     await expect(page.getByText(/bulk parcel import/i)).toBeVisible();
 
-    await expectFileResponse(
-      page,
-      () => page.getByRole("button", { name: /csv template/i }).click(),
-      {
-        pathPattern: /\/api\/parcel-imports\/template\.csv$/,
-        contentTypePattern: /^text\/csv/i,
-        fileNamePattern: /parcel-import-template\.csv/,
-      },
-    );
+    const templateDownloadPromise = page.waitForEvent("download");
+    await page.getByRole("button", { name: /csv template/i }).click();
+    const templateDownload = await templateDownloadPromise;
+    expect(templateDownload.suggestedFilename()).toBe("parcel-import-template.csv");
 
     const csvPath = testInfo.outputPath("parcel-import.csv");
     await fs.writeFile(
@@ -314,14 +365,9 @@ test.describe("Parcel flows", () => {
       page.getByText(new RegExp(`^${escapeRegExp(fixture.depotName)}$`)).first(),
     ).toBeVisible();
 
-    await expectFileResponse(
-      page,
-      () => page.getByRole("button", { name: /download error report/i }).click(),
-      {
-        pathPattern: /\/api\/parcel-imports\/[^/]+\/errors\.csv$/,
-        contentTypePattern: /^text\/csv/i,
-        fileNamePattern: /-errors\.csv/,
-      },
-    );
+    const errorsDownloadPromise = page.waitForEvent("download");
+    await page.getByRole("button", { name: /download error report/i }).click();
+    const errorsDownload = await errorsDownloadPromise;
+    await expect(errorsDownload.suggestedFilename()).toContain("-errors.csv");
   });
 });

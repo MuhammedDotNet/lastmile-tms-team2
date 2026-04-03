@@ -35,6 +35,13 @@ public sealed class ParcelQueries
         readService.GetRegisteredParcels();
 
     [Authorize(Roles = new[] { "OperationsManager", "Admin", "Dispatcher", "WarehouseOperator" })]
+    [UseFiltering(typeof(ParcelFilterInputType))]
+    [UseSorting(typeof(ParcelSortInputType))]
+    public IQueryable<ParcelDto> GetPreLoadParcels(
+        [Service] IParcelReadService readService = null!) =>
+        readService.GetPreLoadParcels();
+
+    [Authorize(Roles = new[] { "OperationsManager", "Admin", "Dispatcher", "WarehouseOperator" })]
     public Task<IReadOnlyList<ParcelImportHistoryDto>> GetParcelImports(
         [Service] ISender mediator,
         CancellationToken cancellationToken) =>
@@ -46,4 +53,11 @@ public sealed class ParcelQueries
         [Service] ISender mediator,
         CancellationToken cancellationToken) =>
         mediator.Send(new GetParcelImportQuery(id), cancellationToken);
+
+    [Authorize(Roles = new[] { "OperationsManager", "Admin", "Dispatcher", "WarehouseOperator" })]
+    public Task<IReadOnlyList<TrackingEventDto>> GetParcelTrackingEvents(
+        Guid parcelId,
+        [Service] IParcelReadService readService,
+        CancellationToken cancellationToken) =>
+        readService.GetTrackingEventsAsync(parcelId, cancellationToken);
 }

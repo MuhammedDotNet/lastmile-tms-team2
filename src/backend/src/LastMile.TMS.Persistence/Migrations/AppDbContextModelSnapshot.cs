@@ -503,6 +503,10 @@ namespace LastMile.TMS.Persistence.Migrations
                     b.Property<DateTimeOffset?>("ActualDeliveryDate")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("CancellationReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -609,6 +613,46 @@ namespace LastMile.TMS.Persistence.Migrations
                     b.HasIndex("ZoneId");
 
                     b.ToTable("Parcels", (string)null);
+                });
+
+            modelBuilder.Entity("LastMile.TMS.Domain.Entities.ParcelChangeHistoryEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("AfterValue")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("BeforeValue")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTimeOffset>("ChangedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ChangedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("FieldName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("ParcelId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ParcelId", "ChangedAt");
+
+                    b.ToTable("ParcelChangeHistoryEntries", (string)null);
                 });
 
             modelBuilder.Entity("LastMile.TMS.Domain.Entities.ParcelContentItem", b =>
@@ -1509,6 +1553,17 @@ namespace LastMile.TMS.Persistence.Migrations
                     b.Navigation("Zone");
                 });
 
+            modelBuilder.Entity("LastMile.TMS.Domain.Entities.ParcelChangeHistoryEntry", b =>
+                {
+                    b.HasOne("LastMile.TMS.Domain.Entities.Parcel", "Parcel")
+                        .WithMany("ChangeHistory")
+                        .HasForeignKey("ParcelId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Parcel");
+                });
+
             modelBuilder.Entity("LastMile.TMS.Domain.Entities.ParcelContentItem", b =>
                 {
                     b.HasOne("LastMile.TMS.Domain.Entities.Parcel", "Parcel")
@@ -1739,6 +1794,8 @@ namespace LastMile.TMS.Persistence.Migrations
 
             modelBuilder.Entity("LastMile.TMS.Domain.Entities.Parcel", b =>
                 {
+                    b.Navigation("ChangeHistory");
+
                     b.Navigation("ContentItems");
 
                     b.Navigation("DeliveryConfirmation");

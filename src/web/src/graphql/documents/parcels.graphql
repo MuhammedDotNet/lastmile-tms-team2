@@ -12,6 +12,20 @@ query GetRegisteredParcels {
   }
 }
 
+query GetPreLoadParcels {
+  preLoadParcels {
+    id
+    trackingNumber
+    status
+    serviceType
+    weight
+    weightUnit
+    parcelType
+    createdAt
+    zoneName
+  }
+}
+
 query GetParcelImports {
   parcelImports {
     id
@@ -67,6 +81,7 @@ query GetParcel($id: UUID!) {
     id
     trackingNumber
     status
+    shipperAddressId
     serviceType
     weight
     weightUnit
@@ -78,6 +93,7 @@ query GetParcel($id: UUID!) {
     currency
     description
     parcelType
+    cancellationReason
     estimatedDeliveryDate
     deliveryAttempts
     zoneId
@@ -86,6 +102,8 @@ query GetParcel($id: UUID!) {
     depotName
     createdAt
     lastModifiedAt
+    canEdit
+    canCancel
     recipientAddress {
       street1
       street2
@@ -99,6 +117,15 @@ query GetParcel($id: UUID!) {
       phone
       email
     }
+    changeHistory {
+      action
+      fieldName
+      beforeValue
+      afterValue
+      changedAt
+      changedBy
+    }
+    allowedNextStatuses
   }
 }
 
@@ -125,5 +152,147 @@ mutation RegisterParcel($input: RegisterParcelInput!) {
     depotId
     depotName
     barcode
+  }
+}
+
+mutation UpdateParcel($input: UpdateParcelInput!) {
+  updateParcel(input: $input) {
+    id
+    trackingNumber
+    status
+    shipperAddressId
+    serviceType
+    weight
+    weightUnit
+    length
+    width
+    height
+    dimensionUnit
+    declaredValue
+    currency
+    description
+    parcelType
+    cancellationReason
+    estimatedDeliveryDate
+    deliveryAttempts
+    zoneId
+    zoneName
+    depotId
+    depotName
+    createdAt
+    lastModifiedAt
+    canEdit
+    canCancel
+    recipientAddress {
+      street1
+      street2
+      city
+      state
+      postalCode
+      countryCode
+      isResidential
+      contactName
+      companyName
+      phone
+      email
+    }
+    changeHistory {
+      action
+      fieldName
+      beforeValue
+      afterValue
+      changedAt
+      changedBy
+    }
+    allowedNextStatuses
+  }
+}
+
+query GetParcelTrackingEvents($parcelId: UUID!) {
+  parcelTrackingEvents(parcelId: $parcelId) {
+    id
+    timestamp
+    eventType
+    description
+    location
+    operator
+  }
+}
+
+mutation TransitionParcelStatus($input: TransitionParcelStatusInput!) {
+  transitionParcelStatus(input: $input) {
+    id
+    trackingNumber
+    status
+    serviceType
+    weight
+    weightUnit
+    length
+    width
+    height
+    dimensionUnit
+    declaredValue
+    currency
+    description
+    parcelType
+    estimatedDeliveryDate
+    createdAt
+    zoneId
+    zoneName
+    depotId
+    depotName
+    barcode
+  }
+}
+
+mutation CancelParcel($input: CancelParcelInput!) {
+  cancelParcel(input: $input) {
+    id
+    trackingNumber
+    status
+    shipperAddressId
+    serviceType
+    weight
+    weightUnit
+    length
+    width
+    height
+    dimensionUnit
+    declaredValue
+    currency
+    description
+    parcelType
+    cancellationReason
+    estimatedDeliveryDate
+    deliveryAttempts
+    zoneId
+    zoneName
+    depotId
+    depotName
+    createdAt
+    canEdit
+    canCancel
+    lastModifiedAt
+    recipientAddress {
+      street1
+      street2
+      city
+      state
+      postalCode
+      countryCode
+      isResidential
+      contactName
+      companyName
+      phone
+      email
+    }
+    changeHistory {
+      action
+      fieldName
+      beforeValue
+      afterValue
+      changedAt
+      changedBy
+    }
   }
 }

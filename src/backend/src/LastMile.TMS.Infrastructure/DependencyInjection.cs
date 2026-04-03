@@ -15,11 +15,11 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         var disableExternalInfrastructure = configuration.GetValue("Testing:DisableExternalInfrastructure", false);
-        var enableTestSupport = configuration.GetValue("Testing:EnableTestSupport", false);
         var isInMemoryDatabase = string.Equals(
             configuration.GetConnectionString("DefaultConnection"),
             "InMemory",
             StringComparison.OrdinalIgnoreCase);
+        var enableTestSupport = configuration.GetValue("Testing:EnableTestSupport", false);
 
         QuestPDF.Settings.License = LicenseType.Community;
 
@@ -104,7 +104,7 @@ public static class DependencyInjection
                 // Development certificates (persisted on disk, reused between restarts)
                 options.AddDevelopmentEncryptionCertificate()
                        .AddDevelopmentSigningCertificate()
-                       .DisableAccessTokenEncryption(); // plain JWT (not encrypted JWE)
+                       .DisableAccessTokenEncryption();
             })
             .AddValidation(options =>
             {

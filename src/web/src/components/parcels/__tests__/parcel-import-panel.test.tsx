@@ -31,6 +31,43 @@ vi.mock("@/queries/parcels", () => ({
   }),
 }));
 
+vi.mock("@/components/form/select-dropdown", () => ({
+  SelectDropdown: ({
+    options,
+    value,
+    onChange,
+    id,
+    className,
+    disabled,
+  }: {
+    options: Array<{ value: string | number; label: string }>;
+    value: string | number;
+    onChange: (value: string | number) => void;
+    id?: string;
+    className?: string;
+    disabled?: boolean;
+  }) => (
+    <select
+      data-testid={id ?? "select-dropdown"}
+      className={className}
+      disabled={disabled}
+      value={String(value)}
+      onChange={(event) => {
+        const option = options.find(
+          (candidate) => String(candidate.value) === event.target.value,
+        );
+        onChange(option?.value ?? event.target.value);
+      }}
+    >
+      {options.map((option) => (
+        <option key={String(option.value)} value={String(option.value)}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+  ),
+}));
+
 describe("ParcelImportPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -105,8 +142,7 @@ describe("ParcelImportPanel", () => {
     const user = userEvent.setup();
     const file = new File(["csv-content"], "parcels.csv", { type: "text/csv" });
 
-    await user.click(screen.getByRole("button", { name: /select depot/i }));
-    await user.click(await screen.findByRole("option", { name: /north depot/i }));
+    await user.selectOptions(screen.getByTestId("parcel-import-depot"), "address-1");
 
     await user.upload(screen.getByLabelText(/parcel import file/i), file);
     await user.click(screen.getByRole("button", { name: /start import/i }));

@@ -71,7 +71,7 @@ export interface ParcelOption {
 
 export type LabelDownloadFormat = "zpl" | "pdf";
 
-export interface RegisterParcelFormData {
+export interface ParcelFormData {
   shipperAddressId: string;
   recipientStreet1: string;
   recipientStreet2: string;
@@ -92,10 +92,22 @@ export interface RegisterParcelFormData {
   length: number;
   width: number;
   height: number;
-  dimensionUnit: string;
+  dimensionUnit: GraphQLDimensionUnit;
   declaredValue: number;
   currency: string;
   estimatedDeliveryDate: string;
+}
+
+export type RegisterParcelFormData = ParcelFormData;
+
+export interface UpdateParcelRequest {
+  id: string;
+  data: ParcelFormData;
+}
+
+export interface CancelParcelRequest {
+  id: string;
+  reason: string;
 }
 
 export interface RegisteredParcelResult {
@@ -137,9 +149,25 @@ export interface ParcelDetailAddress {
 }
 
 export interface ParcelDetail extends RegisteredParcelResult {
+  shipperAddressId: string;
+  cancellationReason: string | null;
   deliveryAttempts: number;
   lastModifiedAt: string | null;
+  canEdit: boolean;
+  canCancel: boolean;
   recipientAddress: ParcelDetailAddress;
+  changeHistory: ParcelChangeHistoryEntry[];
+  /** GraphQL ParcelStatus enum names, e.g. RECEIVED_AT_DEPOT */
+  allowedNextStatuses?: GraphQLParcelStatus[];
+}
+
+export interface ParcelChangeHistoryEntry {
+  action: string;
+  fieldName: string;
+  beforeValue: string | null;
+  afterValue: string | null;
+  changedAt: string;
+  changedBy: string | null;
 }
 
 export type ParcelImportFileFormat = "Csv" | "Xlsx";
@@ -188,3 +216,19 @@ export interface UploadParcelImportResult {
 }
 
 export type ParcelImportTemplateFormat = "csv" | "xlsx";
+
+export interface TrackingEvent {
+  id: string;
+  timestamp: string;
+  eventType: string;
+  description: string;
+  location: string | null;
+  operator: string | null;
+}
+
+export interface TransitionParcelStatusRequest {
+  parcelId: string;
+  newStatus: GraphQLParcelStatus;
+  location?: string;
+  description?: string;
+}

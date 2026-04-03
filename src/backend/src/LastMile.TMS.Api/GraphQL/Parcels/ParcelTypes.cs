@@ -34,6 +34,14 @@ public sealed class ParcelDetailAddressType : ObjectType<ParcelDetailAddressDto>
     }
 }
 
+public sealed class ParcelChangeHistoryType : ObjectType<ParcelChangeHistoryDto>
+{
+    protected override void Configure(IObjectTypeDescriptor<ParcelChangeHistoryDto> descriptor)
+    {
+        descriptor.Name("ParcelChangeHistory");
+        descriptor.BindFieldsImplicitly();
+    }
+}
 public sealed class ParcelImportHistoryType : ObjectType<ParcelImportHistoryDto>
 {
     protected override void Configure(IObjectTypeDescriptor<ParcelImportHistoryDto> descriptor)
@@ -70,6 +78,21 @@ public sealed class ParcelRouteOptionType : EntityObjectType<Parcel>
         descriptor.Field(p => p.TrackingNumber);
         descriptor.Field(p => p.Weight);
         descriptor.Field(p => p.WeightUnit);
+    }
+}
+
+public sealed class TrackingEventType : ObjectType<TrackingEventDto>
+{
+    protected override void Configure(IObjectTypeDescriptor<TrackingEventDto> descriptor)
+    {
+        descriptor.Name("TrackingEvent");
+        descriptor.BindFieldsExplicitly();
+        descriptor.Field(e => e.Id);
+        descriptor.Field(e => e.Timestamp);
+        descriptor.Field(e => e.EventType);
+        descriptor.Field(e => e.Description);
+        descriptor.Field(e => e.Location);
+        descriptor.Field(e => e.Operator);
     }
 }
 

@@ -12,6 +12,11 @@ const { mockPush, mockMutateAsync, mockDownloadLabel, mockOnViewQueue } =
     mockOnViewQueue: vi.fn(),
   }));
 
+vi.mock("@/lib/mapbox/config", () => ({
+  getMapboxAccessToken: () => "pk.test-token",
+  getMapboxConfigurationError: () => null,
+}));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: mockPush,
@@ -54,6 +59,86 @@ vi.mock("@/services/parcels.service", () => ({
   parcelsService: {
     downloadLabel: mockDownloadLabel,
   },
+}));
+
+vi.mock("@mapbox/search-js-react", () => ({
+  SearchBox: ({
+    onChange,
+    onClear,
+    onRetrieve,
+    placeholder,
+    value,
+  }: {
+    onChange?: (value: string) => void;
+    onClear?: () => void;
+    onRetrieve?: (response: unknown) => void;
+    placeholder?: string;
+    value?: string;
+  }) => (
+    <div data-testid="mapbox-searchbox">
+      <input
+        aria-label="Find Address"
+        placeholder={placeholder}
+        value={value ?? ""}
+        onChange={(event) => onChange?.(event.target.value)}
+      />
+      <button
+        type="button"
+        onClick={() =>
+          onRetrieve?.({
+            type: "FeatureCollection",
+            features: [
+              {
+                type: "Feature",
+                geometry: {
+                  type: "Point",
+                  coordinates: [-74.0113353, 40.7033938],
+                },
+                properties: {
+                  address: "54 Pearl Street",
+                  context: {
+                    country: {
+                      id: "country.1",
+                      name: "United States",
+                      country_code: "US",
+                      country_code_alpha_3: "USA",
+                    },
+                    place: {
+                      id: "place.1",
+                      name: "New York",
+                    },
+                    postcode: {
+                      id: "postcode.1",
+                      name: "10004",
+                    },
+                    region: {
+                      id: "region.1",
+                      name: "New York",
+                      region_code: "US-NY",
+                      region_code_full: "US-NY",
+                    },
+                  },
+                  coordinates: {
+                    accuracy: "rooftop",
+                    latitude: 40.7033938,
+                    longitude: -74.0113353,
+                  },
+                  full_address:
+                    "54 Pearl Street, New York, New York 10004, United States",
+                  name: "Fraunces Tavern",
+                },
+              },
+            ],
+          })
+        }
+      >
+        Use Mapbox suggestion
+      </button>
+      <button type="button" onClick={() => onClear?.()}>
+        Clear Mapbox suggestion
+      </button>
+    </div>
+  ),
 }));
 
 vi.mock("@/components/form/select-dropdown", () => ({
@@ -160,6 +245,50 @@ describe("ParcelRegistrationForm", () => {
     });
   });
 
+  it("autofills recipient address fields from the Mapbox search selection", async () => {
+    render(<ParcelRegistrationForm />);
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: /use mapbox suggestion/i }));
+
+    expect(screen.getByPlaceholderText("123 Main St")).toHaveValue(
+      "54 Pearl Street",
+    );
+    expect(screen.getByLabelText(/^city/i)).toHaveValue("New York");
+    expect(screen.getByLabelText(/state \/ province/i)).toHaveValue("NY");
+    expect(screen.getByLabelText(/postal code/i)).toHaveValue("10004");
+    expect(screen.getByLabelText(/country code/i)).toHaveValue("US");
+    expect(
+      screen.getByText(/address matched from search/i),
+    ).toBeInTheDocument();
+  });
+
+  it("submits autofilled address values from the Mapbox search flow", async () => {
+    render(<ParcelRegistrationForm />);
+
+    const user = userEvent.setup();
+    await user.selectOptions(screen.getByTestId("shipperAddressId"), "address-1");
+    await user.click(screen.getByRole("button", { name: /use mapbox suggestion/i }));
+    fireEvent.change(screen.getByLabelText(/est\. delivery date/i), {
+      target: { value: "2026-04-08" },
+    });
+
+    await user.click(screen.getByRole("button", { name: /register parcel/i }));
+
+    await waitFor(() => {
+      expect(mockMutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipientCity: "New York",
+          recipientCountryCode: "US",
+          recipientPostalCode: "10004",
+          recipientState: "NY",
+          recipientStreet1: "54 Pearl Street",
+          shipperAddressId: "address-1",
+        }),
+      );
+    });
+  });
+
   it("shows success actions and calls the download/detail flows", async () => {
     render(<ParcelRegistrationForm onViewQueue={mockOnViewQueue} />);
 
@@ -171,7 +300,7 @@ describe("ParcelRegistrationForm", () => {
     await user.click(screen.getByRole("button", { name: /download 4x6 zpl/i }));
     await user.click(screen.getByRole("button", { name: /download a4 pdf/i }));
     await user.click(screen.getByRole("button", { name: /open parcel detail/i }));
-    await user.click(screen.getByRole("button", { name: /view intake queue/i }));
+    await user.click(screen.getByRole("button", { name: /view pre-load queue/i }));
 
     await waitFor(() => {
       expect(mockDownloadLabel).toHaveBeenNthCalledWith(1, "parcel-1", "zpl");
