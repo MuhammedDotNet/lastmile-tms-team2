@@ -12,8 +12,8 @@ query GetRegisteredParcels {
   }
 }
 
-query GetPreLoadParcels($search: String, $status: [ParcelStatus!], $zoneId: UUID, $parcelType: String, $estimatedDeliveryDateFrom: DateTime, $estimatedDeliveryDateTo: DateTime) {
-  preLoadParcels(search: $search, status: $status, zoneId: $zoneId, parcelType: $parcelType, estimatedDeliveryDateFrom: $estimatedDeliveryDateFrom, estimatedDeliveryDateTo: $estimatedDeliveryDateTo) {
+query GetPreLoadParcels($search: String, $status: [ParcelStatus!], $zoneId: UUID, $parcelType: String, $estimatedDeliveryDateFrom: DateTime, $estimatedDeliveryDateTo: DateTime, $orderBy: String) {
+  preLoadParcels(search: $search, status: $status, zoneId: $zoneId, parcelType: $parcelType, estimatedDeliveryDateFrom: $estimatedDeliveryDateFrom, estimatedDeliveryDateTo: $estimatedDeliveryDateTo, orderBy: $orderBy) {
     id
     trackingNumber
     status

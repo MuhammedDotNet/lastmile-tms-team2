@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { FileText, Package, PackagePlus, Printer, Search, X } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, FileText, Package, PackagePlus, Printer, Search, X } from "lucide-react";
 import { useSession } from "next-auth/react";
 
 import { QueryErrorAlert } from "@/components/feedback/query-error-alert";
@@ -55,6 +55,8 @@ export default function ParcelsPage() {
   const [typeFilter, setTypeFilter] = useState<string | undefined>();
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [sortField, setSortField] = useState<string | undefined>();
+  const [sortDirection, setSortDirection] = useState<"ASC" | "DESC">("ASC");
 
   const debouncedSearch = useDebounce(search, 300);
   const { data: zones = [] } = useZones();
@@ -67,7 +69,41 @@ export default function ParcelsPage() {
     typeFilter,
     dateFrom !== "" ? new Date(`${dateFrom}T00:00:00Z`).toISOString() : undefined,
     dateTo !== "" ? new Date(`${dateTo}T23:59:59Z`).toISOString() : undefined,
+    sortField ? `${sortField} ${sortDirection}` : undefined,
   );
+
+  function handleSort(field: string) {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "ASC" ? "DESC" : "ASC");
+    } else {
+      setSortField(field);
+      setSortDirection("ASC");
+    }
+  }
+
+  function SortableTh({ field, label }: { field: string; label: string }) {
+    const isActive = sortField === field;
+    return (
+      <th
+        className={cn(listDataTableThClass, "cursor-pointer select-none hover:text-foreground")}
+        onClick={() => handleSort(field)}
+        aria-sort={isActive ? (sortDirection === "ASC" ? "ascending" : "descending") : "none"}
+      >
+        <span className="inline-flex items-center gap-1">
+          {label}
+          {isActive ? (
+            sortDirection === "ASC" ? (
+              <ArrowUp className="h-3.5 w-3.5" aria-hidden />
+            ) : (
+              <ArrowDown className="h-3.5 w-3.5" aria-hidden />
+            )
+          ) : (
+            <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/50" aria-hidden />
+          )}
+        </span>
+      </th>
+    );
+  }
   const cancelParcel = useCancelParcel();
 
   const hasActiveFilters =
@@ -318,14 +354,14 @@ export default function ParcelsPage() {
               <thead>
                 <tr className={listDataTableHeadRowClass}>
                   <th className={cn(listDataTableThClass, "w-14")}>Select</th>
-                  <th className={listDataTableThClass}>Tracking</th>
-                  <th className={listDataTableThClass}>Recipient</th>
-                  <th className={listDataTableThClass}>Weight</th>
-                  <th className={listDataTableThClass}>Type</th>
-                  <th className={listDataTableThClass}>Zone</th>
-                  <th className={listDataTableThClass}>Created</th>
-                  <th className={listDataTableThClass}>Delivery Date</th>
-                  <th className={listDataTableThClass}>Status</th>
+                  <SortableTh field="TrackingNumber" label="Tracking" />
+                  <SortableTh field="RecipientContactName" label="Recipient" />
+                  <SortableTh field="Weight" label="Weight" />
+                  <SortableTh field="ParcelType" label="Type" />
+                  <SortableTh field="ZoneName" label="Zone" />
+                  <SortableTh field="CreatedAt" label="Created" />
+                  <SortableTh field="EstimatedDeliveryDate" label="Delivery Date" />
+                  <SortableTh field="Status" label="Status" />
                   <th className={listDataTableThRightClass}>Actions</th>
                 </tr>
               </thead>

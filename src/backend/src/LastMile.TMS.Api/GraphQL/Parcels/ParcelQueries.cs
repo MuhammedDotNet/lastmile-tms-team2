@@ -36,6 +36,7 @@ public sealed class ParcelQueries
         string? parcelType = null,
         DateTimeOffset? estimatedDeliveryDateFrom = null,
         DateTimeOffset? estimatedDeliveryDateTo = null,
+        string? orderBy = null,
         [Service] IParcelReadService readService = null!)
     {
         var filter = status is not null || zoneId is not null || !string.IsNullOrWhiteSpace(parcelType)
@@ -49,7 +50,7 @@ public sealed class ParcelQueries
                 EstimatedDeliveryDateTo = estimatedDeliveryDateTo,
             }
             : null;
-        return readService.GetRegisteredParcels(search, filter);
+        return readService.GetRegisteredParcels(search, filter, orderBy);
     }
 
     [Authorize(Roles = new[] { "OperationsManager", "Admin", "Dispatcher", "WarehouseOperator" })]
@@ -60,6 +61,7 @@ public sealed class ParcelQueries
         string? parcelType = null,
         DateTimeOffset? estimatedDeliveryDateFrom = null,
         DateTimeOffset? estimatedDeliveryDateTo = null,
+        string? orderBy = null,
         [Service] IParcelReadService readService = null!)
     {
         var filter = status is not null || zoneId is not null || !string.IsNullOrWhiteSpace(parcelType)
@@ -73,7 +75,7 @@ public sealed class ParcelQueries
                 EstimatedDeliveryDateTo = estimatedDeliveryDateTo,
             }
             : null;
-        return readService.GetPreLoadParcels(search, filter);
+        return readService.GetPreLoadParcels(search, filter, orderBy);
     }
 
     [Authorize(Roles = new[] { "OperationsManager", "Admin", "Dispatcher", "WarehouseOperator" })]

@@ -126,6 +126,7 @@ export const parcelsService = {
     parcelType?: string,
     estimatedDeliveryDateFrom?: string,
     estimatedDeliveryDateTo?: string,
+    orderBy?: string,
   ): Promise<GetPreLoadParcelsQuery["preLoadParcels"]> => {
     if (USE_MOCK) {
       return mockParcels;
@@ -138,6 +139,7 @@ export const parcelsService = {
       parcelType: parcelType || undefined,
       estimatedDeliveryDateFrom: estimatedDeliveryDateFrom || undefined,
       estimatedDeliveryDateTo: estimatedDeliveryDateTo || undefined,
+      orderBy: orderBy || undefined,
     });
     return data.preLoadParcels;
   },

@@ -32,7 +32,8 @@ export const parcelKeys = {
     parcelType?: string,
     estimatedDeliveryDateFrom?: string,
     estimatedDeliveryDateTo?: string,
-  ) => [...parcelKeys.all, "preLoad", search ?? "", status, zoneId, parcelType, estimatedDeliveryDateFrom, estimatedDeliveryDateTo] as const,
+    orderBy?: string,
+  ) => [...parcelKeys.all, "preLoad", search ?? "", status, zoneId, parcelType, estimatedDeliveryDateFrom, estimatedDeliveryDateTo, orderBy ?? ""] as const,
   preLoadAll: () => [...parcelKeys.all, "preLoadAll"] as const,
   forRoute: () => [...parcelKeys.all, "forRoute"] as const,
   registered: () => [...parcelKeys.all, "registered"] as const,
@@ -58,11 +59,12 @@ export function usePreLoadParcels(
   parcelType?: string,
   estimatedDeliveryDateFrom?: string,
   estimatedDeliveryDateTo?: string,
+  orderBy?: string,
 ) {
   const { status: sessionStatus } = useSession();
   return useQuery({
-    queryKey: parcelKeys.preLoad(search, status, zoneId, parcelType, estimatedDeliveryDateFrom, estimatedDeliveryDateTo),
-    queryFn: () => parcelsService.getPreLoadParcels(search, status, zoneId, parcelType, estimatedDeliveryDateFrom, estimatedDeliveryDateTo),
+    queryKey: parcelKeys.preLoad(search, status, zoneId, parcelType, estimatedDeliveryDateFrom, estimatedDeliveryDateTo, orderBy),
+    queryFn: () => parcelsService.getPreLoadParcels(search, status, zoneId, parcelType, estimatedDeliveryDateFrom, estimatedDeliveryDateTo, orderBy),
     placeholderData: keepPreviousData,
     enabled: sessionStatus === "authenticated",
   });

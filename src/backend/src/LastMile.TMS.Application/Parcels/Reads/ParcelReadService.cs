@@ -19,7 +19,7 @@ public sealed class ParcelReadService(IAppDbContext dbContext) : IParcelReadServ
             .Where(p => RouteCreationStatuses.Contains(p.Status))
             .OrderBy(p => p.TrackingNumber);
 
-    public IQueryable<ParcelDto> GetRegisteredParcels(string? search = null, ParcelFilter? filter = null)
+    public IQueryable<ParcelDto> GetRegisteredParcels(string? search = null, ParcelFilter? filter = null, string? orderBy = null)
     {
         var query = dbContext.Parcels
             .AsNoTracking()
@@ -68,12 +68,11 @@ public sealed class ParcelReadService(IAppDbContext dbContext) : IParcelReadServ
             }
         }
 
-        return query
-            .OrderByDescending(p => p.CreatedAt)
+        return ApplySort(query, orderBy)
             .Select(p => p.ToDto());
     }
 
-    public IQueryable<ParcelDto> GetPreLoadParcels(string? search = null, ParcelFilter? filter = null)
+    public IQueryable<ParcelDto> GetPreLoadParcels(string? search = null, ParcelFilter? filter = null, string? orderBy = null)
     {
         var query = dbContext.Parcels
             .AsNoTracking()
@@ -122,9 +121,48 @@ public sealed class ParcelReadService(IAppDbContext dbContext) : IParcelReadServ
             }
         }
 
-        return query
-            .OrderByDescending(p => p.CreatedAt)
+        return ApplySort(query, orderBy)
             .Select(p => p.ToDto());
+    }
+
+    private static IOrderedQueryable<Parcel> ApplySort(IQueryable<Parcel> query, string? orderBy)
+    {
+        if (string.IsNullOrWhiteSpace(orderBy))
+        {
+            return query.OrderByDescending(p => p.CreatedAt);
+        }
+
+        var parts = orderBy.Trim().Split(' ', 2);
+        var field = parts[0].ToUpperInvariant();
+        var ascending = parts.Length > 1 && parts[1].ToUpperInvariant() == "ASC";
+
+        return ascending
+            ? field switch
+              {
+                  "TRACKINGNUMBER" => query.OrderBy(p => p.TrackingNumber),
+                  "STATUS" => query.OrderBy(p => p.Status),
+                  "SERVICETYPE" => query.OrderBy(p => p.ServiceType),
+                  "PARCELTYPE" => query.OrderBy(p => p.ParcelType ?? ""),
+                  "WEIGHT" => query.OrderBy(p => p.Weight),
+                  "CREATEDAT" => query.OrderBy(p => p.CreatedAt),
+                  "ESTIMATEDDELIVERYDATE" => query.OrderBy(p => p.EstimatedDeliveryDate),
+                  "RECIPIENTCONTACTNAME" => query.OrderBy(p => p.RecipientAddress != null ? p.RecipientAddress.ContactName ?? "" : ""),
+                  "ZONENAME" => query.OrderBy(p => p.Zone != null ? p.Zone.Name : ""),
+                  _ => query.OrderByDescending(p => p.CreatedAt),
+              }
+            : field switch
+              {
+                  "TRACKINGNUMBER" => query.OrderByDescending(p => p.TrackingNumber),
+                  "STATUS" => query.OrderByDescending(p => p.Status),
+                  "SERVICETYPE" => query.OrderByDescending(p => p.ServiceType),
+                  "PARCELTYPE" => query.OrderByDescending(p => p.ParcelType ?? ""),
+                  "WEIGHT" => query.OrderByDescending(p => p.Weight),
+                  "CREATEDAT" => query.OrderByDescending(p => p.CreatedAt),
+                  "ESTIMATEDDELIVERYDATE" => query.OrderByDescending(p => p.EstimatedDeliveryDate),
+                  "RECIPIENTCONTACTNAME" => query.OrderByDescending(p => p.RecipientAddress != null ? p.RecipientAddress.ContactName ?? "" : ""),
+                  "ZONENAME" => query.OrderByDescending(p => p.Zone != null ? p.Zone.Name : ""),
+                  _ => query.OrderByDescending(p => p.CreatedAt),
+              };
     }
 
     public async Task<ParcelDetailDto?> GetParcelByIdAsync(Guid id, CancellationToken cancellationToken = default)
