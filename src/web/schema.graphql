@@ -71,7 +71,7 @@ type Mutation @authorize(roles: [ "Admin" ]) {
   createDriver(input: CreateDriverInput!): Driver! @authorize(roles: [ "Admin", "OperationsManager" ]) @cost(weight: "10")
   updateDriver(id: UUID! input: UpdateDriverInput!): Driver! @authorize(roles: [ "Admin", "OperationsManager" ]) @cost(weight: "10")
   deleteDriver(id: UUID!): Boolean! @authorize(roles: [ "Admin", "OperationsManager" ]) @cost(weight: "10")
-  registerParcel(input: RegisterParcelInput!): RegisteredParcel! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
+  registerParcel(input: RegisterParcelInput!): ParcelDto! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
   updateParcel(input: UpdateParcelInput!): ParcelDetail @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
   cancelParcel(input: CancelParcelInput!): ParcelDetail @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
   createRoute(input: CreateRouteInput!): Route! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
@@ -104,6 +104,7 @@ type ParcelChangeHistory {
   changedAt: DateTime!
   changedBy: String
 }
+
 type ParcelDetail {
   id: UUID!
   trackingNumber: String!
@@ -122,7 +123,6 @@ type ParcelDetail {
   parcelType: String
   cancellationReason: String
   estimatedDeliveryDate: DateTime!
-  actualDeliveryDate: DateTime
   deliveryAttempts: Int!
   zoneId: UUID!
   zoneName: String
@@ -148,6 +148,38 @@ type ParcelDetailAddress {
   companyName: String
   phone: String
   email: String
+}
+
+type ParcelDto {
+  id: UUID!
+  trackingNumber: String!
+  barcode: String!
+  description: String
+  serviceType: String!
+  status: String!
+  weight: Decimal!
+  weightUnit: String!
+  length: Decimal!
+  width: Decimal!
+  height: Decimal!
+  dimensionUnit: String!
+  declaredValue: Decimal!
+  currency: String!
+  estimatedDeliveryDate: DateTime!
+  actualDeliveryDate: DateTime
+  deliveryAttempts: Int!
+  parcelType: String
+  zoneId: UUID!
+  zoneName: String
+  depotId: UUID!
+  depotName: String
+  createdAt: DateTime!
+  lastModifiedAt: DateTime
+  recipientContactName: String
+  recipientCompanyName: String
+  recipientStreet1: String
+  recipientCity: String
+  recipientPostalCode: String
 }
 
 type ParcelImport {
@@ -202,9 +234,9 @@ type Query @authorize(roles: [ "Admin" ]) {
   drivers(order: [DriverSortInput!] @cost(weight: "10") where: DriverFilterInput @cost(weight: "10")): [Driver!]! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
   driver(id: UUID!): Driver @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
   parcel(id: UUID!): ParcelDetail @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
-  parcelsForRouteCreation: [ParcelRouteOption!]! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
-  registeredParcels(search: String status: [ParcelStatus!] zoneId: UUID parcelType: String estimatedDeliveryDateFrom: DateTime estimatedDeliveryDateTo: DateTime orderBy: String): [RegisteredParcel!]! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
-  preLoadParcels(search: String status: [ParcelStatus!] zoneId: UUID parcelType: String estimatedDeliveryDateFrom: DateTime estimatedDeliveryDateTo: DateTime orderBy: String): [RegisteredParcel!]! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
+  parcelsForRouteCreation: [RegisteredParcel!]! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
+  registeredParcels(search: String where: ParcelFilterInput @cost(weight: "10") order: [ParcelSortInput!] @cost(weight: "10")): [RegisteredParcel!]! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
+  preLoadParcels(search: String where: ParcelFilterInput @cost(weight: "10") order: [ParcelSortInput!] @cost(weight: "10")): [RegisteredParcel!]! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
   parcelImports: [ParcelImportHistory!]! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
   parcelImport(id: UUID!): ParcelImport @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
   routes(where: RouteFilterInput @cost(weight: "10") order: [RouteSortInput!] @cost(weight: "10")): [Route!]! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
@@ -219,33 +251,34 @@ type Query @authorize(roles: [ "Admin" ]) {
 type RegisteredParcel {
   id: UUID!
   trackingNumber: String!
-  barcode: String!
-  description: String
-  serviceType: String!
-  status: String!
+  status: String
+  serviceType: String
+  parcelType: String
   weight: Decimal!
-  weightUnit: String!
+  weightUnit: String
   length: Decimal!
   width: Decimal!
   height: Decimal!
-  dimensionUnit: String!
+  dimensionUnit: String
   declaredValue: Decimal!
   currency: String!
   estimatedDeliveryDate: DateTime!
   actualDeliveryDate: DateTime
   deliveryAttempts: Int!
-  parcelType: String
+  description: String
   zoneId: UUID!
-  zoneName: String
-  depotId: UUID!
-  depotName: String
+  zone: Zone @cost(weight: "10")
+  zoneName: String @cost(weight: "10")
+  depotId: UUID @cost(weight: "10")
+  depotName: String @cost(weight: "10")
+  recipientAddress: Address!
+  recipientContactName: String @cost(weight: "10")
+  recipientCompanyName: String @cost(weight: "10")
+  recipientStreet1: String @cost(weight: "10")
+  recipientCity: String @cost(weight: "10")
+  recipientPostalCode: String @cost(weight: "10")
   createdAt: DateTime!
   lastModifiedAt: DateTime
-  recipientContactName: String
-  recipientCompanyName: String
-  recipientStreet1: String
-  recipientCity: String
-  recipientPostalCode: String
 }
 
 type Route {
@@ -607,14 +640,6 @@ input OperatingHoursListFilterInput {
   any: Boolean @cost(weight: "10")
 }
 
-input ParcelFilter {
-  status: [ParcelStatus!]
-  zoneId: UUID
-  parcelType: String
-  estimatedDeliveryDateFrom: DateTime
-  estimatedDeliveryDateTo: DateTime
-}
-
 input ParcelFilterInput {
   and: [ParcelFilterInput!]
   or: [ParcelFilterInput!]
@@ -644,9 +669,13 @@ input ParcelSortInput {
   trackingNumber: SortEnumType @cost(weight: "10")
   status: SortEnumType @cost(weight: "10")
   serviceType: SortEnumType @cost(weight: "10")
+  parcelType: SortEnumType @cost(weight: "10")
   weight: SortEnumType @cost(weight: "10")
   createdAt: SortEnumType @cost(weight: "10")
   lastModifiedAt: SortEnumType @cost(weight: "10")
+  estimatedDeliveryDate: SortEnumType @cost(weight: "10")
+  recipientContactName: AddressSortInput @cost(weight: "10")
+  zoneName: ZoneSortInput @cost(weight: "10")
 }
 
 input ParcelStatusOperationFilterInput {
@@ -764,24 +793,6 @@ input UpdateDepotInput {
   isActive: Boolean!
 }
 
-input UpdateParcelInput {
-  id: UUID!
-  shipperAddressId: UUID!
-  recipientAddress: RegisterParcelRecipientAddressInput!
-  description: String
-  serviceType: ServiceType!
-  weight: Decimal!
-  weightUnit: WeightUnit!
-  length: Decimal!
-  width: Decimal!
-  height: Decimal!
-  dimensionUnit: DimensionUnit!
-  declaredValue: Decimal!
-  currency: String!
-  estimatedDeliveryDate: DateTime!
-  parcelType: String
-}
-
 input UpdateDriverAvailabilityInput {
   id: UUID
   dayOfWeek: DayOfWeek!
@@ -803,6 +814,24 @@ input UpdateDriverInput {
   status: DriverStatus!
   userId: UUID!
   availabilitySchedule: [UpdateDriverAvailabilityInput!]!
+}
+
+input UpdateParcelInput {
+  id: UUID!
+  shipperAddressId: UUID!
+  recipientAddress: RegisterParcelRecipientAddressInput!
+  description: String
+  serviceType: ServiceType!
+  weight: Decimal!
+  weightUnit: WeightUnit!
+  length: Decimal!
+  width: Decimal!
+  height: Decimal!
+  dimensionUnit: DimensionUnit!
+  declaredValue: Decimal!
+  currency: String!
+  estimatedDeliveryDate: DateTime!
+  parcelType: String
 }
 
 input UpdateUserInput {

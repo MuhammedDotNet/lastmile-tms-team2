@@ -7,7 +7,7 @@ import {
 import { useSession } from "next-auth/react";
 
 import { parcelsService } from "@/services/parcels.service";
-import type { ParcelStatus } from "@/graphql/generated";
+import type { ParcelFilterInput, ParcelSortInput } from "@/graphql/generated";
 import type { MutationToastMeta } from "@/lib/query/mutation-toast-meta";
 import type {
   CancelParcelRequest,
@@ -27,13 +27,9 @@ export const parcelKeys = {
   all: ["parcels"] as const,
   preLoad: (
     search?: string,
-    status?: ParcelStatus[],
-    zoneId?: string,
-    parcelType?: string,
-    estimatedDeliveryDateFrom?: string,
-    estimatedDeliveryDateTo?: string,
-    orderBy?: string,
-  ) => [...parcelKeys.all, "preLoad", search ?? "", status, zoneId, parcelType, estimatedDeliveryDateFrom, estimatedDeliveryDateTo, orderBy ?? ""] as const,
+    where?: ParcelFilterInput,
+    order?: ParcelSortInput[],
+  ) => [...parcelKeys.all, "preLoad", search ?? "", JSON.stringify(where ?? {}), JSON.stringify(order ?? [])] as const,
   preLoadAll: () => [...parcelKeys.all, "preLoadAll"] as const,
   forRoute: () => [...parcelKeys.all, "forRoute"] as const,
   registered: () => [...parcelKeys.all, "registered"] as const,
@@ -54,17 +50,13 @@ export function useParcelsForRouteCreation() {
 
 export function usePreLoadParcels(
   search?: string,
-  status?: ParcelStatus[],
-  zoneId?: string,
-  parcelType?: string,
-  estimatedDeliveryDateFrom?: string,
-  estimatedDeliveryDateTo?: string,
-  orderBy?: string,
+  where?: ParcelFilterInput,
+  order?: ParcelSortInput[],
 ) {
   const { status: sessionStatus } = useSession();
   return useQuery({
-    queryKey: parcelKeys.preLoad(search, status, zoneId, parcelType, estimatedDeliveryDateFrom, estimatedDeliveryDateTo, orderBy),
-    queryFn: () => parcelsService.getPreLoadParcels(search, status, zoneId, parcelType, estimatedDeliveryDateFrom, estimatedDeliveryDateTo, orderBy),
+    queryKey: parcelKeys.preLoad(search, where, order),
+    queryFn: () => parcelsService.getPreLoadParcels(search, where, order),
     placeholderData: keepPreviousData,
     enabled: sessionStatus === "authenticated",
   });

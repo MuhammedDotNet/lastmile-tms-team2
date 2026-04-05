@@ -705,6 +705,132 @@ public class ParcelGraphQLTests(CustomWebApplicationFactory factory)
 
     #endregion
 
+    #region registeredParcels / preLoadParcels — search, filter, sort
+
+    [Fact]
+    public async Task GetPreLoadParcels_SearchByTrackingNumber_ReturnsMatchingParcel()
+    {
+        var token = await GetAdminAccessTokenAsync();
+
+        using var doc = await PostGraphQLAsync(
+            """
+            query GetPreLoadParcels($search: String!) {
+              preLoadParcels(search: $search) {
+                trackingNumber
+              }
+            }
+            """,
+            variables: new { search = "LMTESTSEED0001" },
+            accessToken: token);
+
+        doc.RootElement.TryGetProperty("errors", out var errors)
+            .Should().BeFalse("preLoadParcels(search) should not return errors: {0}", errors.ToString());
+
+        var parcels = doc.RootElement
+            .GetProperty("data")
+            .GetProperty("preLoadParcels")
+            .EnumerateArray()
+            .ToList();
+
+        parcels.Should().Contain(p =>
+            p.GetProperty("trackingNumber").GetString() == "LMTESTSEED0001");
+        parcels.Should().OnlyContain(p =>
+            p.GetProperty("trackingNumber").GetString()!.Contains("LMTESTSEED0001"),
+            "all results should match the search term");
+    }
+
+    [Fact]
+    public async Task GetPreLoadParcels_FilterByStatus_ReturnsOnlyMatchingStatus()
+    {
+        var token = await GetAdminAccessTokenAsync();
+
+        using var doc = await PostGraphQLAsync(
+            """
+            query GetPreLoadParcels($where: ParcelFilterInput) {
+              preLoadParcels(where: $where) {
+                trackingNumber
+                status
+              }
+            }
+            """,
+            variables: new { where = new { status = new { @in = new[] { "SORTED" } } } },
+            accessToken: token);
+
+        doc.RootElement.TryGetProperty("errors", out var errors)
+            .Should().BeFalse("preLoadParcels(where) should not return errors: {0}", errors.ToString());
+
+        var parcels = doc.RootElement
+            .GetProperty("data")
+            .GetProperty("preLoadParcels")
+            .EnumerateArray()
+            .ToList();
+
+        parcels.Should().NotBeEmpty("seeded parcels have status SORTED");
+        parcels.Should().OnlyContain(p =>
+            p.GetProperty("status").GetString() == "Sorted",
+            "all returned parcels should have status Sorted (backend response uses PascalCase)");
+    }
+
+    [Fact]
+    public async Task GetPreLoadParcels_SortByTrackingNumberAsc_ReturnsOrderedResults()
+    {
+        var token = await GetAdminAccessTokenAsync();
+
+        using var doc = await PostGraphQLAsync(
+            """
+            query GetPreLoadParcels($order: [ParcelSortInput!]) {
+              preLoadParcels(order: $order) {
+                trackingNumber
+              }
+            }
+            """,
+            variables: new { order = new[] { new { trackingNumber = "ASC" } } },
+            accessToken: token);
+
+        doc.RootElement.TryGetProperty("errors", out var errors)
+            .Should().BeFalse("preLoadParcels(order) should not return errors: {0}", errors.ToString());
+
+        var parcels = doc.RootElement
+            .GetProperty("data")
+            .GetProperty("preLoadParcels")
+            .EnumerateArray()
+            .Select(p => p.GetProperty("trackingNumber").GetString())
+            .ToList();
+
+        parcels.Should().BeInAscendingOrder("results should be sorted by TrackingNumber ASC");
+    }
+
+    [Fact]
+    public async Task GetPreLoadParcels_SortByTrackingNumberDesc_ReturnsOrderedResults()
+    {
+        var token = await GetAdminAccessTokenAsync();
+
+        using var doc = await PostGraphQLAsync(
+            """
+            query GetPreLoadParcels($order: [ParcelSortInput!]) {
+              preLoadParcels(order: $order) {
+                trackingNumber
+              }
+            }
+            """,
+            variables: new { order = new[] { new { trackingNumber = "DESC" } } },
+            accessToken: token);
+
+        doc.RootElement.TryGetProperty("errors", out var errors)
+            .Should().BeFalse("preLoadParcels(order) should not return errors: {0}", errors.ToString());
+
+        var parcels = doc.RootElement
+            .GetProperty("data")
+            .GetProperty("preLoadParcels")
+            .EnumerateArray()
+            .Select(p => p.GetProperty("trackingNumber").GetString())
+            .ToList();
+
+        parcels.Should().BeInDescendingOrder("results should be sorted by TrackingNumber DESC");
+    }
+
+    #endregion
+
     public Task InitializeAsync() => Factory.ResetDatabaseAsync();
 
     public Task DisposeAsync() => Task.CompletedTask;

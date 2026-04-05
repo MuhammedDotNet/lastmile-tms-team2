@@ -68,12 +68,35 @@ export default function ParcelsPage() {
 
   const { data = [], isLoading, error } = usePreLoadParcels(
     debouncedSearch || undefined,
-    statusFilter !== undefined ? [statusFilter] : undefined,
-    zoneFilter,
-    typeFilter,
-    dateFrom !== "" ? new Date(`${dateFrom}T00:00:00Z`).toISOString() : undefined,
-    dateTo !== "" ? new Date(`${dateTo}T23:59:59Z`).toISOString() : undefined,
-    sortField ? `${sortField} ${sortDirection}` : undefined,
+    (statusFilter !== undefined || zoneFilter !== undefined || typeFilter !== undefined || dateFrom !== "" || dateTo !== "")
+      ? {
+          ...(statusFilter !== undefined ? { status: { in: [statusFilter] } } : {}),
+          ...(zoneFilter !== undefined ? { zoneId: { eq: zoneFilter } } : {}),
+          ...(typeFilter !== undefined ? { parcelType: { eq: typeFilter } } : {}),
+          ...(dateFrom !== "" || dateTo !== ""
+            ? {
+                estimatedDeliveryDate: {
+                  gte: dateFrom !== "" ? new Date(`${dateFrom}T00:00:00Z`).toISOString() : undefined,
+                  lte: dateTo !== "" ? new Date(`${dateTo}T23:59:59Z`).toISOString() : undefined,
+                },
+              }
+            : {}),
+        }
+      : undefined,
+    sortField
+      ? [
+          {
+            ...(sortField === "TrackingNumber" && { trackingNumber: sortDirection }),
+            ...(sortField === "Status" && { status: sortDirection }),
+            ...(sortField === "ParcelType" && { parcelType: sortDirection }),
+            ...(sortField === "Weight" && { weight: sortDirection }),
+            ...(sortField === "CreatedAt" && { createdAt: sortDirection }),
+            ...(sortField === "EstimatedDeliveryDate" && { estimatedDeliveryDate: sortDirection }),
+            ...(sortField === "RecipientContactName" && { recipientContactName: { contactName: sortDirection } }),
+            ...(sortField === "ZoneName" && { zoneName: { name: sortDirection } }),
+          },
+        ]
+      : undefined,
   );
 
   const total = data.length;
@@ -487,13 +510,13 @@ export default function ParcelsPage() {
                       <OverflowTooltipCell
                         fullText={
                           parcel.parcelType
-                            ? `${parcel.parcelType} | ${formatParcelServiceType(parcel.serviceType)}`
-                            : formatParcelServiceType(parcel.serviceType)
+                            ? `${parcel.parcelType} | ${formatParcelServiceType(parcel.serviceType ?? "")}`
+                            : formatParcelServiceType(parcel.serviceType ?? "")
                         }
                       >
                         {parcel.parcelType
-                          ? `${parcel.parcelType} | ${formatParcelServiceType(parcel.serviceType)}`
-                          : formatParcelServiceType(parcel.serviceType)}
+                          ? `${parcel.parcelType} | ${formatParcelServiceType(parcel.serviceType ?? "")}`
+                          : formatParcelServiceType(parcel.serviceType ?? "")}
                       </OverflowTooltipCell>
                     </td>
                     <td className={cn(listDataTableTdClass, "text-muted-foreground")}>
@@ -525,11 +548,11 @@ export default function ParcelsPage() {
                     >
                       <OverflowTooltipCell
                         shrinkToContent
-                        fullText={formatParcelStatus(parcel.status)}
-                        className={parcelStatusBadgeClass(parcel.status)}
+                        fullText={formatParcelStatus(parcel.status ?? "")}
+                        className={parcelStatusBadgeClass(parcel.status ?? "")}
                       >
-                        <span className={parcelStatusBadgeClass(parcel.status)}>
-                          {formatParcelStatus(parcel.status)}
+                        <span className={parcelStatusBadgeClass(parcel.status ?? "")}>
+                          {formatParcelStatus(parcel.status ?? "")}
                         </span>
                       </OverflowTooltipCell>
                     </td>

@@ -1,13 +1,10 @@
 using HotChocolate;
 using HotChocolate.Authorization;
 using HotChocolate.Data;
-using HotChocolate.Data.Filters;
-using HotChocolate.Data.Sorting;
 using LastMile.TMS.Application.Parcels.DTOs;
 using LastMile.TMS.Application.Parcels.Queries;
 using LastMile.TMS.Application.Parcels.Reads;
 using LastMile.TMS.Domain.Entities;
-using LastMile.TMS.Domain.Enums;
 using MediatR;
 
 namespace LastMile.TMS.Api.GraphQL.Parcels;
@@ -29,53 +26,47 @@ public sealed class ParcelQueries
         readService.GetParcelsForRouteCreation();
 
     [Authorize(Roles = new[] { "OperationsManager", "Admin", "Dispatcher", "WarehouseOperator" })]
-    public IQueryable<ParcelDto> GetRegisteredParcels(
-        string? search = null,
-        ParcelStatus[]? status = null,
-        Guid? zoneId = null,
-        string? parcelType = null,
-        DateTimeOffset? estimatedDeliveryDateFrom = null,
-        DateTimeOffset? estimatedDeliveryDateTo = null,
-        string? orderBy = null,
+    [UseFiltering]
+    [UseSorting]
+    public IQueryable<Parcel> GetRegisteredParcels(
+        string? search,
         [Service] IParcelReadService readService = null!)
     {
-        var filter = status is not null || zoneId is not null || !string.IsNullOrWhiteSpace(parcelType)
-            || estimatedDeliveryDateFrom.HasValue || estimatedDeliveryDateTo.HasValue
-            ? new ParcelFilter
-            {
-                Status = status,
-                ZoneId = zoneId,
-                ParcelType = parcelType,
-                EstimatedDeliveryDateFrom = estimatedDeliveryDateFrom,
-                EstimatedDeliveryDateTo = estimatedDeliveryDateTo,
-            }
-            : null;
-        return readService.GetRegisteredParcels(search, filter, orderBy);
+        var query = readService.GetRegisteredParcels();
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var pattern = search.Trim().ToUpperInvariant();
+            query = query.Where(p =>
+                p.TrackingNumber.ToUpper().Contains(pattern) ||
+                (p.RecipientAddress.ContactName ?? string.Empty).ToUpper().Contains(pattern) ||
+                (p.RecipientAddress.CompanyName ?? string.Empty).ToUpper().Contains(pattern) ||
+                (p.RecipientAddress.Street1 ?? string.Empty).ToUpper().Contains(pattern) ||
+                (p.RecipientAddress.City ?? string.Empty).ToUpper().Contains(pattern) ||
+                (p.RecipientAddress.PostalCode ?? string.Empty).ToUpper().Contains(pattern));
+        }
+        return query;
     }
 
     [Authorize(Roles = new[] { "OperationsManager", "Admin", "Dispatcher", "WarehouseOperator" })]
-    public IQueryable<ParcelDto> GetPreLoadParcels(
-        string? search = null,
-        ParcelStatus[]? status = null,
-        Guid? zoneId = null,
-        string? parcelType = null,
-        DateTimeOffset? estimatedDeliveryDateFrom = null,
-        DateTimeOffset? estimatedDeliveryDateTo = null,
-        string? orderBy = null,
+    [UseFiltering]
+    [UseSorting]
+    public IQueryable<Parcel> GetPreLoadParcels(
+        string? search,
         [Service] IParcelReadService readService = null!)
     {
-        var filter = status is not null || zoneId is not null || !string.IsNullOrWhiteSpace(parcelType)
-            || estimatedDeliveryDateFrom.HasValue || estimatedDeliveryDateTo.HasValue
-            ? new ParcelFilter
-            {
-                Status = status,
-                ZoneId = zoneId,
-                ParcelType = parcelType,
-                EstimatedDeliveryDateFrom = estimatedDeliveryDateFrom,
-                EstimatedDeliveryDateTo = estimatedDeliveryDateTo,
-            }
-            : null;
-        return readService.GetPreLoadParcels(search, filter, orderBy);
+        var query = readService.GetPreLoadParcels();
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var pattern = search.Trim().ToUpperInvariant();
+            query = query.Where(p =>
+                p.TrackingNumber.ToUpper().Contains(pattern) ||
+                (p.RecipientAddress.ContactName ?? string.Empty).ToUpper().Contains(pattern) ||
+                (p.RecipientAddress.CompanyName ?? string.Empty).ToUpper().Contains(pattern) ||
+                (p.RecipientAddress.Street1 ?? string.Empty).ToUpper().Contains(pattern) ||
+                (p.RecipientAddress.City ?? string.Empty).ToUpper().Contains(pattern) ||
+                (p.RecipientAddress.PostalCode ?? string.Empty).ToUpper().Contains(pattern));
+        }
+        return query;
     }
 
     [Authorize(Roles = new[] { "OperationsManager", "Admin", "Dispatcher", "WarehouseOperator" })]
