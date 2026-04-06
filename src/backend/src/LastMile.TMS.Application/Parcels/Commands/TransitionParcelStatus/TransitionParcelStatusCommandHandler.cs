@@ -1,6 +1,7 @@
 using LastMile.TMS.Application.Common.Interfaces;
 using LastMile.TMS.Application.Parcels.DTOs;
 using LastMile.TMS.Application.Parcels.Mappings;
+using LastMile.TMS.Application.Parcels.Services;
 using LastMile.TMS.Application.Parcels.Support;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -9,7 +10,8 @@ namespace LastMile.TMS.Application.Parcels.Commands;
 
 public sealed class TransitionParcelStatusCommandHandler(
     IAppDbContext dbContext,
-    ICurrentUserService currentUser)
+    ICurrentUserService currentUser,
+    IParcelUpdateNotifier parcelUpdateNotifier)
     : IRequestHandler<TransitionParcelStatusCommand, ParcelDto>
 {
     public async Task<ParcelDto> Handle(TransitionParcelStatusCommand request, CancellationToken cancellationToken)
@@ -38,8 +40,13 @@ public sealed class TransitionParcelStatusCommandHandler(
             actor);
 
         parcel.TrackingEvents.Add(trackingEvent);
+        parcel.LastModifiedAt = now;
+        parcel.LastModifiedBy = actor;
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        await parcelUpdateNotifier.NotifyParcelUpdatedAsync(
+            new ParcelUpdateNotification(parcel.TrackingNumber, parcel.Status.ToString(), parcel.LastModifiedAt),
+            cancellationToken);
 
         // Use a projection query to ensure Zone and Depot are loaded before mapping
         var dto = await dbContext.Parcels

@@ -35,16 +35,61 @@ public sealed class ParcelReadService(IAppDbContext dbContext) : IParcelReadServ
             .Where(p => PreLoadStatuses.Contains(p.Status));
 
     public async Task<ParcelDetailDto?> GetParcelByIdAsync(Guid id, CancellationToken cancellationToken = default)
+        => await GetParcelDetailAsync(
+            query => query.FirstOrDefaultAsync(p => p.Id == id, cancellationToken),
+            cancellationToken);
+
+    public async Task<ParcelDetailDto?> GetParcelByTrackingNumberAsync(
+        string trackingNumber,
+        CancellationToken cancellationToken = default)
+        => await GetParcelDetailAsync(
+            query => query.FirstOrDefaultAsync(
+                p => p.TrackingNumber == trackingNumber,
+                cancellationToken),
+            cancellationToken);
+
+    private async Task<ParcelDetailDto?> GetParcelDetailAsync(
+        Func<IQueryable<Parcel>, Task<Parcel?>> loadParcel,
+        CancellationToken cancellationToken)
     {
-        var parcel = await dbContext.Parcels
+        var parcel = await loadParcel(dbContext.Parcels
             .AsNoTracking()
+            .Include(p => p.ShipperAddress)
             .Include(p => p.RecipientAddress)
             .Include(p => p.ChangeHistory)
+            .Include(p => p.TrackingEvents)
+            .Include(p => p.DeliveryConfirmation)
             .Include(p => p.Zone)
-            .ThenInclude(z => z!.Depot)
-            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+            .ThenInclude(z => z!.Depot));
 
-        return parcel?.ToDetailDto();
+        if (parcel is null)
+        {
+            return null;
+        }
+
+        var routeAssignment = await dbContext.Routes
+            .AsNoTracking()
+            .Where(route => route.Parcels.Any(assignedParcel => assignedParcel.Id == parcel.Id))
+            .OrderBy(route => route.Status == RouteStatus.InProgress
+                ? 0
+                : route.Status == RouteStatus.Planned
+                    ? 1
+                    : 2)
+            .ThenByDescending(route => route.StartDate)
+            .Select(route => new ParcelRouteAssignmentDto
+            {
+                RouteId = route.Id,
+                RouteStatus = route.Status.ToString(),
+                StartDate = route.StartDate,
+                EndDate = route.EndDate,
+                DriverId = route.DriverId,
+                DriverName = $"{route.Driver.FirstName} {route.Driver.LastName}".Trim(),
+                VehicleId = route.VehicleId,
+                VehiclePlate = route.Vehicle.RegistrationPlate,
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return parcel.ToDetailDto(routeAssignment);
     }
 
     public async Task<IReadOnlyList<ParcelLabelDataDto>> GetParcelLabelDataAsync(

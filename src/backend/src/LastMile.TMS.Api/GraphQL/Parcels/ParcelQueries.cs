@@ -19,6 +19,13 @@ public sealed class ParcelQueries
         CancellationToken cancellationToken = default) =>
         readService.GetParcelByIdAsync(id, cancellationToken);
 
+    [Authorize(Roles = new[] { "OperationsManager", "Admin", "Dispatcher", "WarehouseOperator" })]
+    public Task<ParcelDetailDto?> GetParcelByTrackingNumber(
+        string trackingNumber,
+        [Service] IParcelReadService readService = null!,
+        CancellationToken cancellationToken = default) =>
+        readService.GetParcelByTrackingNumberAsync(trackingNumber, cancellationToken);
+
     [Authorize(Roles = new[] { "OperationsManager", "Admin", "Dispatcher" })]
     [UseProjection]
     public IQueryable<Parcel> GetParcelsForRouteCreation(

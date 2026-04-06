@@ -186,6 +186,24 @@ public sealed class ParcelChangeHistoryType : ObjectType<ParcelChangeHistoryDto>
     }
 }
 
+public sealed class ParcelRouteAssignmentType : ObjectType<ParcelRouteAssignmentDto>
+{
+    protected override void Configure(IObjectTypeDescriptor<ParcelRouteAssignmentDto> descriptor)
+    {
+        descriptor.Name("ParcelRouteAssignment");
+        descriptor.BindFieldsImplicitly();
+    }
+}
+
+public sealed class ParcelProofOfDeliveryType : ObjectType<ParcelProofOfDeliveryDto>
+{
+    protected override void Configure(IObjectTypeDescriptor<ParcelProofOfDeliveryDto> descriptor)
+    {
+        descriptor.Name("ParcelProofOfDelivery");
+        descriptor.BindFieldsImplicitly();
+    }
+}
+
 public sealed class ParcelImportHistoryType : ObjectType<ParcelImportHistoryDto>
 {
     protected override void Configure(IObjectTypeDescriptor<ParcelImportHistoryDto> descriptor)

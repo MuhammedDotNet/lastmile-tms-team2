@@ -67,16 +67,16 @@ public static partial class ParcelMappings
     [MapperIgnoreSource(nameof(Parcel.ShipperAddressId))]
     [MapperIgnoreSource(nameof(Parcel.RecipientAddressId))]
     [MapperIgnoreSource(nameof(Parcel.ActualDeliveryDate))]
-    [MapperIgnoreSource(nameof(Parcel.ShipperAddress))]
     [MapperIgnoreSource(nameof(Parcel.DeliveryConfirmation))]
     [MapperIgnoreSource(nameof(Parcel.ContentItems))]
-    [MapperIgnoreSource(nameof(Parcel.TrackingEvents))]
     [MapperIgnoreSource(nameof(Parcel.Watchers))]
     [MapperIgnoreSource(nameof(Parcel.CreatedBy))]
     [MapperIgnoreSource(nameof(Parcel.LastModifiedBy))]
     [MapperIgnoreSource(nameof(Parcel.ZoneId))]
     [MapperIgnoreSource(nameof(Parcel.ChangeHistory))]
-    public static ParcelDetailDto ToDetailDto(this Parcel parcel)
+    public static ParcelDetailDto ToDetailDto(
+        this Parcel parcel,
+        ParcelRouteAssignmentDto? routeAssignment = null)
     {
         var history = parcel.ChangeHistory
             .OrderByDescending(entry => entry.ChangedAt)
@@ -90,6 +90,24 @@ public static partial class ParcelMappings
                 ChangedBy = entry.ChangedBy,
             })
             .ToArray();
+
+        var timeline = parcel.TrackingEvents
+            .OrderByDescending(entry => entry.Timestamp)
+            .Select(entry => entry.ToDto())
+            .ToArray();
+
+        ParcelProofOfDeliveryDto? proofOfDelivery = null;
+        if (parcel.DeliveryConfirmation is not null)
+        {
+            proofOfDelivery = new ParcelProofOfDeliveryDto
+            {
+                ReceivedBy = parcel.DeliveryConfirmation.ReceivedBy,
+                DeliveryLocation = parcel.DeliveryConfirmation.DeliveryLocation,
+                DeliveredAt = parcel.DeliveryConfirmation.DeliveredAt,
+                HasSignatureImage = parcel.DeliveryConfirmation.SignatureImage is { Length: > 0 },
+                HasPhoto = parcel.DeliveryConfirmation.Photo is { Length: > 0 },
+            };
+        }
 
         return new ParcelDetailDto
         {
@@ -119,8 +137,12 @@ public static partial class ParcelMappings
             LastModifiedAt = parcel.LastModifiedAt,
             CanEdit = parcel.CanEditBeforeLoad(),
             CanCancel = parcel.CanCancelBeforeLoad(),
+            SenderAddress = parcel.ShipperAddress.ToDetailDto(),
             RecipientAddress = parcel.RecipientAddress.ToDetailDto(),
+            StatusTimeline = timeline,
             ChangeHistory = history,
+            RouteAssignment = routeAssignment,
+            ProofOfDelivery = proofOfDelivery,
             AllowedNextStatuses = parcel.GetValidNextStatuses()
                 .Select(ParcelStatusGraphQl.ToGraphQlName)
                 .ToArray(),

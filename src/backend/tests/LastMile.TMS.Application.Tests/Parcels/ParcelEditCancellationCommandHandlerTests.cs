@@ -227,8 +227,9 @@ public class ParcelEditCancellationCommandHandlerTests
     {
         var currentUser = Substitute.For<ICurrentUserService>();
         currentUser.UserName.Returns("warehouse.user");
+        var notifier = Substitute.For<IParcelUpdateNotifier>();
 
-        return new CancelParcelCommandHandler(db, currentUser);
+        return new CancelParcelCommandHandler(db, currentUser, notifier);
     }
 
     private static async Task<ParcelFixture> SeedParcelAsync(AppDbContext db, ParcelStatus status)

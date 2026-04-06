@@ -10,6 +10,8 @@ using LastMile.TMS.Api.GraphQL.Routes;
 using LastMile.TMS.Api.GraphQL.Users;
 using LastMile.TMS.Api.GraphQL.Vehicles;
 using LastMile.TMS.Api.GraphQL.Zones;
+using LastMile.TMS.Api.Hubs;
+using LastMile.TMS.Application.Parcels.Services;
 using Microsoft.AspNetCore.Authentication;
 
 namespace LastMile.TMS.Api.Configuration;
@@ -43,6 +45,8 @@ public static class ServiceCollectionExtensions
             {
                 options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
             });
+        services.AddSignalR();
+        services.AddScoped<IParcelUpdateNotifier, SignalRParcelUpdateNotifier>();
         services.AddGraphQLServer()
             .AddQueryType<Query>()
             .AddMutationType<Mutation>()
@@ -91,6 +95,8 @@ public static class ServiceCollectionExtensions
             .AddType<ParcelDetailType>()
             .AddType<ParcelDetailAddressType>()
             .AddType<ParcelChangeHistoryType>()
+            .AddType<ParcelRouteAssignmentType>()
+            .AddType<ParcelProofOfDeliveryType>()
             .AddType<ParcelImportHistoryType>()
             .AddType<ParcelImportDetailType>()
             .AddType<ParcelImportRowFailurePreviewType>()

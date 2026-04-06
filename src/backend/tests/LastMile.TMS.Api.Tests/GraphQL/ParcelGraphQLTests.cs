@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using FluentAssertions;
 using LastMile.TMS.Domain.Entities;
 using LastMile.TMS.Domain.Enums;
@@ -1348,6 +1349,247 @@ public class ParcelGraphQLTests(CustomWebApplicationFactory factory)
 
     #endregion
 
+    #region parcelByTrackingNumber query
+
+    [Fact]
+    public async Task GetParcelByTrackingNumber_ReturnsAggregateDetailAndMatchesLegacyIdQuery()
+    {
+        var token = await GetAdminAccessTokenAsync();
+
+        using var registerDoc = await PostGraphQLAsync(
+            """
+            mutation RegisterParcel($input: RegisterParcelInput!) {
+              registerParcel(input: $input) {
+                id
+                trackingNumber
+              }
+            }
+            """,
+            variables: new
+            {
+                input = new
+                {
+                    shipperAddressId = TestParcelShipperAddressId.ToString(),
+                    recipientAddress = new
+                    {
+                        street1 = "77 Aggregate Detail Street",
+                        city = "Sydney",
+                        state = "NSW",
+                        postalCode = "2000",
+                        countryCode = "AU",
+                        isResidential = true,
+                        contactName = "Aggregate Test",
+                        phone = "+61000000001",
+                        email = "aggregate@example.com"
+                    },
+                    description = "Aggregate parcel",
+                    parcelType = "Box",
+                    serviceType = "STANDARD",
+                    weight = 1.75,
+                    weightUnit = "KG",
+                    length = 20.0,
+                    width = 10.0,
+                    height = 5.0,
+                    dimensionUnit = "CM",
+                    declaredValue = 150.0,
+                    currency = "AUD",
+                    estimatedDeliveryDate = DateTimeOffset.UtcNow.AddDays(3).ToString("o")
+                }
+            },
+            accessToken: token);
+
+        var parcelId = registerDoc.RootElement
+            .GetProperty("data")
+            .GetProperty("registerParcel")
+            .GetProperty("id")
+            .GetString()!;
+
+        var trackingNumber = registerDoc.RootElement
+            .GetProperty("data")
+            .GetProperty("registerParcel")
+            .GetProperty("trackingNumber")
+            .GetString()!;
+
+        await SeedRouteAndProofOfDeliveryAsync(Guid.Parse(parcelId));
+
+        await TransitionParcelStatusAsync(parcelId, token, "RECEIVED_AT_DEPOT", "Sydney Depot", "Received");
+        await TransitionParcelStatusAsync(parcelId, token, "SORTED", "Sydney Depot", "Sorted");
+        await TransitionParcelStatusAsync(parcelId, token, "STAGED", "Sydney Depot", "Staged");
+        await TransitionParcelStatusAsync(parcelId, token, "LOADED", "Sydney Dock", "Loaded");
+        await TransitionParcelStatusAsync(parcelId, token, "OUT_FOR_DELIVERY", "Sydney Dock", "Out on route");
+
+        using var aggregateDoc = await PostGraphQLAsync(
+            """
+            query GetParcelByTrackingNumber($trackingNumber: String!) {
+              parcelByTrackingNumber(trackingNumber: $trackingNumber) {
+                id
+                trackingNumber
+                senderAddress {
+                  street1
+                  city
+                  postalCode
+                }
+                recipientAddress {
+                  contactName
+                  street1
+                }
+                statusTimeline {
+                  eventType
+                  timestamp
+                  location
+                  operator
+                }
+                routeAssignment {
+                  routeId
+                  routeStatus
+                  driverName
+                  vehiclePlate
+                }
+                proofOfDelivery {
+                  receivedBy
+                  deliveryLocation
+                  deliveredAt
+                  hasSignatureImage
+                  hasPhoto
+                }
+              }
+            }
+            """,
+            variables: new { trackingNumber },
+            accessToken: token);
+
+        aggregateDoc.RootElement.TryGetProperty("errors", out var aggregateErrors)
+            .Should().BeFalse("parcelByTrackingNumber should not return errors: {0}", aggregateErrors.ToString());
+
+        var aggregateParcel = aggregateDoc.RootElement
+            .GetProperty("data")
+            .GetProperty("parcelByTrackingNumber");
+
+        aggregateParcel.GetProperty("id").GetString().Should().Be(parcelId);
+        aggregateParcel.GetProperty("trackingNumber").GetString().Should().Be(trackingNumber);
+        aggregateParcel.GetProperty("senderAddress").GetProperty("street1").GetString().Should().Be("10 Shipper Lane");
+        aggregateParcel.GetProperty("recipientAddress").GetProperty("contactName").GetString().Should().Be("Aggregate Test");
+        aggregateParcel.GetProperty("statusTimeline").EnumerateArray().Should().NotBeEmpty();
+        aggregateParcel.GetProperty("routeAssignment").GetProperty("driverName").GetString().Should().Be("Test Driver");
+        aggregateParcel.GetProperty("proofOfDelivery").GetProperty("receivedBy").GetString().Should().Be("Front Desk");
+        aggregateParcel.GetProperty("proofOfDelivery").GetProperty("hasSignatureImage").GetBoolean().Should().BeTrue();
+
+        using var legacyDoc = await PostGraphQLAsync(
+            """
+            query GetParcel($id: UUID!) {
+              parcel(id: $id) {
+                id
+                trackingNumber
+                senderAddress {
+                  street1
+                }
+                routeAssignment {
+                  routeId
+                }
+                proofOfDelivery {
+                  receivedBy
+                }
+              }
+            }
+            """,
+            variables: new { id = parcelId },
+            accessToken: token);
+
+        legacyDoc.RootElement.TryGetProperty("errors", out var legacyErrors)
+            .Should().BeFalse("legacy parcel query should not return errors: {0}", legacyErrors.ToString());
+
+        var legacyParcel = legacyDoc.RootElement
+            .GetProperty("data")
+            .GetProperty("parcel");
+
+        legacyParcel.GetProperty("id").GetString().Should().Be(aggregateParcel.GetProperty("id").GetString());
+        legacyParcel.GetProperty("trackingNumber").GetString().Should().Be(trackingNumber);
+        legacyParcel.GetProperty("senderAddress").GetProperty("street1").GetString().Should().Be(
+            aggregateParcel.GetProperty("senderAddress").GetProperty("street1").GetString());
+        legacyParcel.GetProperty("proofOfDelivery").GetProperty("receivedBy").GetString().Should().Be("Front Desk");
+    }
+
+    [Fact]
+    public async Task GetParcelByTrackingNumber_WhenRouteAndPodAreMissing_ReturnsNullOptionalFields()
+    {
+        var token = await GetAdminAccessTokenAsync();
+
+        using var registerDoc = await PostGraphQLAsync(
+            """
+            mutation RegisterParcel($input: RegisterParcelInput!) {
+              registerParcel(input: $input) {
+                trackingNumber
+              }
+            }
+            """,
+            variables: new
+            {
+                input = new
+                {
+                    shipperAddressId = TestParcelShipperAddressId.ToString(),
+                    recipientAddress = new
+                    {
+                        street1 = "88 Nullable Lane",
+                        city = "Sydney",
+                        state = "NSW",
+                        postalCode = "2000",
+                        countryCode = "AU",
+                        isResidential = true,
+                        contactName = "Nullable Test",
+                        phone = "+61000000002",
+                        email = "nullable@example.com"
+                    },
+                    serviceType = "STANDARD",
+                    weight = 1.25,
+                    weightUnit = "KG",
+                    length = 20.0,
+                    width = 10.0,
+                    height = 5.0,
+                    dimensionUnit = "CM",
+                    declaredValue = 75.0,
+                    currency = "AUD",
+                    estimatedDeliveryDate = DateTimeOffset.UtcNow.AddDays(4).ToString("o")
+                }
+            },
+            accessToken: token);
+
+        var trackingNumber = registerDoc.RootElement
+            .GetProperty("data")
+            .GetProperty("registerParcel")
+            .GetProperty("trackingNumber")
+            .GetString()!;
+
+        using var aggregateDoc = await PostGraphQLAsync(
+            """
+            query GetParcelByTrackingNumber($trackingNumber: String!) {
+              parcelByTrackingNumber(trackingNumber: $trackingNumber) {
+                trackingNumber
+                routeAssignment {
+                  routeId
+                }
+                proofOfDelivery {
+                  receivedBy
+                }
+              }
+            }
+            """,
+            variables: new { trackingNumber },
+            accessToken: token);
+
+        aggregateDoc.RootElement.TryGetProperty("errors", out var errors)
+            .Should().BeFalse("parcelByTrackingNumber should not return errors: {0}", errors.ToString());
+
+        var parcel = aggregateDoc.RootElement
+            .GetProperty("data")
+            .GetProperty("parcelByTrackingNumber");
+
+        parcel.GetProperty("trackingNumber").GetString().Should().Be(trackingNumber);
+        parcel.GetProperty("routeAssignment").ValueKind.Should().Be(JsonValueKind.Null);
+        parcel.GetProperty("proofOfDelivery").ValueKind.Should().Be(JsonValueKind.Null);
+    }
+
+    #endregion
+
     public Task InitializeAsync() => Factory.ResetDatabaseAsync();
 
     public Task DisposeAsync() => Task.CompletedTask;
@@ -1407,5 +1649,74 @@ public class ParcelGraphQLTests(CustomWebApplicationFactory factory)
         dbContext.Parcels.Add(parcel);
         await dbContext.SaveChangesAsync();
         return parcel.Id;
+    }
+
+    private async Task SeedRouteAndProofOfDeliveryAsync(Guid parcelId)
+    {
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var parcel = await dbContext.Parcels
+            .Include(p => p.TrackingEvents)
+            .SingleAsync(p => p.Id == parcelId);
+
+        var route = new Route
+        {
+            Id = Guid.NewGuid(),
+            VehicleId = DbSeeder.TestVehicleId,
+            DriverId = DbSeeder.TestDriverId,
+            StartDate = DateTimeOffset.UtcNow.AddHours(-1),
+            EndDate = null,
+            StartMileage = 1250,
+            EndMileage = 0,
+            Status = RouteStatus.InProgress,
+            Parcels = [parcel]
+        };
+
+        var proofOfDelivery = new DeliveryConfirmation
+        {
+            Id = Guid.NewGuid(),
+            ParcelId = parcel.Id,
+            ReceivedBy = "Front Desk",
+            DeliveryLocation = "Lobby",
+            DeliveredAt = DateTimeOffset.UtcNow,
+            SignatureImage = [1, 2, 3],
+            Photo = [4, 5, 6]
+        };
+
+        dbContext.Routes.Add(route);
+        dbContext.Add(proofOfDelivery);
+        await dbContext.SaveChangesAsync();
+    }
+
+    private async Task TransitionParcelStatusAsync(
+        string parcelId,
+        string token,
+        string newStatus,
+        string location,
+        string description)
+    {
+        using var transitionDoc = await PostGraphQLAsync(
+            """
+            mutation TransitionParcelStatus($input: TransitionParcelStatusInput!) {
+              transitionParcelStatus(input: $input) {
+                id
+              }
+            }
+            """,
+            variables: new
+            {
+                input = new
+                {
+                    parcelId,
+                    newStatus,
+                    location,
+                    description
+                }
+            },
+            accessToken: token);
+
+        transitionDoc.RootElement.TryGetProperty("errors", out var transitionErrors)
+            .Should().BeFalse("status transition should not return errors: {0}", transitionErrors.ToString());
     }
 }

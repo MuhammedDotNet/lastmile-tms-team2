@@ -1,6 +1,7 @@
 using DotNetEnv;
 using Hangfire;
 using LastMile.TMS.Api.Configuration;
+using LastMile.TMS.Api.Hubs;
 using LastMile.TMS.Application;
 using LastMile.TMS.Infrastructure;
 using LastMile.TMS.Infrastructure.Services;
@@ -67,6 +68,7 @@ try
     app.MapControllers();
     app.MapGraphQL("/api/graphql");
     app.MapGraphQL("/graphql");
+    app.MapHub<ParcelUpdatesHub>("/hubs/parcels");
 
     app.Run();
 }
