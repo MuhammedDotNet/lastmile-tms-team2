@@ -32,6 +32,7 @@ import {
   formatParcelStatus,
   parcelStatusBadgeClass,
 } from "@/lib/labels/parcels";
+import { getParcelDetailPath } from "@/lib/parcels/paths";
 import { getErrorMessage } from "@/lib/network/error-message";
 import { appToast } from "@/lib/toast/app-toast";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -496,7 +497,7 @@ export default function ParcelsPage() {
                       )}
                     >
                       <Link
-                        href={`/parcels/${parcel.id}`}
+                        href={getParcelDetailPath(parcel.trackingNumber)}
                         className="rounded-sm text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         {parcel.trackingNumber}
@@ -592,7 +593,6 @@ export default function ParcelsPage() {
                     </td>
                     <td className={cn(listDataTableTdClass, "text-right")}>
                       <ParcelRowActions
-                        parcelId={parcel.id}
                         trackingNumber={parcel.trackingNumber}
                         onCancel={() =>
                           setPendingCancellation({

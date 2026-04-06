@@ -313,7 +313,7 @@ describe("ParcelRegistrationForm", () => {
       expect(mockDownloadLabel).toHaveBeenNthCalledWith(2, "parcel-1", "pdf");
     });
 
-    expect(mockPush).toHaveBeenCalledWith("/parcels/parcel-1");
+    expect(mockPush).toHaveBeenCalledWith("/parcels/LM202604010001");
     expect(mockOnViewQueue).toHaveBeenCalledTimes(1);
     expect(mockPush).toHaveBeenCalledWith("/parcels");
   }, 15000);

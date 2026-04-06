@@ -115,6 +115,14 @@ describe("ParcelsPage", () => {
     });
   });
 
+  it("uses tracking-number URLs for parcel detail links", () => {
+    render(<ParcelsPage />);
+
+    expect(
+      screen.getByRole("link", { name: "LM202604010001" }),
+    ).toHaveAttribute("href", "/parcels/LM202604010001");
+  });
+
   it("selects all visible parcels from the header control", async () => {
     render(<ParcelsPage />);
 

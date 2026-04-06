@@ -7,6 +7,7 @@ import { CheckCircle } from "lucide-react";
 import { ParcelEditorForm } from "@/components/parcels/parcel-editor-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { getParcelDetailPath } from "@/lib/parcels/paths";
 import { appToast } from "@/lib/toast/app-toast";
 import { useRegisterParcel } from "@/queries/parcels";
 import { parcelsService } from "@/services/parcels.service";
@@ -107,7 +108,9 @@ export function ParcelRegistrationForm({
               </Button>
               <Button
                 variant="outline"
-                onClick={() => router.push(`/parcels/${result.id}`)}
+                onClick={() =>
+                  router.push(getParcelDetailPath(result.trackingNumber))
+                }
               >
                 Open Parcel Detail
               </Button>
