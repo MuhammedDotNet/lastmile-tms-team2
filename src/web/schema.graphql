@@ -74,7 +74,7 @@ type Mutation @authorize(roles: [ "Admin" ]) {
   registerParcel(input: RegisterParcelInput!): ParcelDto! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
   updateParcel(input: UpdateParcelInput!): ParcelDetail @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
   cancelParcel(input: CancelParcelInput!): ParcelDetail @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
-  transitionParcelStatus(input: TransitionParcelStatusInput!): RegisteredParcel! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
+  transitionParcelStatus(input: TransitionParcelStatusInput!): ParcelDto! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
   createRoute(input: CreateRouteInput!): Route! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
   createUser(input: CreateUserInput!): UserManagementUser! @cost(weight: "10")
   updateUser(input: UpdateUserInput!): UserManagementUser! @cost(weight: "10")

@@ -377,10 +377,10 @@ export type Mutation = {
   deleteDriver: Scalars['Boolean']['output'];
   deleteVehicle: Scalars['Boolean']['output'];
   deleteZone: Scalars['Boolean']['output'];
-  registerParcel: RegisteredParcel;
+  registerParcel: ParcelDto;
   requestPasswordReset: UserActionResultDto;
   sendPasswordResetEmail: UserActionResultDto;
-  transitionParcelStatus: RegisteredParcel;
+  transitionParcelStatus: ParcelDto;
   updateDepot?: Maybe<Depot>;
   updateDriver: Driver;
   updateParcel?: Maybe<ParcelDetail>;
@@ -597,6 +597,39 @@ export type ParcelDetailAddress = {
   street2?: Maybe<Scalars['String']['output']>;
 };
 
+export type ParcelDto = {
+  __typename?: 'ParcelDto';
+  actualDeliveryDate?: Maybe<Scalars['DateTime']['output']>;
+  barcode: Scalars['String']['output'];
+  createdAt: Scalars['DateTime']['output'];
+  currency: Scalars['String']['output'];
+  declaredValue: Scalars['Decimal']['output'];
+  deliveryAttempts: Scalars['Int']['output'];
+  depotId: Scalars['UUID']['output'];
+  depotName?: Maybe<Scalars['String']['output']>;
+  description?: Maybe<Scalars['String']['output']>;
+  dimensionUnit: Scalars['String']['output'];
+  estimatedDeliveryDate: Scalars['DateTime']['output'];
+  height: Scalars['Decimal']['output'];
+  id: Scalars['UUID']['output'];
+  lastModifiedAt?: Maybe<Scalars['DateTime']['output']>;
+  length: Scalars['Decimal']['output'];
+  parcelType?: Maybe<Scalars['String']['output']>;
+  recipientCity?: Maybe<Scalars['String']['output']>;
+  recipientCompanyName?: Maybe<Scalars['String']['output']>;
+  recipientContactName?: Maybe<Scalars['String']['output']>;
+  recipientPostalCode?: Maybe<Scalars['String']['output']>;
+  recipientStreet1?: Maybe<Scalars['String']['output']>;
+  serviceType: Scalars['String']['output'];
+  status: Scalars['String']['output'];
+  trackingNumber: Scalars['String']['output'];
+  weight: Scalars['Decimal']['output'];
+  weightUnit: Scalars['String']['output'];
+  width: Scalars['Decimal']['output'];
+  zoneId: Scalars['UUID']['output'];
+  zoneName?: Maybe<Scalars['String']['output']>;
+};
+
 export type ParcelFilterInput = {
   and?: InputMaybe<Array<ParcelFilterInput>>;
   createdAt?: InputMaybe<DateTimeOperationFilterInput>;
@@ -618,6 +651,7 @@ export type ParcelFilterInput = {
   weight?: InputMaybe<DecimalOperationFilterInput>;
   weightUnit?: InputMaybe<WeightUnitOperationFilterInput>;
   width?: InputMaybe<DecimalOperationFilterInput>;
+  zoneId?: InputMaybe<UuidOperationFilterInput>;
 };
 
 export type ParcelImport = {
@@ -672,12 +706,16 @@ export type ParcelRouteOption = {
 
 export type ParcelSortInput = {
   createdAt?: InputMaybe<SortEnumType>;
+  estimatedDeliveryDate?: InputMaybe<SortEnumType>;
   id?: InputMaybe<SortEnumType>;
   lastModifiedAt?: InputMaybe<SortEnumType>;
+  parcelType?: InputMaybe<SortEnumType>;
+  recipientContactName?: InputMaybe<AddressSortInput>;
   serviceType?: InputMaybe<SortEnumType>;
   status?: InputMaybe<SortEnumType>;
   trackingNumber?: InputMaybe<SortEnumType>;
   weight?: InputMaybe<SortEnumType>;
+  zoneName?: InputMaybe<ZoneSortInput>;
 };
 
 export type ParcelStatus =
@@ -710,7 +748,7 @@ export type Query = {
   parcelImport?: Maybe<ParcelImport>;
   parcelImports: Array<ParcelImportHistory>;
   parcelTrackingEvents: Array<TrackingEventDto>;
-  parcelsForRouteCreation: Array<ParcelRouteOption>;
+  parcelsForRouteCreation: Array<RegisteredParcel>;
   preLoadParcels: Array<RegisteredParcel>;
   registeredParcels: Array<RegisteredParcel>;
   routes: Array<Route>;
@@ -762,12 +800,14 @@ export type QueryParcelTrackingEventsArgs = {
 
 export type QueryPreLoadParcelsArgs = {
   order?: InputMaybe<Array<ParcelSortInput>>;
+  search?: InputMaybe<Scalars['String']['input']>;
   where?: InputMaybe<ParcelFilterInput>;
 };
 
 
 export type QueryRegisteredParcelsArgs = {
   order?: InputMaybe<Array<ParcelSortInput>>;
+  search?: InputMaybe<Scalars['String']['input']>;
   where?: InputMaybe<ParcelFilterInput>;
 };
 
@@ -842,27 +882,34 @@ export type RegisterParcelRecipientAddressInput = {
 
 export type RegisteredParcel = {
   __typename?: 'RegisteredParcel';
-  barcode: Scalars['String']['output'];
+  actualDeliveryDate?: Maybe<Scalars['DateTime']['output']>;
   createdAt: Scalars['DateTime']['output'];
   currency: Scalars['String']['output'];
   declaredValue: Scalars['Decimal']['output'];
   deliveryAttempts: Scalars['Int']['output'];
-  depotId: Scalars['UUID']['output'];
+  depotId?: Maybe<Scalars['UUID']['output']>;
   depotName?: Maybe<Scalars['String']['output']>;
   description?: Maybe<Scalars['String']['output']>;
-  dimensionUnit: Scalars['String']['output'];
+  dimensionUnit?: Maybe<Scalars['String']['output']>;
   estimatedDeliveryDate: Scalars['DateTime']['output'];
   height: Scalars['Decimal']['output'];
   id: Scalars['UUID']['output'];
   lastModifiedAt?: Maybe<Scalars['DateTime']['output']>;
   length: Scalars['Decimal']['output'];
   parcelType?: Maybe<Scalars['String']['output']>;
-  serviceType: Scalars['String']['output'];
-  status: Scalars['String']['output'];
+  recipientAddress: Address;
+  recipientCity?: Maybe<Scalars['String']['output']>;
+  recipientCompanyName?: Maybe<Scalars['String']['output']>;
+  recipientContactName?: Maybe<Scalars['String']['output']>;
+  recipientPostalCode?: Maybe<Scalars['String']['output']>;
+  recipientStreet1?: Maybe<Scalars['String']['output']>;
+  serviceType?: Maybe<Scalars['String']['output']>;
+  status?: Maybe<Scalars['String']['output']>;
   trackingNumber: Scalars['String']['output'];
   weight: Scalars['Decimal']['output'];
-  weightUnit: Scalars['String']['output'];
+  weightUnit?: Maybe<Scalars['String']['output']>;
   width: Scalars['Decimal']['output'];
+  zone?: Maybe<Zone>;
   zoneId: Scalars['UUID']['output'];
   zoneName?: Maybe<Scalars['String']['output']>;
 };
@@ -1353,12 +1400,16 @@ export type DeleteDriverMutation = { __typename?: 'Mutation', deleteDriver: bool
 export type GetRegisteredParcelsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetRegisteredParcelsQuery = { __typename?: 'Query', registeredParcels: Array<{ __typename?: 'RegisteredParcel', id: string, trackingNumber: string, status: string, serviceType: string, weight: number, weightUnit: string, parcelType?: string | null, createdAt: string, zoneName?: string | null }> };
+export type GetRegisteredParcelsQuery = { __typename?: 'Query', registeredParcels: Array<{ __typename?: 'RegisteredParcel', id: string, trackingNumber: string, status?: string | null, serviceType?: string | null, weight: number, weightUnit?: string | null, parcelType?: string | null, createdAt: string, zoneName?: string | null }> };
 
-export type GetPreLoadParcelsQueryVariables = Exact<{ [key: string]: never; }>;
+export type GetPreLoadParcelsQueryVariables = Exact<{
+  search?: InputMaybe<Scalars['String']['input']>;
+  where?: InputMaybe<ParcelFilterInput>;
+  order?: InputMaybe<Array<ParcelSortInput> | ParcelSortInput>;
+}>;
 
 
-export type GetPreLoadParcelsQuery = { __typename?: 'Query', preLoadParcels: Array<{ __typename?: 'RegisteredParcel', id: string, trackingNumber: string, status: string, serviceType: string, weight: number, weightUnit: string, parcelType?: string | null, createdAt: string, zoneName?: string | null }> };
+export type GetPreLoadParcelsQuery = { __typename?: 'Query', preLoadParcels: Array<{ __typename?: 'RegisteredParcel', id: string, trackingNumber: string, status?: string | null, serviceType?: string | null, weight: number, weightUnit?: string | null, parcelType?: string | null, createdAt: string, zoneName?: string | null, estimatedDeliveryDate: string, recipientContactName?: string | null, recipientCompanyName?: string | null, recipientStreet1?: string | null, recipientCity?: string | null, recipientPostalCode?: string | null }> };
 
 export type GetParcelImportsQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -1375,7 +1426,7 @@ export type GetParcelImportQuery = { __typename?: 'Query', parcelImport?: { __ty
 export type GetParcelsForRouteCreationQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetParcelsForRouteCreationQuery = { __typename?: 'Query', parcelsForRouteCreation: Array<{ __typename?: 'ParcelRouteOption', id: string, trackingNumber: string, weight: number, weightUnit: WeightUnit }> };
+export type GetParcelsForRouteCreationQuery = { __typename?: 'Query', parcelsForRouteCreation: Array<{ __typename?: 'RegisteredParcel', id: string, trackingNumber: string, weight: number, weightUnit?: string | null }> };
 
 export type GetParcelQueryVariables = Exact<{
   id: Scalars['UUID']['input'];
@@ -1389,7 +1440,7 @@ export type RegisterParcelMutationVariables = Exact<{
 }>;
 
 
-export type RegisterParcelMutation = { __typename?: 'Mutation', registerParcel: { __typename?: 'RegisteredParcel', id: string, trackingNumber: string, status: string, serviceType: string, weight: number, weightUnit: string, length: number, width: number, height: number, dimensionUnit: string, declaredValue: number, currency: string, description?: string | null, parcelType?: string | null, estimatedDeliveryDate: string, createdAt: string, zoneId: string, zoneName?: string | null, depotId: string, depotName?: string | null, barcode: string } };
+export type RegisterParcelMutation = { __typename?: 'Mutation', registerParcel: { __typename?: 'ParcelDto', id: string, trackingNumber: string, status: string, serviceType: string, weight: number, weightUnit: string, length: number, width: number, height: number, dimensionUnit: string, declaredValue: number, currency: string, description?: string | null, parcelType?: string | null, estimatedDeliveryDate: string, createdAt: string, zoneId: string, zoneName?: string | null, depotId: string, depotName?: string | null, barcode: string } };
 
 export type UpdateParcelMutationVariables = Exact<{
   input: UpdateParcelInput;
@@ -1410,7 +1461,7 @@ export type TransitionParcelStatusMutationVariables = Exact<{
 }>;
 
 
-export type TransitionParcelStatusMutation = { __typename?: 'Mutation', transitionParcelStatus: { __typename?: 'RegisteredParcel', id: string, trackingNumber: string, status: string, serviceType: string, weight: number, weightUnit: string, length: number, width: number, height: number, dimensionUnit: string, declaredValue: number, currency: string, description?: string | null, parcelType?: string | null, estimatedDeliveryDate: string, createdAt: string, zoneId: string, zoneName?: string | null, depotId: string, depotName?: string | null, barcode: string } };
+export type TransitionParcelStatusMutation = { __typename?: 'Mutation', transitionParcelStatus: { __typename?: 'ParcelDto', id: string, trackingNumber: string, status: string, serviceType: string, weight: number, weightUnit: string, length: number, width: number, height: number, dimensionUnit: string, declaredValue: number, currency: string, description?: string | null, parcelType?: string | null, estimatedDeliveryDate: string, createdAt: string, zoneId: string, zoneName?: string | null, depotId: string, depotName?: string | null, barcode: string } };
 
 export type CancelParcelMutationVariables = Exact<{
   input: CancelParcelInput;
@@ -1567,7 +1618,7 @@ export const CreateDriverDocument = {"kind":"Document","definitions":[{"kind":"O
 export const UpdateDriverDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateDriver"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"UUID"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"UpdateDriverInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateDriver"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}},{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}},{"kind":"Field","name":{"kind":"Name","value":"firstName"}},{"kind":"Field","name":{"kind":"Name","value":"lastName"}},{"kind":"Field","name":{"kind":"Name","value":"phone"}},{"kind":"Field","name":{"kind":"Name","value":"email"}},{"kind":"Field","name":{"kind":"Name","value":"licenseNumber"}},{"kind":"Field","name":{"kind":"Name","value":"licenseExpiryDate"}},{"kind":"Field","name":{"kind":"Name","value":"photoUrl"}},{"kind":"Field","name":{"kind":"Name","value":"zoneId"}},{"kind":"Field","name":{"kind":"Name","value":"depotId"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"userId"}},{"kind":"Field","name":{"kind":"Name","value":"zoneName"}},{"kind":"Field","name":{"kind":"Name","value":"depotName"}},{"kind":"Field","name":{"kind":"Name","value":"userName"}},{"kind":"Field","name":{"kind":"Name","value":"availabilitySchedule"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"dayOfWeek"}},{"kind":"Field","name":{"kind":"Name","value":"shiftStart"}},{"kind":"Field","name":{"kind":"Name","value":"shiftEnd"}},{"kind":"Field","name":{"kind":"Name","value":"isAvailable"}}]}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}}]}}]}}]} as unknown as DocumentNode<UpdateDriverMutation, UpdateDriverMutationVariables>;
 export const DeleteDriverDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"DeleteDriver"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"UUID"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deleteDriver"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}]}]}}]} as unknown as DocumentNode<DeleteDriverMutation, DeleteDriverMutationVariables>;
 export const GetRegisteredParcelsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetRegisteredParcels"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"registeredParcels"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"trackingNumber"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"serviceType"}},{"kind":"Field","name":{"kind":"Name","value":"weight"}},{"kind":"Field","name":{"kind":"Name","value":"weightUnit"}},{"kind":"Field","name":{"kind":"Name","value":"parcelType"}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}},{"kind":"Field","name":{"kind":"Name","value":"zoneName"}}]}}]}}]} as unknown as DocumentNode<GetRegisteredParcelsQuery, GetRegisteredParcelsQueryVariables>;
-export const GetPreLoadParcelsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetPreLoadParcels"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"preLoadParcels"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"trackingNumber"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"serviceType"}},{"kind":"Field","name":{"kind":"Name","value":"weight"}},{"kind":"Field","name":{"kind":"Name","value":"weightUnit"}},{"kind":"Field","name":{"kind":"Name","value":"parcelType"}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}},{"kind":"Field","name":{"kind":"Name","value":"zoneName"}}]}}]}}]} as unknown as DocumentNode<GetPreLoadParcelsQuery, GetPreLoadParcelsQueryVariables>;
+export const GetPreLoadParcelsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetPreLoadParcels"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"search"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"where"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"ParcelFilterInput"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"order"}},"type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ParcelSortInput"}}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"preLoadParcels"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"search"},"value":{"kind":"Variable","name":{"kind":"Name","value":"search"}}},{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"Variable","name":{"kind":"Name","value":"where"}}},{"kind":"Argument","name":{"kind":"Name","value":"order"},"value":{"kind":"Variable","name":{"kind":"Name","value":"order"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"trackingNumber"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"serviceType"}},{"kind":"Field","name":{"kind":"Name","value":"weight"}},{"kind":"Field","name":{"kind":"Name","value":"weightUnit"}},{"kind":"Field","name":{"kind":"Name","value":"parcelType"}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}},{"kind":"Field","name":{"kind":"Name","value":"zoneName"}},{"kind":"Field","name":{"kind":"Name","value":"estimatedDeliveryDate"}},{"kind":"Field","name":{"kind":"Name","value":"recipientContactName"}},{"kind":"Field","name":{"kind":"Name","value":"recipientCompanyName"}},{"kind":"Field","name":{"kind":"Name","value":"recipientStreet1"}},{"kind":"Field","name":{"kind":"Name","value":"recipientCity"}},{"kind":"Field","name":{"kind":"Name","value":"recipientPostalCode"}}]}}]}}]} as unknown as DocumentNode<GetPreLoadParcelsQuery, GetPreLoadParcelsQueryVariables>;
 export const GetParcelImportsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetParcelImports"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"parcelImports"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"fileName"}},{"kind":"Field","name":{"kind":"Name","value":"fileFormat"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"totalRows"}},{"kind":"Field","name":{"kind":"Name","value":"processedRows"}},{"kind":"Field","name":{"kind":"Name","value":"importedRows"}},{"kind":"Field","name":{"kind":"Name","value":"rejectedRows"}},{"kind":"Field","name":{"kind":"Name","value":"depotName"}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}},{"kind":"Field","name":{"kind":"Name","value":"startedAt"}},{"kind":"Field","name":{"kind":"Name","value":"completedAt"}}]}}]}}]} as unknown as DocumentNode<GetParcelImportsQuery, GetParcelImportsQueryVariables>;
 export const GetParcelImportDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetParcelImport"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"UUID"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"parcelImport"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"fileName"}},{"kind":"Field","name":{"kind":"Name","value":"fileFormat"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"totalRows"}},{"kind":"Field","name":{"kind":"Name","value":"processedRows"}},{"kind":"Field","name":{"kind":"Name","value":"importedRows"}},{"kind":"Field","name":{"kind":"Name","value":"rejectedRows"}},{"kind":"Field","name":{"kind":"Name","value":"depotName"}},{"kind":"Field","name":{"kind":"Name","value":"failureMessage"}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}},{"kind":"Field","name":{"kind":"Name","value":"startedAt"}},{"kind":"Field","name":{"kind":"Name","value":"completedAt"}},{"kind":"Field","name":{"kind":"Name","value":"createdTrackingNumbers"}},{"kind":"Field","name":{"kind":"Name","value":"rowFailuresPreview"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"rowNumber"}},{"kind":"Field","name":{"kind":"Name","value":"errorMessage"}},{"kind":"Field","name":{"kind":"Name","value":"originalRowValues"}}]}}]}}]}}]} as unknown as DocumentNode<GetParcelImportQuery, GetParcelImportQueryVariables>;
 export const GetParcelsForRouteCreationDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetParcelsForRouteCreation"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"parcelsForRouteCreation"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"trackingNumber"}},{"kind":"Field","name":{"kind":"Name","value":"weight"}},{"kind":"Field","name":{"kind":"Name","value":"weightUnit"}}]}}]}}]} as unknown as DocumentNode<GetParcelsForRouteCreationQuery, GetParcelsForRouteCreationQueryVariables>;
