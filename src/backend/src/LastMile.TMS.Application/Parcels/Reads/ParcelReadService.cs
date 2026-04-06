@@ -19,23 +19,15 @@ public sealed class ParcelReadService(IAppDbContext dbContext) : IParcelReadServ
             .Where(p => RouteCreationStatuses.Contains(p.Status))
             .OrderBy(p => p.TrackingNumber);
 
-    public IQueryable<ParcelDto> GetRegisteredParcels() =>
+    public IQueryable<Parcel> GetRegisteredParcels() =>
         dbContext.Parcels
             .AsNoTracking()
-            .Include(p => p.Zone)
-            .ThenInclude(z => z!.Depot)
-            .Where(p => p.Status == ParcelStatus.Registered)
-            .OrderByDescending(p => p.CreatedAt)
-            .Select(p => p.ToDto());
+            .Where(p => p.Status == ParcelStatus.Registered);
 
-    public IQueryable<ParcelDto> GetPreLoadParcels() =>
+    public IQueryable<Parcel> GetPreLoadParcels() =>
         dbContext.Parcels
             .AsNoTracking()
-            .Include(p => p.Zone)
-            .ThenInclude(z => z!.Depot)
-            .Where(p => PreLoadStatuses.Contains(p.Status))
-            .OrderByDescending(p => p.CreatedAt)
-            .Select(p => p.ToDto());
+            .Where(p => PreLoadStatuses.Contains(p.Status));
 
     public async Task<ParcelDetailDto?> GetParcelByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {

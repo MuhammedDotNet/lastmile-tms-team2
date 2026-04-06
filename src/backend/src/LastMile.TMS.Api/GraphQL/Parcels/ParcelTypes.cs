@@ -1,18 +1,101 @@
+using HotChocolate;
 using HotChocolate.Data.Filters;
 using HotChocolate.Data.Sorting;
 using HotChocolate.Types;
 using LastMile.TMS.Api.GraphQL.Common;
 using LastMile.TMS.Application.Parcels.DTOs;
 using LastMile.TMS.Domain.Entities;
+using LastMile.TMS.Domain.Enums;
 
 namespace LastMile.TMS.Api.GraphQL.Parcels;
 
-public sealed class ParcelType : ObjectType<ParcelDto>
+public sealed class ParcelListType : EntityObjectType<Parcel>
 {
-    protected override void Configure(IObjectTypeDescriptor<ParcelDto> descriptor)
+    protected override void ConfigureFields(IObjectTypeDescriptor<Parcel> descriptor)
     {
         descriptor.Name("RegisteredParcel");
-        descriptor.BindFieldsImplicitly();
+        descriptor.BindFieldsExplicitly();
+
+        // Primary identity and status
+        descriptor.Field(p => p.Id);
+        descriptor.Field(p => p.TrackingNumber);
+        descriptor.Field(p => p.Status).Type<StringType>();
+        descriptor.Field(p => p.ServiceType).Type<StringType>();
+        descriptor.Field(p => p.ParcelType);
+
+        // Dimensions
+        descriptor.Field(p => p.Weight);
+        descriptor.Field(p => p.WeightUnit).Type<StringType>();
+        descriptor.Field(p => p.Length);
+        descriptor.Field(p => p.Width);
+        descriptor.Field(p => p.Height);
+        descriptor.Field(p => p.DimensionUnit).Type<StringType>();
+
+        // Value
+        descriptor.Field(p => p.DeclaredValue);
+        descriptor.Field(p => p.Currency);
+
+        // Delivery
+        descriptor.Field(p => p.EstimatedDeliveryDate);
+        descriptor.Field(p => p.ActualDeliveryDate);
+        descriptor.Field(p => p.DeliveryAttempts);
+
+        // Description
+        descriptor.Field(p => p.Description);
+
+        // Zone — projected so EF JOINs it; nested field resolver flattens to zoneName
+        descriptor.Field(p => p.ZoneId);
+        descriptor.Field(p => p.Zone)
+            .IsProjected(true)
+            .Resolve(ctx => ctx.Parent<Parcel>().Zone)
+            .Type<ObjectType<Zone>>();
+        descriptor.Field("zoneName")
+            .Type<StringType>()
+            .Resolve(ctx => ctx.Parent<Parcel>().Zone?.Name);
+
+        // Depot via Zone
+        descriptor.Field("depotId")
+            .Type<UuidType>()
+            .Resolve(ctx => ctx.Parent<Parcel>().Zone?.DepotId ?? Guid.Empty);
+        descriptor.Field("depotName")
+            .Type<StringType>()
+            .Resolve(ctx => ctx.Parent<Parcel>().Zone?.Depot?.Name);
+
+        // Recipient address — projected so EF JOINs it; all recipient fields exposed at root level (matching original contract)
+        descriptor.Field(p => p.RecipientAddress).IsProjected(true);
+        descriptor.Field("recipientContactName")
+            .Type<StringType>()
+            .Resolve(ctx => ctx.Parent<Parcel>().RecipientAddress?.ContactName);
+        descriptor.Field("recipientCompanyName")
+            .Type<StringType>()
+            .Resolve(ctx => ctx.Parent<Parcel>().RecipientAddress?.CompanyName);
+        descriptor.Field("recipientStreet1")
+            .Type<StringType>()
+            .Resolve(ctx => ctx.Parent<Parcel>().RecipientAddress?.Street1);
+        descriptor.Field("recipientCity")
+            .Type<StringType>()
+            .Resolve(ctx => ctx.Parent<Parcel>().RecipientAddress?.City);
+        descriptor.Field("recipientPostalCode")
+            .Type<StringType>()
+            .Resolve(ctx => ctx.Parent<Parcel>().RecipientAddress?.PostalCode);
+
+        // Timestamps
+        descriptor.Field(p => p.CreatedAt);
+        descriptor.Field(p => p.LastModifiedAt);
+    }
+}
+
+public sealed class ParcelRecipientAddressType : ObjectType<Address>
+{
+    protected override void Configure(IObjectTypeDescriptor<Address> descriptor)
+    {
+        descriptor.Name("ParcelRecipientAddress");
+        descriptor.BindFieldsExplicitly();
+        descriptor.Field(a => a.ContactName).Name("recipientContactName");
+        descriptor.Field(a => a.CompanyName).Name("recipientCompanyName");
+        descriptor.Field(a => a.Street1).Name("recipientStreet1");
+        descriptor.Field(a => a.City).Name("recipientCity");
+        descriptor.Field(a => a.PostalCode).Name("recipientPostalCode");
     }
 }
 
@@ -104,6 +187,7 @@ public sealed class ParcelFilterInputType : FilterInputType<Parcel>
         descriptor.BindFieldsExplicitly();
         descriptor.Field(p => p.Id);
         descriptor.Field(p => p.TrackingNumber);
+        descriptor.Field(p => p.ZoneId);
         descriptor.Field(p => p.Status);
         descriptor.Field(p => p.ServiceType);
         descriptor.Field(p => p.Weight);
@@ -133,8 +217,12 @@ public sealed class ParcelSortInputType : SortInputType<Parcel>
         descriptor.Field(p => p.TrackingNumber);
         descriptor.Field(p => p.Status);
         descriptor.Field(p => p.ServiceType);
+        descriptor.Field(p => p.ParcelType);
         descriptor.Field(p => p.Weight);
         descriptor.Field(p => p.CreatedAt);
         descriptor.Field(p => p.LastModifiedAt);
+        descriptor.Field(p => p.EstimatedDeliveryDate);
+        descriptor.Field(p => p.RecipientAddress).Name("recipientContactName");
+        descriptor.Field(p => p.Zone).Name("zoneName");
     }
 }

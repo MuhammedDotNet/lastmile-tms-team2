@@ -12,8 +12,8 @@ query GetRegisteredParcels {
   }
 }
 
-query GetPreLoadParcels {
-  preLoadParcels {
+query GetPreLoadParcels($search: String, $where: ParcelFilterInput, $order: [ParcelSortInput!]) {
+  preLoadParcels(search: $search, where: $where, order: $order) {
     id
     trackingNumber
     status
@@ -23,6 +23,12 @@ query GetPreLoadParcels {
     parcelType
     createdAt
     zoneName
+    estimatedDeliveryDate
+    recipientContactName
+    recipientCompanyName
+    recipientStreet1
+    recipientCity
+    recipientPostalCode
   }
 }
 

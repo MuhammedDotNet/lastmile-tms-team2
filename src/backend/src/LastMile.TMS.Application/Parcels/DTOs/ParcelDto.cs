@@ -17,6 +17,7 @@ public sealed record ParcelDto
     public decimal DeclaredValue { get; init; }
     public string Currency { get; init; } = string.Empty;
     public DateTimeOffset EstimatedDeliveryDate { get; init; }
+    public DateTimeOffset? ActualDeliveryDate { get; init; }
     public int DeliveryAttempts { get; init; }
     public string? ParcelType { get; init; }
     public Guid ZoneId { get; init; }
@@ -25,6 +26,11 @@ public sealed record ParcelDto
     public string? DepotName { get; init; }
     public DateTimeOffset CreatedAt { get; init; }
     public DateTimeOffset? LastModifiedAt { get; init; }
+    public string? RecipientContactName { get; init; }
+    public string? RecipientCompanyName { get; init; }
+    public string? RecipientStreet1 { get; init; }
+    public string? RecipientCity { get; init; }
+    public string? RecipientPostalCode { get; init; }
 
     public ParcelDto() { }
 }

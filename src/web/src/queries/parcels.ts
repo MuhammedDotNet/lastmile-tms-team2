@@ -1,7 +1,13 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 
 import { parcelsService } from "@/services/parcels.service";
+import type { ParcelFilterInput, ParcelSortInput } from "@/graphql/generated";
 import type { MutationToastMeta } from "@/lib/query/mutation-toast-meta";
 import type {
   CancelParcelRequest,
@@ -22,7 +28,12 @@ const parcelImportPollingStatuses = new Set(["Queued", "Processing"]);
 
 export const parcelKeys = {
   all: ["parcels"] as const,
-  preLoad: () => [...parcelKeys.all, "preLoad"] as const,
+  preLoad: (
+    search?: string,
+    where?: ParcelFilterInput,
+    order?: ParcelSortInput[],
+  ) => [...parcelKeys.all, "preLoad", search ?? "", JSON.stringify(where ?? {}), JSON.stringify(order ?? [])] as const,
+  preLoadAll: () => [...parcelKeys.all, "preLoadAll"] as const,
   forRoute: () => [...parcelKeys.all, "forRoute"] as const,
   registered: () => [...parcelKeys.all, "registered"] as const,
   details: () => [...parcelKeys.all, "detail"] as const,
@@ -41,12 +52,27 @@ export function useParcelsForRouteCreation() {
   });
 }
 
-export function usePreLoadParcels() {
-  const { status } = useSession();
+export function usePreLoadParcels(
+  search?: string,
+  where?: ParcelFilterInput,
+  order?: ParcelSortInput[],
+) {
+  const { status: sessionStatus } = useSession();
   return useQuery({
-    queryKey: parcelKeys.preLoad(),
+    queryKey: parcelKeys.preLoad(search, where, order),
+    queryFn: () => parcelsService.getPreLoadParcels(search, where, order),
+    placeholderData: keepPreviousData,
+    enabled: sessionStatus === "authenticated",
+  });
+}
+
+export function useAvailableParcelTypes() {
+  const { status: sessionStatus } = useSession();
+  return useQuery({
+    queryKey: parcelKeys.preLoadAll(),
     queryFn: () => parcelsService.getPreLoadParcels(),
-    enabled: status === "authenticated",
+    staleTime: 5 * 60 * 1000,
+    enabled: sessionStatus === "authenticated",
   });
 }
 

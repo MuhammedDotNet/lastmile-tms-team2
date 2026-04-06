@@ -1,8 +1,6 @@
 using HotChocolate;
 using HotChocolate.Authorization;
 using HotChocolate.Data;
-using HotChocolate.Data.Filters;
-using HotChocolate.Data.Sorting;
 using LastMile.TMS.Application.Parcels.DTOs;
 using LastMile.TMS.Application.Parcels.Queries;
 using LastMile.TMS.Application.Parcels.Reads;
@@ -28,18 +26,48 @@ public sealed class ParcelQueries
         readService.GetParcelsForRouteCreation();
 
     [Authorize(Roles = new[] { "OperationsManager", "Admin", "Dispatcher", "WarehouseOperator" })]
-    [UseFiltering(typeof(ParcelFilterInputType))]
-    [UseSorting(typeof(ParcelSortInputType))]
-    public IQueryable<ParcelDto> GetRegisteredParcels(
-        [Service] IParcelReadService readService = null!) =>
-        readService.GetRegisteredParcels();
+    [UseFiltering]
+    [UseSorting]
+    public IQueryable<Parcel> GetRegisteredParcels(
+        string? search,
+        [Service] IParcelReadService readService = null!)
+    {
+        var query = readService.GetRegisteredParcels();
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var pattern = search.Trim().ToUpperInvariant();
+            query = query.Where(p =>
+                p.TrackingNumber.ToUpper().Contains(pattern) ||
+                (p.RecipientAddress.ContactName ?? string.Empty).ToUpper().Contains(pattern) ||
+                (p.RecipientAddress.CompanyName ?? string.Empty).ToUpper().Contains(pattern) ||
+                (p.RecipientAddress.Street1 ?? string.Empty).ToUpper().Contains(pattern) ||
+                (p.RecipientAddress.City ?? string.Empty).ToUpper().Contains(pattern) ||
+                (p.RecipientAddress.PostalCode ?? string.Empty).ToUpper().Contains(pattern));
+        }
+        return query;
+    }
 
     [Authorize(Roles = new[] { "OperationsManager", "Admin", "Dispatcher", "WarehouseOperator" })]
-    [UseFiltering(typeof(ParcelFilterInputType))]
-    [UseSorting(typeof(ParcelSortInputType))]
-    public IQueryable<ParcelDto> GetPreLoadParcels(
-        [Service] IParcelReadService readService = null!) =>
-        readService.GetPreLoadParcels();
+    [UseFiltering]
+    [UseSorting]
+    public IQueryable<Parcel> GetPreLoadParcels(
+        string? search,
+        [Service] IParcelReadService readService = null!)
+    {
+        var query = readService.GetPreLoadParcels();
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var pattern = search.Trim().ToUpperInvariant();
+            query = query.Where(p =>
+                p.TrackingNumber.ToUpper().Contains(pattern) ||
+                (p.RecipientAddress.ContactName ?? string.Empty).ToUpper().Contains(pattern) ||
+                (p.RecipientAddress.CompanyName ?? string.Empty).ToUpper().Contains(pattern) ||
+                (p.RecipientAddress.Street1 ?? string.Empty).ToUpper().Contains(pattern) ||
+                (p.RecipientAddress.City ?? string.Empty).ToUpper().Contains(pattern) ||
+                (p.RecipientAddress.PostalCode ?? string.Empty).ToUpper().Contains(pattern));
+        }
+        return query;
+    }
 
     [Authorize(Roles = new[] { "OperationsManager", "Admin", "Dispatcher", "WarehouseOperator" })]
     public Task<IReadOnlyList<ParcelImportHistoryDto>> GetParcelImports(

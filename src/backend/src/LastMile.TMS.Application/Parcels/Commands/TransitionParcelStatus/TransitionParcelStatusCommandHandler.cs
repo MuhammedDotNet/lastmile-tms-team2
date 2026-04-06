@@ -41,6 +41,44 @@ public sealed class TransitionParcelStatusCommandHandler(
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return parcel.ToDto();
+        // Use a projection query to ensure Zone and Depot are loaded before mapping
+        var dto = await dbContext.Parcels
+            .AsNoTracking()
+            .Where(p => p.Id == parcel.Id)
+            .Select(p => new ParcelDto
+            {
+                Id = p.Id,
+                TrackingNumber = p.TrackingNumber,
+                Barcode = p.TrackingNumber,
+                Description = p.Description,
+                ServiceType = p.ServiceType.ToString(),
+                Status = p.Status.ToString(),
+                Weight = p.Weight,
+                WeightUnit = p.WeightUnit.ToString(),
+                Length = p.Length,
+                Width = p.Width,
+                Height = p.Height,
+                DimensionUnit = p.DimensionUnit.ToString(),
+                DeclaredValue = p.DeclaredValue,
+                Currency = p.Currency,
+                EstimatedDeliveryDate = p.EstimatedDeliveryDate,
+                ActualDeliveryDate = p.ActualDeliveryDate,
+                DeliveryAttempts = p.DeliveryAttempts,
+                ParcelType = p.ParcelType,
+                ZoneId = p.Zone.Id,
+                ZoneName = p.Zone.Name,
+                DepotId = p.Zone.Depot.Id,
+                DepotName = p.Zone.Depot.Name,
+                CreatedAt = p.CreatedAt,
+                LastModifiedAt = p.LastModifiedAt,
+                RecipientContactName = p.RecipientAddress.ContactName,
+                RecipientCompanyName = p.RecipientAddress.CompanyName,
+                RecipientStreet1 = p.RecipientAddress.Street1,
+                RecipientCity = p.RecipientAddress.City,
+                RecipientPostalCode = p.RecipientAddress.PostalCode
+            })
+            .FirstAsync(cancellationToken);
+
+        return dto;
     }
 }

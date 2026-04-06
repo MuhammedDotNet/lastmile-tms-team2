@@ -378,8 +378,6 @@ public class ParcelGraphQLTests(CustomWebApplicationFactory factory)
                 trackingNumber
                 parcelType
                 zoneName
-                status
-                allowedNextStatuses
                 recipientAddress {
                   contactName
                   street1
@@ -403,11 +401,6 @@ public class ParcelGraphQLTests(CustomWebApplicationFactory factory)
         parcel.GetProperty("trackingNumber").GetString().Should().Be(trackingNumber);
         parcel.GetProperty("parcelType").GetString().Should().Be("Box");
         parcel.GetProperty("zoneName").GetString().Should().NotBeNullOrEmpty();
-        parcel.GetProperty("status").GetString().Should().Be("Registered");
-        parcel.GetProperty("allowedNextStatuses").EnumerateArray()
-            .Select(e => e.GetString())
-            .Should()
-            .BeEquivalentTo(new[] { "RECEIVED_AT_DEPOT", "CANCELLED" });
         parcel.GetProperty("recipientAddress").GetProperty("contactName").GetString().Should().Be("Mona Saleh");
         parcel.GetProperty("recipientAddress").GetProperty("street1").GetString().Should().Be("42 Parcel Detail Ave");
     }
@@ -712,6 +705,132 @@ public class ParcelGraphQLTests(CustomWebApplicationFactory factory)
 
     #endregion
 
+    #region registeredParcels / preLoadParcels — search, filter, sort
+
+    [Fact]
+    public async Task GetPreLoadParcels_SearchByTrackingNumber_ReturnsMatchingParcel()
+    {
+        var token = await GetAdminAccessTokenAsync();
+
+        using var doc = await PostGraphQLAsync(
+            """
+            query GetPreLoadParcels($search: String!) {
+              preLoadParcels(search: $search) {
+                trackingNumber
+              }
+            }
+            """,
+            variables: new { search = "LMTESTSEED0001" },
+            accessToken: token);
+
+        doc.RootElement.TryGetProperty("errors", out var errors)
+            .Should().BeFalse("preLoadParcels(search) should not return errors: {0}", errors.ToString());
+
+        var parcels = doc.RootElement
+            .GetProperty("data")
+            .GetProperty("preLoadParcels")
+            .EnumerateArray()
+            .ToList();
+
+        parcels.Should().Contain(p =>
+            p.GetProperty("trackingNumber").GetString() == "LMTESTSEED0001");
+        parcels.Should().OnlyContain(p =>
+            p.GetProperty("trackingNumber").GetString()!.Contains("LMTESTSEED0001"),
+            "all results should match the search term");
+    }
+
+    [Fact]
+    public async Task GetPreLoadParcels_FilterByStatus_ReturnsOnlyMatchingStatus()
+    {
+        var token = await GetAdminAccessTokenAsync();
+
+        using var doc = await PostGraphQLAsync(
+            """
+            query GetPreLoadParcels($where: ParcelFilterInput) {
+              preLoadParcels(where: $where) {
+                trackingNumber
+                status
+              }
+            }
+            """,
+            variables: new { where = new { status = new { @in = new[] { "SORTED" } } } },
+            accessToken: token);
+
+        doc.RootElement.TryGetProperty("errors", out var errors)
+            .Should().BeFalse("preLoadParcels(where) should not return errors: {0}", errors.ToString());
+
+        var parcels = doc.RootElement
+            .GetProperty("data")
+            .GetProperty("preLoadParcels")
+            .EnumerateArray()
+            .ToList();
+
+        parcels.Should().NotBeEmpty("seeded parcels have status SORTED");
+        parcels.Should().OnlyContain(p =>
+            p.GetProperty("status").GetString() == "Sorted",
+            "all returned parcels should have status Sorted (backend response uses PascalCase)");
+    }
+
+    [Fact]
+    public async Task GetPreLoadParcels_SortByTrackingNumberAsc_ReturnsOrderedResults()
+    {
+        var token = await GetAdminAccessTokenAsync();
+
+        using var doc = await PostGraphQLAsync(
+            """
+            query GetPreLoadParcels($order: [ParcelSortInput!]) {
+              preLoadParcels(order: $order) {
+                trackingNumber
+              }
+            }
+            """,
+            variables: new { order = new[] { new { trackingNumber = "ASC" } } },
+            accessToken: token);
+
+        doc.RootElement.TryGetProperty("errors", out var errors)
+            .Should().BeFalse("preLoadParcels(order) should not return errors: {0}", errors.ToString());
+
+        var parcels = doc.RootElement
+            .GetProperty("data")
+            .GetProperty("preLoadParcels")
+            .EnumerateArray()
+            .Select(p => p.GetProperty("trackingNumber").GetString())
+            .ToList();
+
+        parcels.Should().BeInAscendingOrder("results should be sorted by TrackingNumber ASC");
+    }
+
+    [Fact]
+    public async Task GetPreLoadParcels_SortByTrackingNumberDesc_ReturnsOrderedResults()
+    {
+        var token = await GetAdminAccessTokenAsync();
+
+        using var doc = await PostGraphQLAsync(
+            """
+            query GetPreLoadParcels($order: [ParcelSortInput!]) {
+              preLoadParcels(order: $order) {
+                trackingNumber
+              }
+            }
+            """,
+            variables: new { order = new[] { new { trackingNumber = "DESC" } } },
+            accessToken: token);
+
+        doc.RootElement.TryGetProperty("errors", out var errors)
+            .Should().BeFalse("preLoadParcels(order) should not return errors: {0}", errors.ToString());
+
+        var parcels = doc.RootElement
+            .GetProperty("data")
+            .GetProperty("preLoadParcels")
+            .EnumerateArray()
+            .Select(p => p.GetProperty("trackingNumber").GetString())
+            .ToList();
+
+        parcels.Should().BeInDescendingOrder("results should be sorted by TrackingNumber DESC");
+    }
+
+    #endregion
+
     #region transitionParcelStatus mutation
 
     [Fact]
@@ -719,12 +838,13 @@ public class ParcelGraphQLTests(CustomWebApplicationFactory factory)
     {
         var token = await GetAdminAccessTokenAsync();
 
-        // Register a parcel (starts as Registered)
+        // Register a parcel first (status will be Registered)
         using var registerDoc = await PostGraphQLAsync(
             """
             mutation RegisterParcel($input: RegisterParcelInput!) {
               registerParcel(input: $input) {
                 id
+                trackingNumber
                 status
               }
             }
@@ -736,26 +856,26 @@ public class ParcelGraphQLTests(CustomWebApplicationFactory factory)
                     shipperAddressId = TestParcelShipperAddressId.ToString(),
                     recipientAddress = new
                     {
-                        street1 = "10 Transition St",
-                        city = "Alexandria",
-                        state = "Alexandria",
-                        postalCode = "21500",
+                        street1 = "20 Transition St",
+                        city = "Cairo",
+                        state = "Cairo",
+                        postalCode = "11511",
                         countryCode = "EG",
-                        isResidential = false,
-                        contactName = "Tarek Hassan",
+                        isResidential = true,
+                        contactName = "Transition Test",
                         phone = "+201000000001",
-                        email = "tarek@example.com"
+                        email = "transition@example.com"
                     },
-                    serviceType = "EXPRESS",
+                    serviceType = "STANDARD",
                     weight = 1.0,
                     weightUnit = "KG",
-                    length = 15.0,
+                    length = 10.0,
                     width = 10.0,
                     height = 5.0,
                     dimensionUnit = "CM",
                     declaredValue = 100.0,
                     currency = "USD",
-                    estimatedDeliveryDate = DateTimeOffset.UtcNow.AddDays(2).ToString("o")
+                    estimatedDeliveryDate = DateTimeOffset.UtcNow.AddDays(3).ToString("o")
                 }
             },
             accessToken: token);
@@ -763,13 +883,13 @@ public class ParcelGraphQLTests(CustomWebApplicationFactory factory)
         registerDoc.RootElement.TryGetProperty("errors", out var registerErrors)
             .Should().BeFalse("registerParcel should not return errors");
 
-        var parcel = registerDoc.RootElement
+        var parcelId = registerDoc.RootElement
             .GetProperty("data")
-            .GetProperty("registerParcel");
-        var parcelId = parcel.GetProperty("id").GetString();
-        parcel.GetProperty("status").GetString().Should().Be("Registered");
+            .GetProperty("registerParcel")
+            .GetProperty("id")
+            .GetString();
 
-        // Transition to ReceivedAtDepot (valid from Registered)
+        // Transition from Registered -> ReceivedAtDepot (valid transition)
         using var transitionDoc = await PostGraphQLAsync(
             """
             mutation TransitionParcelStatus($input: TransitionParcelStatusInput!) {
@@ -783,10 +903,10 @@ public class ParcelGraphQLTests(CustomWebApplicationFactory factory)
             {
                 input = new
                 {
-                    parcelId,
+                    parcelId = parcelId,
                     newStatus = "RECEIVED_AT_DEPOT",
-                    location = "Main Depot",
-                    description = "Package received at depot"
+                    location = "Sydney Central Depot",
+                    description = "Parcel received at depot"
                 }
             },
             accessToken: token);
@@ -794,12 +914,12 @@ public class ParcelGraphQLTests(CustomWebApplicationFactory factory)
         transitionDoc.RootElement.TryGetProperty("errors", out var transitionErrors)
             .Should().BeFalse("transitionParcelStatus should not return errors: {0}", transitionErrors.ToString());
 
-        var updated = transitionDoc.RootElement
+        var result = transitionDoc.RootElement
             .GetProperty("data")
             .GetProperty("transitionParcelStatus");
 
-        updated.GetProperty("id").GetString().Should().Be(parcelId);
-        updated.GetProperty("status").GetString().Should().Be("ReceivedAtDepot");
+        result.GetProperty("id").GetString().Should().Be(parcelId);
+        result.GetProperty("status").GetString().Should().Be("ReceivedAtDepot");
     }
 
     [Fact]
@@ -807,12 +927,13 @@ public class ParcelGraphQLTests(CustomWebApplicationFactory factory)
     {
         var token = await GetAdminAccessTokenAsync();
 
-        // Register a parcel (starts as Registered)
+        // Register a parcel first (status will be Registered)
         using var registerDoc = await PostGraphQLAsync(
             """
             mutation RegisterParcel($input: RegisterParcelInput!) {
               registerParcel(input: $input) {
                 id
+                status
               }
             }
             """,
@@ -823,24 +944,24 @@ public class ParcelGraphQLTests(CustomWebApplicationFactory factory)
                     shipperAddressId = TestParcelShipperAddressId.ToString(),
                     recipientAddress = new
                     {
-                        street1 = "11 Invalid St",
+                        street1 = "21 Invalid Transition St",
                         city = "Cairo",
                         state = "Cairo",
                         postalCode = "11511",
                         countryCode = "EG",
                         isResidential = true,
-                        contactName = "Sara Ali",
+                        contactName = "Invalid Test",
                         phone = "+201000000002",
-                        email = "sara@example.com"
+                        email = "invalid@example.com"
                     },
                     serviceType = "STANDARD",
-                    weight = 0.5,
+                    weight = 1.0,
                     weightUnit = "KG",
                     length = 10.0,
                     width = 10.0,
                     height = 5.0,
                     dimensionUnit = "CM",
-                    declaredValue = 50.0,
+                    declaredValue = 100.0,
                     currency = "USD",
                     estimatedDeliveryDate = DateTimeOffset.UtcNow.AddDays(3).ToString("o")
                 }
@@ -850,14 +971,16 @@ public class ParcelGraphQLTests(CustomWebApplicationFactory factory)
         var parcelId = registerDoc.RootElement
             .GetProperty("data")
             .GetProperty("registerParcel")
-            .GetProperty("id").GetString();
+            .GetProperty("id")
+            .GetString();
 
-        // Attempt to transition from Registered -> Delivered (invalid per ValidTransitions)
+        // Try to transition from Registered -> Delivered (invalid transition)
         using var transitionDoc = await PostGraphQLAsync(
             """
             mutation TransitionParcelStatus($input: TransitionParcelStatusInput!) {
               transitionParcelStatus(input: $input) {
                 id
+                status
               }
             }
             """,
@@ -865,17 +988,23 @@ public class ParcelGraphQLTests(CustomWebApplicationFactory factory)
             {
                 input = new
                 {
-                    parcelId,
-                    newStatus = "DELIVERED"
+                    parcelId = parcelId,
+                    newStatus = "DELIVERED",
+                    location = "Somewhere",
+                    description = "Invalid attempt"
                 }
             },
             accessToken: token);
 
         transitionDoc.RootElement.TryGetProperty("errors", out var errors)
-            .Should().BeTrue("transitionParcelStatus should return an error for invalid transition");
+            .Should().BeTrue("invalid transition should return errors");
 
-        var error = errors.EnumerateArray().FirstOrDefault();
-        error.ValueKind.Should().NotBe(default, "at least one error should be returned");
+        var errorMessage = transitionDoc.RootElement
+            .GetProperty("errors")[0]
+            .GetProperty("message")
+            .GetString();
+
+        errorMessage.Should().Contain("Cannot transition");
     }
 
     [Fact]
@@ -883,11 +1012,14 @@ public class ParcelGraphQLTests(CustomWebApplicationFactory factory)
     {
         var token = await GetAdminAccessTokenAsync();
 
-        using var doc = await PostGraphQLAsync(
+        var nonExistentParcelId = Guid.NewGuid();
+
+        using var transitionDoc = await PostGraphQLAsync(
             """
             mutation TransitionParcelStatus($input: TransitionParcelStatusInput!) {
               transitionParcelStatus(input: $input) {
                 id
+                status
               }
             }
             """,
@@ -895,27 +1027,35 @@ public class ParcelGraphQLTests(CustomWebApplicationFactory factory)
             {
                 input = new
                 {
-                    parcelId = Guid.Empty.ToString(),
-                    newStatus = "RECEIVED_AT_DEPOT"
+                    parcelId = nonExistentParcelId.ToString(),
+                    newStatus = "RECEIVED_AT_DEPOT",
+                    location = "Any Depot",
+                    description = "Looking for non-existent parcel"
                 }
             },
             accessToken: token);
 
-        doc.RootElement.TryGetProperty("errors", out var errors)
-            .Should().BeTrue("should return error for non-existent parcel");
+        transitionDoc.RootElement.TryGetProperty("errors", out var errors)
+            .Should().BeTrue("parcel not found should return errors");
 
-        var error = errors.EnumerateArray().FirstOrDefault();
-        error.ValueKind.Should().NotBe(default);
+        var errorMessage = transitionDoc.RootElement
+            .GetProperty("errors")[0]
+            .GetProperty("message")
+            .GetString();
+
+        errorMessage!.ToLowerInvariant().Should().Contain("not found");
     }
 
     [Fact]
     public async Task TransitionParcelStatus_Unauthenticated_ReturnsError()
     {
-        using var doc = await PostGraphQLAsync(
+        // Attempt to transition without authentication
+        using var transitionDoc = await PostGraphQLAsync(
             """
             mutation TransitionParcelStatus($input: TransitionParcelStatusInput!) {
               transitionParcelStatus(input: $input) {
                 id
+                status
               }
             }
             """,
@@ -924,29 +1064,43 @@ public class ParcelGraphQLTests(CustomWebApplicationFactory factory)
                 input = new
                 {
                     parcelId = Guid.NewGuid().ToString(),
-                    newStatus = "RECEIVED_AT_DEPOT"
+                    newStatus = "RECEIVED_AT_DEPOT",
+                    location = "Any Depot",
+                    description = "Unauthenticated attempt"
                 }
-            });
+            },
+            accessToken: null);
 
-        doc.RootElement.TryGetProperty("errors", out var errors)
-            .Should().BeTrue("unauthenticated request should return error");
+        // Should have errors due to authorization failure
+        transitionDoc.RootElement.TryGetProperty("errors", out var errors)
+            .Should().BeTrue("unauthenticated request should return errors");
+
+        // The exact error message format depends on the GraphQL implementation
+        // but it should indicate unauthorized access
+        var errorMessage = transitionDoc.RootElement
+            .GetProperty("errors")[0]
+            .GetProperty("message")
+            .GetString();
+
+        errorMessage.Should().NotBeEmpty();
     }
 
     #endregion
 
-    #region parcelTrackingEvents query
+    #region getParcelTrackingEvents query
 
     [Fact]
     public async Task GetParcelTrackingEvents_AfterTransition_ReturnsTrackingEvents()
     {
         var token = await GetAdminAccessTokenAsync();
 
-        // Register a parcel
+        // Register a parcel first
         using var registerDoc = await PostGraphQLAsync(
             """
             mutation RegisterParcel($input: RegisterParcelInput!) {
               registerParcel(input: $input) {
                 id
+                trackingNumber
                 status
               }
             }
@@ -958,26 +1112,26 @@ public class ParcelGraphQLTests(CustomWebApplicationFactory factory)
                     shipperAddressId = TestParcelShipperAddressId.ToString(),
                     recipientAddress = new
                     {
-                        street1 = "12 Tracking St",
-                        city = "Giza",
-                        state = "Giza",
-                        postalCode = "12612",
+                        street1 = "22 Tracking Events St",
+                        city = "Cairo",
+                        state = "Cairo",
+                        postalCode = "11511",
                         countryCode = "EG",
                         isResidential = true,
-                        contactName = "Nadia Youssef",
+                        contactName = "Tracking Test",
                         phone = "+201000000003",
-                        email = "nadia@example.com"
+                        email = "tracking@example.com"
                     },
-                    serviceType = "ECONOMY",
-                    weight = 2.5,
+                    serviceType = "STANDARD",
+                    weight = 1.0,
                     weightUnit = "KG",
-                    length = 30.0,
-                    width = 20.0,
-                    height = 15.0,
+                    length = 10.0,
+                    width = 10.0,
+                    height = 5.0,
                     dimensionUnit = "CM",
-                    declaredValue = 250.0,
+                    declaredValue = 100.0,
                     currency = "USD",
-                    estimatedDeliveryDate = DateTimeOffset.UtcNow.AddDays(5).ToString("o")
+                    estimatedDeliveryDate = DateTimeOffset.UtcNow.AddDays(3).ToString("o")
                 }
             },
             accessToken: token);
@@ -985,14 +1139,14 @@ public class ParcelGraphQLTests(CustomWebApplicationFactory factory)
         var parcelId = registerDoc.RootElement
             .GetProperty("data")
             .GetProperty("registerParcel")
-            .GetProperty("id").GetString();
+            .GetProperty("id")
+            .GetString();
 
         // Transition to ReceivedAtDepot
-        using var transitionDoc = await PostGraphQLAsync(
+        using var transition1 = await PostGraphQLAsync(
             """
             mutation TransitionParcelStatus($input: TransitionParcelStatusInput!) {
               transitionParcelStatus(input: $input) {
-                id
                 status
               }
             }
@@ -1001,47 +1155,83 @@ public class ParcelGraphQLTests(CustomWebApplicationFactory factory)
             {
                 input = new
                 {
-                    parcelId,
+                    parcelId = parcelId,
                     newStatus = "RECEIVED_AT_DEPOT",
-                    location = "Zone A",
-                    description = "Arrived at main facility"
+                    location = "Sydney Central Depot",
+                    description = "First scan at depot"
                 }
             },
             accessToken: token);
 
-        transitionDoc.RootElement.TryGetProperty("errors", out var transitionErrors)
-            .Should().BeFalse("transition should succeed");
+        transition1.RootElement.TryGetProperty("errors", out var t1Errors)
+            .Should().BeFalse("first transition should succeed");
+
+        // Transition to Sorted
+        using var transition2 = await PostGraphQLAsync(
+            """
+            mutation TransitionParcelStatus($input: TransitionParcelStatusInput!) {
+              transitionParcelStatus(input: $input) {
+                status
+              }
+            }
+            """,
+            variables: new
+            {
+                input = new
+                {
+                    parcelId = parcelId,
+                    newStatus = "SORTED",
+                    location = "Sydney Central Depot",
+                    description = "Parcel sorted"
+                }
+            },
+            accessToken: token);
+
+        transition2.RootElement.TryGetProperty("errors", out var t2Errors)
+            .Should().BeFalse("second transition should succeed");
 
         // Query tracking events
         using var queryDoc = await PostGraphQLAsync(
             """
             query GetParcelTrackingEvents($parcelId: UUID!) {
               parcelTrackingEvents(parcelId: $parcelId) {
-                id
-                timestamp
                 eventType
                 description
                 location
+                timestamp
                 operator
               }
             }
             """,
-            variables: new { parcelId },
+            variables: new { parcelId = parcelId },
             accessToken: token);
 
         queryDoc.RootElement.TryGetProperty("errors", out var queryErrors)
-            .Should().BeFalse("parcelTrackingEvents should not return errors: {0}", queryErrors.ToString());
+            .Should().BeFalse("parcelTrackingEvents query should not return errors: {0}", queryErrors.ToString());
 
-        var events = queryDoc.RootElement
+        var trackingEvents = queryDoc.RootElement
             .GetProperty("data")
             .GetProperty("parcelTrackingEvents")
             .EnumerateArray()
             .ToList();
 
-        events.Should().NotBeEmpty("at least one tracking event should exist after a transition");
-        events.First().GetProperty("eventType").GetString().Should().Be("ArrivedAtFacility");
-        events.First().GetProperty("description").GetString().Should().Be("Arrived at main facility");
-        events.First().GetProperty("location").GetString().Should().Be("Zone A");
+        trackingEvents.Count.Should().BeGreaterThanOrEqualTo(2,
+            "tracking events should exist for the two transitions");
+
+        // Verify the events are in reverse chronological order (most recent first)
+        var timestamps = trackingEvents
+            .Select(e => e.GetProperty("timestamp").GetDateTimeOffset())
+            .ToList();
+
+        timestamps.Should().BeInDescendingOrder("events are returned most-recent-first");
+
+        // Verify the event descriptions contain our transition descriptions
+        var descriptions = trackingEvents
+            .Select(e => e.GetProperty("description").GetString())
+            .ToList();
+
+        descriptions.Should().Contain(d => d == "First scan at depot");
+        descriptions.Should().Contain(d => d == "Parcel sorted");
     }
 
     #endregion

@@ -28,6 +28,8 @@ export type {
   GetParcelsForRouteCreationQueryVariables,
   GetRegisteredParcelsQuery,
   GetRegisteredParcelsQueryVariables,
+  ParcelFilterInput,
+  ParcelSortInput,
   RegisterParcelMutation,
   RegisterParcelMutationVariables,
   TransitionParcelStatusMutation,
