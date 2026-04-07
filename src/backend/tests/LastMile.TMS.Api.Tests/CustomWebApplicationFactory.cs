@@ -1,5 +1,6 @@
 using LastMile.TMS.Application.Common.Interfaces;
 using LastMile.TMS.Application.Parcels.Services;
+using LastMile.TMS.Infrastructure.Services;
 using LastMile.TMS.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -137,6 +138,7 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
 
             await using (var scope = Services.CreateAsyncScope())
             {
+                scope.ServiceProvider.GetService<InMemoryFileStorageService>()?.Clear();
                 var seeder = scope.ServiceProvider.GetRequiredService<DbSeeder>();
                 await seeder.SeedAsync(runMigrations: false, cancellationToken);
             }

@@ -28,10 +28,19 @@ services:
       ConnectionStrings__HangfireConnection: Host=postgres;Port=5432;Database=lastmile_tms;Username=postgres;Password=postgres
       ConnectionStrings__Redis: redis:6379
       Authentication__Issuer: http://localhost
+      Storage__Endpoint: http://minio:9000
+      Storage__AccessKey: minioadmin
+      Storage__SecretKey: minioadmin
+      Storage__Region: us-east-1
+      Storage__BucketName: lastmile-binaries
+      Storage__ForcePathStyle: "true"
+      Storage__AutoCreateBucket: "true"
       Serilog__Using__1: Serilog.Sinks.Seq
       Serilog__WriteTo__1__Name: Seq
       Serilog__WriteTo__1__Args__serverUrl: http://seq:80
     depends_on:
+      minio:
+        condition: service_started
       postgres:
         condition: service_healthy
       redis:
@@ -67,6 +76,18 @@ services:
       timeout: 5s
       retries: 5
 
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - miniodata:/data
+
   redis:
     image: redis:7-alpine
     volumes:
@@ -93,5 +114,6 @@ services:
 
 volumes:
   pgdata:
+  miniodata:
   redisdata:
   seqdata:
