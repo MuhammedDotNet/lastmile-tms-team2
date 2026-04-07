@@ -1591,6 +1591,335 @@ public class ParcelGraphQLTests(CustomWebApplicationFactory factory)
 
     #endregion
 
+    #region route staging
+
+    [Fact]
+    public async Task GetStagingRoutes_ForWarehouseOperator_ReturnsOnlyActiveRoutesWithCounts()
+    {
+        var operatorEmail = await SeedWarehouseOperatorAsync();
+        var plannedSortedParcelId = await SeedParcelAsync(DbSeeder.TestZoneId, "LMSTAGEAPI0001", ParcelStatus.Sorted);
+        var plannedStagedParcelId = await SeedParcelAsync(DbSeeder.TestZoneId, "LMSTAGEAPI0002", ParcelStatus.Staged);
+        var completedParcelId = await SeedParcelAsync(DbSeeder.TestZoneId, "LMSTAGEAPI0003", ParcelStatus.Sorted);
+
+        var activeRouteId = await SeedRouteAsync(
+            DbSeeder.TestVehicleId,
+            DbSeeder.TestDriverId,
+            RouteStatus.Planned,
+            StagingArea.A,
+            plannedSortedParcelId,
+            plannedStagedParcelId);
+        await SeedRouteAsync(
+            DbSeeder.TestVehicleId,
+            DbSeeder.TestDriver2Id,
+            RouteStatus.Completed,
+            StagingArea.B,
+            completedParcelId);
+
+        var token = await GetAccessTokenAsync(operatorEmail, "Warehouse@12345");
+
+        using var document = await PostGraphQLAsync(
+            """
+            query GetStagingRoutes {
+              stagingRoutes {
+                id
+                stagingArea
+                status
+                expectedParcelCount
+                stagedParcelCount
+                remainingParcelCount
+              }
+            }
+            """,
+            accessToken: token);
+
+        document.RootElement.TryGetProperty("errors", out var errors)
+            .Should().BeFalse("stagingRoutes should not return errors: {0}", errors.ToString());
+
+        var routes = document.RootElement
+            .GetProperty("data")
+            .GetProperty("stagingRoutes")
+            .EnumerateArray()
+            .ToList();
+
+        routes.Should().ContainSingle(route => route.GetProperty("id").GetString() == activeRouteId.ToString());
+
+        var route = routes.Single();
+        route.GetProperty("stagingArea").GetString().Should().Be("A");
+        route.GetProperty("status").GetString().Should().Be("PLANNED");
+        route.GetProperty("expectedParcelCount").GetInt32().Should().Be(2);
+        route.GetProperty("stagedParcelCount").GetInt32().Should().Be(1);
+        route.GetProperty("remainingParcelCount").GetInt32().Should().Be(1);
+    }
+
+    [Fact]
+    public async Task StageParcelForRoute_ForExpectedSortedParcel_TransitionsToStagedAndReturnsUpdatedBoard()
+    {
+        var operatorEmail = await SeedWarehouseOperatorAsync();
+        var parcelId = await SeedParcelAsync(DbSeeder.TestZoneId, "LMSTAGEAPI0101", ParcelStatus.Sorted);
+        var routeId = await SeedRouteAsync(
+            DbSeeder.TestVehicleId,
+            DbSeeder.TestDriverId,
+            RouteStatus.Planned,
+            StagingArea.A,
+            parcelId);
+
+        var token = await GetAccessTokenAsync(operatorEmail, "Warehouse@12345");
+
+        using var document = await PostGraphQLAsync(
+            """
+            mutation StageParcelForRoute($input: StageParcelForRouteInput!) {
+              stageParcelForRoute(input: $input) {
+                outcome
+                trackingNumber
+                message
+                board {
+                  id
+                  stagingArea
+                  expectedParcelCount
+                  stagedParcelCount
+                  remainingParcelCount
+                  expectedParcels {
+                    parcelId
+                    trackingNumber
+                    status
+                    isStaged
+                  }
+                }
+              }
+            }
+            """,
+            variables: new
+            {
+                input = new
+                {
+                    routeId,
+                    barcode = "LMSTAGEAPI0101",
+                }
+            },
+            accessToken: token);
+
+        document.RootElement.TryGetProperty("errors", out var errors)
+            .Should().BeFalse("stageParcelForRoute should not return errors: {0}", errors.ToString());
+
+        var result = document.RootElement
+            .GetProperty("data")
+            .GetProperty("stageParcelForRoute");
+
+        result.GetProperty("outcome").GetString().Should().Be("STAGED");
+        result.GetProperty("trackingNumber").GetString().Should().Be("LMSTAGEAPI0101");
+        result.GetProperty("board").GetProperty("id").GetString().Should().Be(routeId.ToString());
+        result.GetProperty("board").GetProperty("stagingArea").GetString().Should().Be("A");
+        result.GetProperty("board").GetProperty("expectedParcelCount").GetInt32().Should().Be(1);
+        result.GetProperty("board").GetProperty("stagedParcelCount").GetInt32().Should().Be(1);
+        result.GetProperty("board").GetProperty("remainingParcelCount").GetInt32().Should().Be(0);
+        result.GetProperty("board").GetProperty("expectedParcels").EnumerateArray()
+            .Should().Contain(entry =>
+                entry.GetProperty("parcelId").GetString() == parcelId.ToString()
+                && entry.GetProperty("trackingNumber").GetString() == "LMSTAGEAPI0101"
+                && entry.GetProperty("status").GetString() == "Staged"
+                && entry.GetProperty("isStaged").GetBoolean());
+
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var parcel = await dbContext.Parcels
+            .Include(candidate => candidate.TrackingEvents)
+            .SingleAsync(candidate => candidate.Id == parcelId);
+
+        parcel.Status.Should().Be(ParcelStatus.Staged);
+        parcel.TrackingEvents.Should().ContainSingle();
+        parcel.TrackingEvents.Single().Description.Should().Contain(routeId.ToString());
+        parcel.TrackingEvents.Single().Description.Should().Contain("A");
+    }
+
+    [Fact]
+    public async Task StageParcelForRoute_ForAlreadyStagedParcel_ReturnsAlreadyStagedWithoutDuplicateTrackingEvent()
+    {
+        var operatorEmail = await SeedWarehouseOperatorAsync();
+        var parcelId = await SeedParcelAsync(DbSeeder.TestZoneId, "LMSTAGEAPI0201", ParcelStatus.Staged);
+        var routeId = await SeedRouteAsync(
+            DbSeeder.TestVehicleId,
+            DbSeeder.TestDriverId,
+            RouteStatus.Planned,
+            StagingArea.A,
+            parcelId);
+
+        var token = await GetAccessTokenAsync(operatorEmail, "Warehouse@12345");
+
+        using var document = await PostGraphQLAsync(
+            """
+            mutation StageParcelForRoute($input: StageParcelForRouteInput!) {
+              stageParcelForRoute(input: $input) {
+                outcome
+                board {
+                  stagedParcelCount
+                  remainingParcelCount
+                }
+              }
+            }
+            """,
+            variables: new
+            {
+                input = new
+                {
+                    routeId,
+                    barcode = "LMSTAGEAPI0201",
+                }
+            },
+            accessToken: token);
+
+        document.RootElement.TryGetProperty("errors", out var errors)
+            .Should().BeFalse("stageParcelForRoute should not return errors: {0}", errors.ToString());
+
+        var result = document.RootElement
+            .GetProperty("data")
+            .GetProperty("stageParcelForRoute");
+
+        result.GetProperty("outcome").GetString().Should().Be("ALREADY_STAGED");
+        result.GetProperty("board").GetProperty("stagedParcelCount").GetInt32().Should().Be(1);
+        result.GetProperty("board").GetProperty("remainingParcelCount").GetInt32().Should().Be(0);
+
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var parcel = await dbContext.Parcels
+            .Include(candidate => candidate.TrackingEvents)
+            .SingleAsync(candidate => candidate.Id == parcelId);
+
+        parcel.Status.Should().Be(ParcelStatus.Staged);
+        parcel.TrackingEvents.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task StageParcelForRoute_ForParcelAssignedToDifferentRoute_ReturnsWrongRouteWithoutMutation()
+    {
+        var operatorEmail = await SeedWarehouseOperatorAsync();
+        var selectedRouteParcelId = await SeedParcelAsync(DbSeeder.TestZoneId, "LMSTAGEAPI0301", ParcelStatus.Sorted);
+        var conflictingParcelId = await SeedParcelAsync(DbSeeder.TestZoneId, "LMSTAGEAPI0302", ParcelStatus.Sorted);
+        var selectedRouteId = await SeedRouteAsync(
+            DbSeeder.TestVehicleId,
+            DbSeeder.TestDriverId,
+            RouteStatus.Planned,
+            StagingArea.A,
+            selectedRouteParcelId);
+        var conflictingRouteId = await SeedRouteAsync(
+            DbSeeder.TestVehicleId,
+            DbSeeder.TestDriver2Id,
+            RouteStatus.Planned,
+            StagingArea.B,
+            conflictingParcelId);
+
+        var token = await GetAccessTokenAsync(operatorEmail, "Warehouse@12345");
+
+        using var document = await PostGraphQLAsync(
+            """
+            mutation StageParcelForRoute($input: StageParcelForRouteInput!) {
+              stageParcelForRoute(input: $input) {
+                outcome
+                trackingNumber
+                conflictingRouteId
+                conflictingStagingArea
+                board {
+                  expectedParcelCount
+                  stagedParcelCount
+                  remainingParcelCount
+                }
+              }
+            }
+            """,
+            variables: new
+            {
+                input = new
+                {
+                    routeId = selectedRouteId,
+                    barcode = "LMSTAGEAPI0302",
+                }
+            },
+            accessToken: token);
+
+        document.RootElement.TryGetProperty("errors", out var errors)
+            .Should().BeFalse("stageParcelForRoute should not return errors: {0}", errors.ToString());
+
+        var result = document.RootElement
+            .GetProperty("data")
+            .GetProperty("stageParcelForRoute");
+
+        result.GetProperty("outcome").GetString().Should().Be("WRONG_ROUTE");
+        result.GetProperty("trackingNumber").GetString().Should().Be("LMSTAGEAPI0302");
+        result.GetProperty("conflictingRouteId").GetString().Should().Be(conflictingRouteId.ToString());
+        result.GetProperty("conflictingStagingArea").GetString().Should().Be("B");
+        result.GetProperty("board").GetProperty("expectedParcelCount").GetInt32().Should().Be(1);
+        result.GetProperty("board").GetProperty("stagedParcelCount").GetInt32().Should().Be(0);
+        result.GetProperty("board").GetProperty("remainingParcelCount").GetInt32().Should().Be(1);
+
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var conflictingParcel = await dbContext.Parcels.FindAsync(conflictingParcelId);
+        conflictingParcel.Should().NotBeNull();
+        conflictingParcel!.Status.Should().Be(ParcelStatus.Sorted);
+    }
+
+    [Fact]
+    public async Task StageParcelForRoute_ForUnassignedParcel_ReturnsNotExpectedWithoutMutation()
+    {
+        var operatorEmail = await SeedWarehouseOperatorAsync();
+        var expectedParcelId = await SeedParcelAsync(DbSeeder.TestZoneId, "LMSTAGEAPI0401", ParcelStatus.Sorted);
+        var unassignedParcelId = await SeedParcelAsync(DbSeeder.TestZoneId, "LMSTAGEAPI0402", ParcelStatus.Sorted);
+        var routeId = await SeedRouteAsync(
+            DbSeeder.TestVehicleId,
+            DbSeeder.TestDriverId,
+            RouteStatus.Planned,
+            StagingArea.A,
+            expectedParcelId);
+
+        var token = await GetAccessTokenAsync(operatorEmail, "Warehouse@12345");
+
+        using var document = await PostGraphQLAsync(
+            """
+            mutation StageParcelForRoute($input: StageParcelForRouteInput!) {
+              stageParcelForRoute(input: $input) {
+                outcome
+                trackingNumber
+                board {
+                  expectedParcelCount
+                  stagedParcelCount
+                  remainingParcelCount
+                }
+              }
+            }
+            """,
+            variables: new
+            {
+                input = new
+                {
+                    routeId,
+                    barcode = "LMSTAGEAPI0402",
+                }
+            },
+            accessToken: token);
+
+        document.RootElement.TryGetProperty("errors", out var errors)
+            .Should().BeFalse("stageParcelForRoute should not return errors: {0}", errors.ToString());
+
+        var result = document.RootElement
+            .GetProperty("data")
+            .GetProperty("stageParcelForRoute");
+
+        result.GetProperty("outcome").GetString().Should().Be("NOT_EXPECTED");
+        result.GetProperty("trackingNumber").GetString().Should().Be("LMSTAGEAPI0402");
+        result.GetProperty("board").GetProperty("expectedParcelCount").GetInt32().Should().Be(1);
+        result.GetProperty("board").GetProperty("stagedParcelCount").GetInt32().Should().Be(0);
+        result.GetProperty("board").GetProperty("remainingParcelCount").GetInt32().Should().Be(1);
+
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var unassignedParcel = await dbContext.Parcels.FindAsync(unassignedParcelId);
+        unassignedParcel.Should().NotBeNull();
+        unassignedParcel!.Status.Should().Be(ParcelStatus.Sorted);
+    }
+
+    #endregion
+
     #region inbound receiving
 
     [Fact]
@@ -1883,6 +2212,28 @@ public class ParcelGraphQLTests(CustomWebApplicationFactory factory)
 
     public Task DisposeAsync() => Task.CompletedTask;
 
+    private async Task<Guid> SeedVehicleAsync(string plate)
+    {
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var vehicle = new Vehicle
+        {
+            RegistrationPlate = plate,
+            Type = VehicleType.Van,
+            ParcelCapacity = 25,
+            WeightCapacity = 250m,
+            Status = VehicleStatus.Available,
+            DepotId = DbSeeder.TestDepotId,
+            CreatedAt = DateTimeOffset.UtcNow,
+            CreatedBy = "tests"
+        };
+
+        dbContext.Vehicles.Add(vehicle);
+        await dbContext.SaveChangesAsync();
+        return vehicle.Id;
+    }
+
     private async Task<Guid> SeedZoneAsync(string name)
     {
         await using var scope = Factory.Services.CreateAsyncScope();
@@ -2000,6 +2351,41 @@ public class ParcelGraphQLTests(CustomWebApplicationFactory factory)
         return manifest.Id;
     }
 
+    private async Task<Guid> SeedRouteAsync(
+        Guid vehicleId,
+        Guid driverId,
+        RouteStatus status,
+        StagingArea stagingArea,
+        params Guid[] parcelIds)
+    {
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var parcels = await dbContext.Parcels
+            .Where(parcel => parcelIds.Contains(parcel.Id))
+            .ToListAsync();
+
+        var route = new Route
+        {
+            Id = Guid.NewGuid(),
+            VehicleId = vehicleId,
+            DriverId = driverId,
+            StartDate = DateTimeOffset.UtcNow.AddHours(-1),
+            EndDate = status == RouteStatus.Completed ? DateTimeOffset.UtcNow : null,
+            StartMileage = 100,
+            EndMileage = status == RouteStatus.Completed ? 120 : 0,
+            Status = status,
+            StagingArea = stagingArea,
+            CreatedAt = DateTimeOffset.UtcNow,
+            CreatedBy = "tests",
+            Parcels = parcels
+        };
+
+        dbContext.Routes.Add(route);
+        await dbContext.SaveChangesAsync();
+        return route.Id;
+    }
+
     private async Task SeedRouteAndProofOfDeliveryAsync(Guid parcelId)
     {
         await using var scope = Factory.Services.CreateAsyncScope();
@@ -2019,6 +2405,7 @@ public class ParcelGraphQLTests(CustomWebApplicationFactory factory)
             StartMileage = 1250,
             EndMileage = 0,
             Status = RouteStatus.InProgress,
+            StagingArea = StagingArea.A,
             Parcels = [parcel]
         };
 
