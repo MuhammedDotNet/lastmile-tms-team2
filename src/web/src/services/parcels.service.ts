@@ -2,6 +2,9 @@ import { getSession } from "next-auth/react";
 
 import {
   CANCEL_PARCEL,
+  CONFIRM_INBOUND_RECEIVING_SESSION,
+  GET_INBOUND_RECEIVING_SESSION,
+  GET_OPEN_INBOUND_MANIFESTS,
   GET_PARCEL_IMPORT,
   GET_PARCEL_IMPORTS,
   GET_PARCEL_TRACKING_EVENTS,
@@ -12,6 +15,8 @@ import {
   PARCELS_FOR_ROUTE,
   REGISTER_PARCEL,
   REGISTERED_PARCELS,
+  SCAN_INBOUND_PARCEL,
+  START_INBOUND_RECEIVING_SESSION,
   TRANSITION_PARCEL_STATUS,
   UPDATE_PARCEL,
 } from "@/graphql/parcels";
@@ -21,12 +26,17 @@ import type {
   GetParcelByTrackingNumberQuery,
   GetParcelImportQuery,
   GetParcelImportsQuery,
+  GetInboundReceivingSessionQuery,
+  GetOpenInboundManifestsQuery,
   GetParcelQuery,
   GetParcelsForRouteCreationQuery,
   GetParcelTrackingEventsQuery,
   GetPreLoadParcelsConnectionQuery,
   GetPreLoadParcelsQuery,
   GetRegisteredParcelsQuery,
+  ConfirmInboundReceivingSessionMutation,
+  ScanInboundParcelMutation,
+  StartInboundReceivingSessionMutation,
   TransitionParcelStatusMutation,
   UpdateParcelMutation,
 } from "@/graphql/parcels";
@@ -52,6 +62,12 @@ import type {
   UpdateParcelRequest,
   UploadParcelImportRequest,
   UploadParcelImportResult,
+  ConfirmInboundReceivingSessionRequest,
+  InboundManifest,
+  InboundParcelScanResult,
+  InboundReceivingSession,
+  ScanInboundParcelRequest,
+  StartInboundReceivingSessionRequest,
 } from "@/types/parcels";
 
 const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK_DATA === "true";
@@ -721,5 +737,87 @@ export const parcelsService = {
     });
 
     return data.transitionParcelStatus as RegisteredParcelResult;
+  },
+
+  getOpenInboundManifests: async (): Promise<InboundManifest[]> => {
+    if (USE_MOCK) {
+      return [];
+    }
+
+    const data = await graphqlRequest<GetOpenInboundManifestsQuery>(
+      GET_OPEN_INBOUND_MANIFESTS,
+    );
+
+    return (data.openInboundManifests ?? []) as InboundManifest[];
+  },
+
+  getInboundReceivingSession: async (
+    sessionId: string,
+  ): Promise<InboundReceivingSession | null> => {
+    if (USE_MOCK) {
+      return null;
+    }
+
+    const data = await graphqlRequest<GetInboundReceivingSessionQuery>(
+      GET_INBOUND_RECEIVING_SESSION,
+      { sessionId },
+    );
+
+    return (data.inboundReceivingSession as InboundReceivingSession | null) ?? null;
+  },
+
+  startInboundReceivingSession: async (
+    request: StartInboundReceivingSessionRequest,
+  ): Promise<InboundReceivingSession> => {
+    if (USE_MOCK) {
+      throw new Error("Inbound receiving is not available in mock mode.");
+    }
+
+    const data = await graphqlRequest<{
+      startInboundReceivingSession: StartInboundReceivingSessionMutation["startInboundReceivingSession"];
+    }>(START_INBOUND_RECEIVING_SESSION, {
+      input: {
+        manifestId: request.manifestId,
+      },
+    });
+
+    return data.startInboundReceivingSession as InboundReceivingSession;
+  },
+
+  scanInboundParcel: async (
+    request: ScanInboundParcelRequest,
+  ): Promise<InboundParcelScanResult> => {
+    if (USE_MOCK) {
+      throw new Error("Inbound receiving is not available in mock mode.");
+    }
+
+    const data = await graphqlRequest<{
+      scanInboundParcel: ScanInboundParcelMutation["scanInboundParcel"];
+    }>(SCAN_INBOUND_PARCEL, {
+      input: {
+        sessionId: request.sessionId,
+        barcode: request.barcode,
+      },
+    });
+
+    return data.scanInboundParcel as InboundParcelScanResult;
+  },
+
+  confirmInboundReceivingSession: async (
+    request: ConfirmInboundReceivingSessionRequest,
+  ): Promise<InboundReceivingSession> => {
+    if (USE_MOCK) {
+      throw new Error("Inbound receiving is not available in mock mode.");
+    }
+
+    const data = await graphqlRequest<{
+      confirmInboundReceivingSession: ConfirmInboundReceivingSessionMutation["confirmInboundReceivingSession"];
+    }>(CONFIRM_INBOUND_RECEIVING_SESSION, {
+      input: {
+        sessionId: request.sessionId,
+      },
+    });
+
+    return data.confirmInboundReceivingSession as InboundReceivingSession;
   },
 };

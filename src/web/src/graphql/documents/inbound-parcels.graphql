@@ -1,0 +1,217 @@
+query GetOpenInboundManifests {
+  openInboundManifests {
+    id
+    manifestNumber
+    truckIdentifier
+    depotId
+    depotName
+    status
+    expectedParcelCount
+    scannedExpectedCount
+    scannedUnexpectedCount
+    openSessionId
+    createdAt
+  }
+}
+
+query GetInboundReceivingSession($sessionId: UUID!) {
+  inboundReceivingSession(sessionId: $sessionId) {
+    id
+    manifestId
+    manifestNumber
+    truckIdentifier
+    depotId
+    depotName
+    status
+    startedAt
+    startedBy
+    confirmedAt
+    confirmedBy
+    expectedParcelCount
+    scannedExpectedCount
+    scannedUnexpectedCount
+    remainingExpectedCount
+    expectedParcels {
+      manifestLineId
+      parcelId
+      trackingNumber
+      barcode
+      status
+      isScanned
+    }
+    scannedParcels {
+      id
+      parcelId
+      trackingNumber
+      barcode
+      matchType
+      status
+      scannedAt
+      scannedBy
+    }
+    exceptions {
+      id
+      parcelId
+      manifestLineId
+      exceptionType
+      trackingNumber
+      barcode
+      createdAt
+    }
+  }
+}
+
+mutation StartInboundReceivingSession($input: StartInboundReceivingSessionInput!) {
+  startInboundReceivingSession(input: $input) {
+    id
+    manifestId
+    manifestNumber
+    truckIdentifier
+    depotId
+    depotName
+    status
+    startedAt
+    startedBy
+    confirmedAt
+    confirmedBy
+    expectedParcelCount
+    scannedExpectedCount
+    scannedUnexpectedCount
+    remainingExpectedCount
+    expectedParcels {
+      manifestLineId
+      parcelId
+      trackingNumber
+      barcode
+      status
+      isScanned
+    }
+    scannedParcels {
+      id
+      parcelId
+      trackingNumber
+      barcode
+      matchType
+      status
+      scannedAt
+      scannedBy
+    }
+    exceptions {
+      id
+      parcelId
+      manifestLineId
+      exceptionType
+      trackingNumber
+      barcode
+      createdAt
+    }
+  }
+}
+
+mutation ScanInboundParcel($input: ScanInboundParcelInput!) {
+  scanInboundParcel(input: $input) {
+    sessionId
+    isExpected
+    scannedParcel {
+      id
+      parcelId
+      trackingNumber
+      barcode
+      matchType
+      status
+      scannedAt
+      scannedBy
+    }
+    session {
+      id
+      manifestId
+      manifestNumber
+      truckIdentifier
+      depotId
+      depotName
+      status
+      startedAt
+      startedBy
+      confirmedAt
+      confirmedBy
+      expectedParcelCount
+      scannedExpectedCount
+      scannedUnexpectedCount
+      remainingExpectedCount
+      expectedParcels {
+        manifestLineId
+        parcelId
+        trackingNumber
+        barcode
+        status
+        isScanned
+      }
+      scannedParcels {
+        id
+        parcelId
+        trackingNumber
+        barcode
+        matchType
+        status
+        scannedAt
+        scannedBy
+      }
+      exceptions {
+        id
+        parcelId
+        manifestLineId
+        exceptionType
+        trackingNumber
+        barcode
+        createdAt
+      }
+    }
+  }
+}
+
+mutation ConfirmInboundReceivingSession($input: ConfirmInboundReceivingSessionInput!) {
+  confirmInboundReceivingSession(input: $input) {
+    id
+    manifestId
+    manifestNumber
+    truckIdentifier
+    depotId
+    depotName
+    status
+    startedAt
+    startedBy
+    confirmedAt
+    confirmedBy
+    expectedParcelCount
+    scannedExpectedCount
+    scannedUnexpectedCount
+    remainingExpectedCount
+    expectedParcels {
+      manifestLineId
+      parcelId
+      trackingNumber
+      barcode
+      status
+      isScanned
+    }
+    scannedParcels {
+      id
+      parcelId
+      trackingNumber
+      barcode
+      matchType
+      status
+      scannedAt
+      scannedBy
+    }
+    exceptions {
+      id
+      parcelId
+      manifestLineId
+      exceptionType
+      trackingNumber
+      barcode
+      createdAt
+    }
+  }
+}

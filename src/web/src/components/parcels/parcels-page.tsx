@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowUpDown, ArrowUp, ArrowDown, FileText, Package, PackagePlus, Printer, Search, X } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, FileText, Package, PackagePlus, Printer, ScanSearch, Search, X } from "lucide-react";
 import { useSession } from "next-auth/react";
 
 import { QueryErrorAlert } from "@/components/feedback/query-error-alert";
@@ -24,7 +24,7 @@ import { ParcelRowActions } from "@/components/parcels/parcel-row-actions";
 import { ParcelStatusFilter } from "@/components/parcels/status-filter";
 import { ParcelTypeFilter } from "@/components/parcels/type-filter";
 import { ParcelZoneFilter } from "@/components/parcels/zone-filter";
-import { Button } from "@/components/ui/button";
+import { buttonVariants, Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -32,7 +32,7 @@ import {
   formatParcelStatus,
   parcelStatusBadgeClass,
 } from "@/lib/labels/parcels";
-import { getParcelDetailPath } from "@/lib/parcels/paths";
+import { getParcelDetailPath, getParcelInboundPath } from "@/lib/parcels/paths";
 import { getErrorMessage } from "@/lib/network/error-message";
 import { appToast } from "@/lib/toast/app-toast";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -309,6 +309,13 @@ export default function ParcelsPage() {
         icon={<Package strokeWidth={1.75} aria-hidden />}
         action={
           <>
+            <Link
+              href={getParcelInboundPath()}
+              className={cn(buttonVariants({ variant: "outline" }))}
+            >
+              <ScanSearch className="h-4 w-4" aria-hidden />
+              Inbound Receiving
+            </Link>
             <Button
               variant="outline"
               onClick={() => void handleBulkDownload("zpl")}

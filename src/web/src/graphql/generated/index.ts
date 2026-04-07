@@ -107,6 +107,10 @@ export type CompletePasswordResetInput = {
   token: Scalars['String']['input'];
 };
 
+export type ConfirmInboundReceivingSessionInput = {
+  sessionId: Scalars['UUID']['input'];
+};
+
 export type CreateDepotInput = {
   address: AddressInput;
   isActive: Scalars['Boolean']['input'];
@@ -347,6 +351,84 @@ export type GeoLocation = {
   longitude: Scalars['Float']['output'];
 };
 
+export type InboundExpectedParcel = {
+  __typename?: 'InboundExpectedParcel';
+  barcode: Scalars['String']['output'];
+  isScanned: Scalars['Boolean']['output'];
+  manifestLineId: Scalars['UUID']['output'];
+  parcelId: Scalars['UUID']['output'];
+  status: Scalars['String']['output'];
+  trackingNumber: Scalars['String']['output'];
+};
+
+export type InboundManifest = {
+  __typename?: 'InboundManifest';
+  createdAt: Scalars['DateTime']['output'];
+  depotId: Scalars['UUID']['output'];
+  depotName: Scalars['String']['output'];
+  expectedParcelCount: Scalars['Int']['output'];
+  id: Scalars['UUID']['output'];
+  manifestNumber: Scalars['String']['output'];
+  openSessionId?: Maybe<Scalars['UUID']['output']>;
+  scannedExpectedCount: Scalars['Int']['output'];
+  scannedUnexpectedCount: Scalars['Int']['output'];
+  status: Scalars['String']['output'];
+  truckIdentifier?: Maybe<Scalars['String']['output']>;
+};
+
+export type InboundParcelScanResult = {
+  __typename?: 'InboundParcelScanResult';
+  isExpected: Scalars['Boolean']['output'];
+  scannedParcel: InboundScannedParcel;
+  session: InboundReceivingSession;
+  sessionId: Scalars['UUID']['output'];
+};
+
+export type InboundReceivingException = {
+  __typename?: 'InboundReceivingException';
+  barcode: Scalars['String']['output'];
+  createdAt: Scalars['DateTime']['output'];
+  exceptionType: Scalars['String']['output'];
+  id: Scalars['UUID']['output'];
+  manifestLineId?: Maybe<Scalars['UUID']['output']>;
+  parcelId?: Maybe<Scalars['UUID']['output']>;
+  trackingNumber: Scalars['String']['output'];
+};
+
+export type InboundReceivingSession = {
+  __typename?: 'InboundReceivingSession';
+  confirmedAt?: Maybe<Scalars['DateTime']['output']>;
+  confirmedBy?: Maybe<Scalars['String']['output']>;
+  depotId: Scalars['UUID']['output'];
+  depotName: Scalars['String']['output'];
+  exceptions: Array<InboundReceivingException>;
+  expectedParcelCount: Scalars['Int']['output'];
+  expectedParcels: Array<InboundExpectedParcel>;
+  id: Scalars['UUID']['output'];
+  manifestId: Scalars['UUID']['output'];
+  manifestNumber: Scalars['String']['output'];
+  remainingExpectedCount: Scalars['Int']['output'];
+  scannedExpectedCount: Scalars['Int']['output'];
+  scannedParcels: Array<InboundScannedParcel>;
+  scannedUnexpectedCount: Scalars['Int']['output'];
+  startedAt: Scalars['DateTime']['output'];
+  startedBy?: Maybe<Scalars['String']['output']>;
+  status: Scalars['String']['output'];
+  truckIdentifier?: Maybe<Scalars['String']['output']>;
+};
+
+export type InboundScannedParcel = {
+  __typename?: 'InboundScannedParcel';
+  barcode: Scalars['String']['output'];
+  id: Scalars['UUID']['output'];
+  matchType: Scalars['String']['output'];
+  parcelId: Scalars['UUID']['output'];
+  scannedAt: Scalars['DateTime']['output'];
+  scannedBy?: Maybe<Scalars['String']['output']>;
+  status: Scalars['String']['output'];
+  trackingNumber: Scalars['String']['output'];
+};
+
 export type IntOperationFilterInput = {
   eq?: InputMaybe<Scalars['Int']['input']>;
   gt?: InputMaybe<Scalars['Int']['input']>;
@@ -366,6 +448,7 @@ export type Mutation = {
   __typename?: 'Mutation';
   cancelParcel?: Maybe<ParcelDetail>;
   completePasswordReset: UserActionResultDto;
+  confirmInboundReceivingSession: InboundReceivingSession;
   createDepot: Depot;
   createDriver: Driver;
   createRoute: Route;
@@ -379,7 +462,9 @@ export type Mutation = {
   deleteZone: Scalars['Boolean']['output'];
   registerParcel: ParcelDto;
   requestPasswordReset: UserActionResultDto;
+  scanInboundParcel: InboundParcelScanResult;
   sendPasswordResetEmail: UserActionResultDto;
+  startInboundReceivingSession: InboundReceivingSession;
   transitionParcelStatus: ParcelDto;
   updateDepot?: Maybe<Depot>;
   updateDriver: Driver;
@@ -397,6 +482,11 @@ export type MutationCancelParcelArgs = {
 
 export type MutationCompletePasswordResetArgs = {
   input: CompletePasswordResetInput;
+};
+
+
+export type MutationConfirmInboundReceivingSessionArgs = {
+  input: ConfirmInboundReceivingSessionInput;
 };
 
 
@@ -465,8 +555,18 @@ export type MutationRequestPasswordResetArgs = {
 };
 
 
+export type MutationScanInboundParcelArgs = {
+  input: ScanInboundParcelInput;
+};
+
+
 export type MutationSendPasswordResetEmailArgs = {
   userId: Scalars['UUID']['input'];
+};
+
+
+export type MutationStartInboundReceivingSessionArgs = {
+  input: StartInboundReceivingSessionInput;
 };
 
 
@@ -740,7 +840,6 @@ export type ParcelRouteOption = {
   trackingNumber: Scalars['String']['output'];
   weight: Scalars['Decimal']['output'];
   weightUnit?: Maybe<Scalars['String']['output']>;
-  zone?: Maybe<Zone>;
   zoneId: Scalars['UUID']['output'];
   zoneName?: Maybe<Scalars['String']['output']>;
 };
@@ -807,6 +906,8 @@ export type Query = {
   depots: Array<Depot>;
   driver?: Maybe<Driver>;
   drivers: Array<Driver>;
+  inboundReceivingSession?: Maybe<InboundReceivingSession>;
+  openInboundManifests: Array<InboundManifest>;
   parcel?: Maybe<ParcelDetail>;
   parcelByTrackingNumber?: Maybe<ParcelDetail>;
   parcelImport?: Maybe<ParcelImport>;
@@ -845,6 +946,11 @@ export type QueryDriverArgs = {
 export type QueryDriversArgs = {
   order?: InputMaybe<Array<DriverSortInput>>;
   where?: InputMaybe<DriverFilterInput>;
+};
+
+
+export type QueryInboundReceivingSessionArgs = {
+  sessionId: Scalars['UUID']['input'];
 };
 
 
@@ -984,7 +1090,6 @@ export type RegisteredParcel = {
   lastModifiedAt?: Maybe<Scalars['DateTime']['output']>;
   length: Scalars['Decimal']['output'];
   parcelType?: Maybe<Scalars['String']['output']>;
-  recipientAddress: Address;
   recipientCity?: Maybe<Scalars['String']['output']>;
   recipientCompanyName?: Maybe<Scalars['String']['output']>;
   recipientContactName?: Maybe<Scalars['String']['output']>;
@@ -996,7 +1101,6 @@ export type RegisteredParcel = {
   weight: Scalars['Decimal']['output'];
   weightUnit?: Maybe<Scalars['String']['output']>;
   width: Scalars['Decimal']['output'];
-  zone?: Maybe<Zone>;
   zoneId: Scalars['UUID']['output'];
   zoneName?: Maybe<Scalars['String']['output']>;
 };
@@ -1058,6 +1162,11 @@ export type RouteStatusOperationFilterInput = {
   nin?: InputMaybe<Array<RouteStatus>>;
 };
 
+export type ScanInboundParcelInput = {
+  barcode: Scalars['String']['input'];
+  sessionId: Scalars['UUID']['input'];
+};
+
 export type ServiceType =
   | 'ECONOMY'
   | 'EXPRESS'
@@ -1074,6 +1183,10 @@ export type ServiceTypeOperationFilterInput = {
 export type SortEnumType =
   | 'ASC'
   | 'DESC';
+
+export type StartInboundReceivingSessionInput = {
+  manifestId: Scalars['UUID']['input'];
+};
 
 export type StringOperationFilterInput = {
   and?: InputMaybe<Array<StringOperationFilterInput>>;
@@ -1484,6 +1597,39 @@ export type DeleteDriverMutationVariables = Exact<{
 
 export type DeleteDriverMutation = { __typename?: 'Mutation', deleteDriver: boolean };
 
+export type GetOpenInboundManifestsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type GetOpenInboundManifestsQuery = { __typename?: 'Query', openInboundManifests: Array<{ __typename?: 'InboundManifest', id: string, manifestNumber: string, truckIdentifier?: string | null, depotId: string, depotName: string, status: string, expectedParcelCount: number, scannedExpectedCount: number, scannedUnexpectedCount: number, openSessionId?: string | null, createdAt: string }> };
+
+export type GetInboundReceivingSessionQueryVariables = Exact<{
+  sessionId: Scalars['UUID']['input'];
+}>;
+
+
+export type GetInboundReceivingSessionQuery = { __typename?: 'Query', inboundReceivingSession?: { __typename?: 'InboundReceivingSession', id: string, manifestId: string, manifestNumber: string, truckIdentifier?: string | null, depotId: string, depotName: string, status: string, startedAt: string, startedBy?: string | null, confirmedAt?: string | null, confirmedBy?: string | null, expectedParcelCount: number, scannedExpectedCount: number, scannedUnexpectedCount: number, remainingExpectedCount: number, expectedParcels: Array<{ __typename?: 'InboundExpectedParcel', manifestLineId: string, parcelId: string, trackingNumber: string, barcode: string, status: string, isScanned: boolean }>, scannedParcels: Array<{ __typename?: 'InboundScannedParcel', id: string, parcelId: string, trackingNumber: string, barcode: string, matchType: string, status: string, scannedAt: string, scannedBy?: string | null }>, exceptions: Array<{ __typename?: 'InboundReceivingException', id: string, parcelId?: string | null, manifestLineId?: string | null, exceptionType: string, trackingNumber: string, barcode: string, createdAt: string }> } | null };
+
+export type StartInboundReceivingSessionMutationVariables = Exact<{
+  input: StartInboundReceivingSessionInput;
+}>;
+
+
+export type StartInboundReceivingSessionMutation = { __typename?: 'Mutation', startInboundReceivingSession: { __typename?: 'InboundReceivingSession', id: string, manifestId: string, manifestNumber: string, truckIdentifier?: string | null, depotId: string, depotName: string, status: string, startedAt: string, startedBy?: string | null, confirmedAt?: string | null, confirmedBy?: string | null, expectedParcelCount: number, scannedExpectedCount: number, scannedUnexpectedCount: number, remainingExpectedCount: number, expectedParcels: Array<{ __typename?: 'InboundExpectedParcel', manifestLineId: string, parcelId: string, trackingNumber: string, barcode: string, status: string, isScanned: boolean }>, scannedParcels: Array<{ __typename?: 'InboundScannedParcel', id: string, parcelId: string, trackingNumber: string, barcode: string, matchType: string, status: string, scannedAt: string, scannedBy?: string | null }>, exceptions: Array<{ __typename?: 'InboundReceivingException', id: string, parcelId?: string | null, manifestLineId?: string | null, exceptionType: string, trackingNumber: string, barcode: string, createdAt: string }> } };
+
+export type ScanInboundParcelMutationVariables = Exact<{
+  input: ScanInboundParcelInput;
+}>;
+
+
+export type ScanInboundParcelMutation = { __typename?: 'Mutation', scanInboundParcel: { __typename?: 'InboundParcelScanResult', sessionId: string, isExpected: boolean, scannedParcel: { __typename?: 'InboundScannedParcel', id: string, parcelId: string, trackingNumber: string, barcode: string, matchType: string, status: string, scannedAt: string, scannedBy?: string | null }, session: { __typename?: 'InboundReceivingSession', id: string, manifestId: string, manifestNumber: string, truckIdentifier?: string | null, depotId: string, depotName: string, status: string, startedAt: string, startedBy?: string | null, confirmedAt?: string | null, confirmedBy?: string | null, expectedParcelCount: number, scannedExpectedCount: number, scannedUnexpectedCount: number, remainingExpectedCount: number, expectedParcels: Array<{ __typename?: 'InboundExpectedParcel', manifestLineId: string, parcelId: string, trackingNumber: string, barcode: string, status: string, isScanned: boolean }>, scannedParcels: Array<{ __typename?: 'InboundScannedParcel', id: string, parcelId: string, trackingNumber: string, barcode: string, matchType: string, status: string, scannedAt: string, scannedBy?: string | null }>, exceptions: Array<{ __typename?: 'InboundReceivingException', id: string, parcelId?: string | null, manifestLineId?: string | null, exceptionType: string, trackingNumber: string, barcode: string, createdAt: string }> } } };
+
+export type ConfirmInboundReceivingSessionMutationVariables = Exact<{
+  input: ConfirmInboundReceivingSessionInput;
+}>;
+
+
+export type ConfirmInboundReceivingSessionMutation = { __typename?: 'Mutation', confirmInboundReceivingSession: { __typename?: 'InboundReceivingSession', id: string, manifestId: string, manifestNumber: string, truckIdentifier?: string | null, depotId: string, depotName: string, status: string, startedAt: string, startedBy?: string | null, confirmedAt?: string | null, confirmedBy?: string | null, expectedParcelCount: number, scannedExpectedCount: number, scannedUnexpectedCount: number, remainingExpectedCount: number, expectedParcels: Array<{ __typename?: 'InboundExpectedParcel', manifestLineId: string, parcelId: string, trackingNumber: string, barcode: string, status: string, isScanned: boolean }>, scannedParcels: Array<{ __typename?: 'InboundScannedParcel', id: string, parcelId: string, trackingNumber: string, barcode: string, matchType: string, status: string, scannedAt: string, scannedBy?: string | null }>, exceptions: Array<{ __typename?: 'InboundReceivingException', id: string, parcelId?: string | null, manifestLineId?: string | null, exceptionType: string, trackingNumber: string, barcode: string, createdAt: string }> } };
+
 export type GetRegisteredParcelsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
@@ -1725,6 +1871,11 @@ export const GetDriverDocument = {"kind":"Document","definitions":[{"kind":"Oper
 export const CreateDriverDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateDriver"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"CreateDriverInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"createDriver"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}},{"kind":"Field","name":{"kind":"Name","value":"firstName"}},{"kind":"Field","name":{"kind":"Name","value":"lastName"}},{"kind":"Field","name":{"kind":"Name","value":"phone"}},{"kind":"Field","name":{"kind":"Name","value":"email"}},{"kind":"Field","name":{"kind":"Name","value":"licenseNumber"}},{"kind":"Field","name":{"kind":"Name","value":"licenseExpiryDate"}},{"kind":"Field","name":{"kind":"Name","value":"photoUrl"}},{"kind":"Field","name":{"kind":"Name","value":"zoneId"}},{"kind":"Field","name":{"kind":"Name","value":"depotId"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"userId"}},{"kind":"Field","name":{"kind":"Name","value":"zoneName"}},{"kind":"Field","name":{"kind":"Name","value":"depotName"}},{"kind":"Field","name":{"kind":"Name","value":"userName"}},{"kind":"Field","name":{"kind":"Name","value":"availabilitySchedule"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"dayOfWeek"}},{"kind":"Field","name":{"kind":"Name","value":"shiftStart"}},{"kind":"Field","name":{"kind":"Name","value":"shiftEnd"}},{"kind":"Field","name":{"kind":"Name","value":"isAvailable"}}]}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}}]}}]}}]} as unknown as DocumentNode<CreateDriverMutation, CreateDriverMutationVariables>;
 export const UpdateDriverDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateDriver"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"UUID"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"UpdateDriverInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateDriver"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}},{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}},{"kind":"Field","name":{"kind":"Name","value":"firstName"}},{"kind":"Field","name":{"kind":"Name","value":"lastName"}},{"kind":"Field","name":{"kind":"Name","value":"phone"}},{"kind":"Field","name":{"kind":"Name","value":"email"}},{"kind":"Field","name":{"kind":"Name","value":"licenseNumber"}},{"kind":"Field","name":{"kind":"Name","value":"licenseExpiryDate"}},{"kind":"Field","name":{"kind":"Name","value":"photoUrl"}},{"kind":"Field","name":{"kind":"Name","value":"zoneId"}},{"kind":"Field","name":{"kind":"Name","value":"depotId"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"userId"}},{"kind":"Field","name":{"kind":"Name","value":"zoneName"}},{"kind":"Field","name":{"kind":"Name","value":"depotName"}},{"kind":"Field","name":{"kind":"Name","value":"userName"}},{"kind":"Field","name":{"kind":"Name","value":"availabilitySchedule"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"dayOfWeek"}},{"kind":"Field","name":{"kind":"Name","value":"shiftStart"}},{"kind":"Field","name":{"kind":"Name","value":"shiftEnd"}},{"kind":"Field","name":{"kind":"Name","value":"isAvailable"}}]}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}}]}}]}}]} as unknown as DocumentNode<UpdateDriverMutation, UpdateDriverMutationVariables>;
 export const DeleteDriverDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"DeleteDriver"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"UUID"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deleteDriver"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}]}]}}]} as unknown as DocumentNode<DeleteDriverMutation, DeleteDriverMutationVariables>;
+export const GetOpenInboundManifestsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetOpenInboundManifests"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"openInboundManifests"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"manifestNumber"}},{"kind":"Field","name":{"kind":"Name","value":"truckIdentifier"}},{"kind":"Field","name":{"kind":"Name","value":"depotId"}},{"kind":"Field","name":{"kind":"Name","value":"depotName"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"expectedParcelCount"}},{"kind":"Field","name":{"kind":"Name","value":"scannedExpectedCount"}},{"kind":"Field","name":{"kind":"Name","value":"scannedUnexpectedCount"}},{"kind":"Field","name":{"kind":"Name","value":"openSessionId"}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}}]}}]}}]} as unknown as DocumentNode<GetOpenInboundManifestsQuery, GetOpenInboundManifestsQueryVariables>;
+export const GetInboundReceivingSessionDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetInboundReceivingSession"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"sessionId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"UUID"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"inboundReceivingSession"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"sessionId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"sessionId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"manifestId"}},{"kind":"Field","name":{"kind":"Name","value":"manifestNumber"}},{"kind":"Field","name":{"kind":"Name","value":"truckIdentifier"}},{"kind":"Field","name":{"kind":"Name","value":"depotId"}},{"kind":"Field","name":{"kind":"Name","value":"depotName"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"startedAt"}},{"kind":"Field","name":{"kind":"Name","value":"startedBy"}},{"kind":"Field","name":{"kind":"Name","value":"confirmedAt"}},{"kind":"Field","name":{"kind":"Name","value":"confirmedBy"}},{"kind":"Field","name":{"kind":"Name","value":"expectedParcelCount"}},{"kind":"Field","name":{"kind":"Name","value":"scannedExpectedCount"}},{"kind":"Field","name":{"kind":"Name","value":"scannedUnexpectedCount"}},{"kind":"Field","name":{"kind":"Name","value":"remainingExpectedCount"}},{"kind":"Field","name":{"kind":"Name","value":"expectedParcels"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"manifestLineId"}},{"kind":"Field","name":{"kind":"Name","value":"parcelId"}},{"kind":"Field","name":{"kind":"Name","value":"trackingNumber"}},{"kind":"Field","name":{"kind":"Name","value":"barcode"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"isScanned"}}]}},{"kind":"Field","name":{"kind":"Name","value":"scannedParcels"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"parcelId"}},{"kind":"Field","name":{"kind":"Name","value":"trackingNumber"}},{"kind":"Field","name":{"kind":"Name","value":"barcode"}},{"kind":"Field","name":{"kind":"Name","value":"matchType"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"scannedAt"}},{"kind":"Field","name":{"kind":"Name","value":"scannedBy"}}]}},{"kind":"Field","name":{"kind":"Name","value":"exceptions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"parcelId"}},{"kind":"Field","name":{"kind":"Name","value":"manifestLineId"}},{"kind":"Field","name":{"kind":"Name","value":"exceptionType"}},{"kind":"Field","name":{"kind":"Name","value":"trackingNumber"}},{"kind":"Field","name":{"kind":"Name","value":"barcode"}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}}]}}]}}]}}]} as unknown as DocumentNode<GetInboundReceivingSessionQuery, GetInboundReceivingSessionQueryVariables>;
+export const StartInboundReceivingSessionDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"StartInboundReceivingSession"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"StartInboundReceivingSessionInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"startInboundReceivingSession"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"manifestId"}},{"kind":"Field","name":{"kind":"Name","value":"manifestNumber"}},{"kind":"Field","name":{"kind":"Name","value":"truckIdentifier"}},{"kind":"Field","name":{"kind":"Name","value":"depotId"}},{"kind":"Field","name":{"kind":"Name","value":"depotName"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"startedAt"}},{"kind":"Field","name":{"kind":"Name","value":"startedBy"}},{"kind":"Field","name":{"kind":"Name","value":"confirmedAt"}},{"kind":"Field","name":{"kind":"Name","value":"confirmedBy"}},{"kind":"Field","name":{"kind":"Name","value":"expectedParcelCount"}},{"kind":"Field","name":{"kind":"Name","value":"scannedExpectedCount"}},{"kind":"Field","name":{"kind":"Name","value":"scannedUnexpectedCount"}},{"kind":"Field","name":{"kind":"Name","value":"remainingExpectedCount"}},{"kind":"Field","name":{"kind":"Name","value":"expectedParcels"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"manifestLineId"}},{"kind":"Field","name":{"kind":"Name","value":"parcelId"}},{"kind":"Field","name":{"kind":"Name","value":"trackingNumber"}},{"kind":"Field","name":{"kind":"Name","value":"barcode"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"isScanned"}}]}},{"kind":"Field","name":{"kind":"Name","value":"scannedParcels"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"parcelId"}},{"kind":"Field","name":{"kind":"Name","value":"trackingNumber"}},{"kind":"Field","name":{"kind":"Name","value":"barcode"}},{"kind":"Field","name":{"kind":"Name","value":"matchType"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"scannedAt"}},{"kind":"Field","name":{"kind":"Name","value":"scannedBy"}}]}},{"kind":"Field","name":{"kind":"Name","value":"exceptions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"parcelId"}},{"kind":"Field","name":{"kind":"Name","value":"manifestLineId"}},{"kind":"Field","name":{"kind":"Name","value":"exceptionType"}},{"kind":"Field","name":{"kind":"Name","value":"trackingNumber"}},{"kind":"Field","name":{"kind":"Name","value":"barcode"}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}}]}}]}}]}}]} as unknown as DocumentNode<StartInboundReceivingSessionMutation, StartInboundReceivingSessionMutationVariables>;
+export const ScanInboundParcelDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"ScanInboundParcel"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ScanInboundParcelInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"scanInboundParcel"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sessionId"}},{"kind":"Field","name":{"kind":"Name","value":"isExpected"}},{"kind":"Field","name":{"kind":"Name","value":"scannedParcel"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"parcelId"}},{"kind":"Field","name":{"kind":"Name","value":"trackingNumber"}},{"kind":"Field","name":{"kind":"Name","value":"barcode"}},{"kind":"Field","name":{"kind":"Name","value":"matchType"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"scannedAt"}},{"kind":"Field","name":{"kind":"Name","value":"scannedBy"}}]}},{"kind":"Field","name":{"kind":"Name","value":"session"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"manifestId"}},{"kind":"Field","name":{"kind":"Name","value":"manifestNumber"}},{"kind":"Field","name":{"kind":"Name","value":"truckIdentifier"}},{"kind":"Field","name":{"kind":"Name","value":"depotId"}},{"kind":"Field","name":{"kind":"Name","value":"depotName"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"startedAt"}},{"kind":"Field","name":{"kind":"Name","value":"startedBy"}},{"kind":"Field","name":{"kind":"Name","value":"confirmedAt"}},{"kind":"Field","name":{"kind":"Name","value":"confirmedBy"}},{"kind":"Field","name":{"kind":"Name","value":"expectedParcelCount"}},{"kind":"Field","name":{"kind":"Name","value":"scannedExpectedCount"}},{"kind":"Field","name":{"kind":"Name","value":"scannedUnexpectedCount"}},{"kind":"Field","name":{"kind":"Name","value":"remainingExpectedCount"}},{"kind":"Field","name":{"kind":"Name","value":"expectedParcels"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"manifestLineId"}},{"kind":"Field","name":{"kind":"Name","value":"parcelId"}},{"kind":"Field","name":{"kind":"Name","value":"trackingNumber"}},{"kind":"Field","name":{"kind":"Name","value":"barcode"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"isScanned"}}]}},{"kind":"Field","name":{"kind":"Name","value":"scannedParcels"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"parcelId"}},{"kind":"Field","name":{"kind":"Name","value":"trackingNumber"}},{"kind":"Field","name":{"kind":"Name","value":"barcode"}},{"kind":"Field","name":{"kind":"Name","value":"matchType"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"scannedAt"}},{"kind":"Field","name":{"kind":"Name","value":"scannedBy"}}]}},{"kind":"Field","name":{"kind":"Name","value":"exceptions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"parcelId"}},{"kind":"Field","name":{"kind":"Name","value":"manifestLineId"}},{"kind":"Field","name":{"kind":"Name","value":"exceptionType"}},{"kind":"Field","name":{"kind":"Name","value":"trackingNumber"}},{"kind":"Field","name":{"kind":"Name","value":"barcode"}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}}]}}]}}]}}]}}]} as unknown as DocumentNode<ScanInboundParcelMutation, ScanInboundParcelMutationVariables>;
+export const ConfirmInboundReceivingSessionDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"ConfirmInboundReceivingSession"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ConfirmInboundReceivingSessionInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"confirmInboundReceivingSession"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"manifestId"}},{"kind":"Field","name":{"kind":"Name","value":"manifestNumber"}},{"kind":"Field","name":{"kind":"Name","value":"truckIdentifier"}},{"kind":"Field","name":{"kind":"Name","value":"depotId"}},{"kind":"Field","name":{"kind":"Name","value":"depotName"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"startedAt"}},{"kind":"Field","name":{"kind":"Name","value":"startedBy"}},{"kind":"Field","name":{"kind":"Name","value":"confirmedAt"}},{"kind":"Field","name":{"kind":"Name","value":"confirmedBy"}},{"kind":"Field","name":{"kind":"Name","value":"expectedParcelCount"}},{"kind":"Field","name":{"kind":"Name","value":"scannedExpectedCount"}},{"kind":"Field","name":{"kind":"Name","value":"scannedUnexpectedCount"}},{"kind":"Field","name":{"kind":"Name","value":"remainingExpectedCount"}},{"kind":"Field","name":{"kind":"Name","value":"expectedParcels"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"manifestLineId"}},{"kind":"Field","name":{"kind":"Name","value":"parcelId"}},{"kind":"Field","name":{"kind":"Name","value":"trackingNumber"}},{"kind":"Field","name":{"kind":"Name","value":"barcode"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"isScanned"}}]}},{"kind":"Field","name":{"kind":"Name","value":"scannedParcels"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"parcelId"}},{"kind":"Field","name":{"kind":"Name","value":"trackingNumber"}},{"kind":"Field","name":{"kind":"Name","value":"barcode"}},{"kind":"Field","name":{"kind":"Name","value":"matchType"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"scannedAt"}},{"kind":"Field","name":{"kind":"Name","value":"scannedBy"}}]}},{"kind":"Field","name":{"kind":"Name","value":"exceptions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"parcelId"}},{"kind":"Field","name":{"kind":"Name","value":"manifestLineId"}},{"kind":"Field","name":{"kind":"Name","value":"exceptionType"}},{"kind":"Field","name":{"kind":"Name","value":"trackingNumber"}},{"kind":"Field","name":{"kind":"Name","value":"barcode"}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}}]}}]}}]}}]} as unknown as DocumentNode<ConfirmInboundReceivingSessionMutation, ConfirmInboundReceivingSessionMutationVariables>;
 export const GetRegisteredParcelsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetRegisteredParcels"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"registeredParcels"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"trackingNumber"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"serviceType"}},{"kind":"Field","name":{"kind":"Name","value":"weight"}},{"kind":"Field","name":{"kind":"Name","value":"weightUnit"}},{"kind":"Field","name":{"kind":"Name","value":"parcelType"}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}},{"kind":"Field","name":{"kind":"Name","value":"zoneName"}}]}}]}}]} as unknown as DocumentNode<GetRegisteredParcelsQuery, GetRegisteredParcelsQueryVariables>;
 export const GetPreLoadParcelsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetPreLoadParcels"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"search"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"where"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"ParcelFilterInput"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"order"}},"type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ParcelSortInput"}}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"preLoadParcels"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"search"},"value":{"kind":"Variable","name":{"kind":"Name","value":"search"}}},{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"Variable","name":{"kind":"Name","value":"where"}}},{"kind":"Argument","name":{"kind":"Name","value":"order"},"value":{"kind":"Variable","name":{"kind":"Name","value":"order"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"trackingNumber"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"serviceType"}},{"kind":"Field","name":{"kind":"Name","value":"weight"}},{"kind":"Field","name":{"kind":"Name","value":"weightUnit"}},{"kind":"Field","name":{"kind":"Name","value":"parcelType"}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}},{"kind":"Field","name":{"kind":"Name","value":"zoneName"}},{"kind":"Field","name":{"kind":"Name","value":"estimatedDeliveryDate"}},{"kind":"Field","name":{"kind":"Name","value":"recipientContactName"}},{"kind":"Field","name":{"kind":"Name","value":"recipientCompanyName"}},{"kind":"Field","name":{"kind":"Name","value":"recipientStreet1"}},{"kind":"Field","name":{"kind":"Name","value":"recipientCity"}},{"kind":"Field","name":{"kind":"Name","value":"recipientPostalCode"}}]}}]}}]} as unknown as DocumentNode<GetPreLoadParcelsQuery, GetPreLoadParcelsQueryVariables>;
 export const GetPreLoadParcelsConnectionDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetPreLoadParcelsConnection"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"search"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"where"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"ParcelFilterInput"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"order"}},"type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ParcelSortInput"}}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"first"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"after"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"preLoadParcelsConnection"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"search"},"value":{"kind":"Variable","name":{"kind":"Name","value":"search"}}},{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"Variable","name":{"kind":"Name","value":"where"}}},{"kind":"Argument","name":{"kind":"Name","value":"order"},"value":{"kind":"Variable","name":{"kind":"Name","value":"order"}}},{"kind":"Argument","name":{"kind":"Name","value":"first"},"value":{"kind":"Variable","name":{"kind":"Name","value":"first"}}},{"kind":"Argument","name":{"kind":"Name","value":"after"},"value":{"kind":"Variable","name":{"kind":"Name","value":"after"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"totalCount"}},{"kind":"Field","name":{"kind":"Name","value":"pageInfo"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"hasNextPage"}},{"kind":"Field","name":{"kind":"Name","value":"hasPreviousPage"}},{"kind":"Field","name":{"kind":"Name","value":"startCursor"}},{"kind":"Field","name":{"kind":"Name","value":"endCursor"}}]}},{"kind":"Field","name":{"kind":"Name","value":"nodes"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"trackingNumber"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"serviceType"}},{"kind":"Field","name":{"kind":"Name","value":"weight"}},{"kind":"Field","name":{"kind":"Name","value":"weightUnit"}},{"kind":"Field","name":{"kind":"Name","value":"parcelType"}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}},{"kind":"Field","name":{"kind":"Name","value":"zoneName"}},{"kind":"Field","name":{"kind":"Name","value":"estimatedDeliveryDate"}},{"kind":"Field","name":{"kind":"Name","value":"recipientContactName"}},{"kind":"Field","name":{"kind":"Name","value":"recipientCompanyName"}},{"kind":"Field","name":{"kind":"Name","value":"recipientStreet1"}},{"kind":"Field","name":{"kind":"Name","value":"recipientCity"}},{"kind":"Field","name":{"kind":"Name","value":"recipientPostalCode"}}]}}]}}]}}]} as unknown as DocumentNode<GetPreLoadParcelsConnectionQuery, GetPreLoadParcelsConnectionQueryVariables>;
