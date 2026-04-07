@@ -87,7 +87,6 @@ describe("binLocationsService", () => {
     });
 
     await binLocationsService.updateBinLocation("bin-1", {
-      storageAisleId: "aisle-1",
       name: "BIN-02",
       isActive: false,
     });
@@ -95,9 +94,30 @@ describe("binLocationsService", () => {
     expect(mockGraphql).toHaveBeenCalledWith(expect.any(Object), {
       id: "bin-1",
       input: {
-        storageAisleId: "aisle-1",
         name: "BIN-02",
         isActive: false,
+      },
+    });
+  });
+
+  it("omits bin active state when no status change is requested", async () => {
+    mockGraphql.mockResolvedValueOnce({
+      updateBinLocation: {
+        id: "bin-1",
+        name: "BIN-03",
+        isActive: true,
+        storageAisleId: "aisle-1",
+      },
+    });
+
+    await binLocationsService.updateBinLocation("bin-1", {
+      name: "BIN-03",
+    });
+
+    expect(mockGraphql).toHaveBeenCalledWith(expect.any(Object), {
+      id: "bin-1",
+      input: {
+        name: "BIN-03",
       },
     });
   });

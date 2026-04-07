@@ -1007,8 +1007,7 @@ input TransitionParcelStatusInput {
 
 input UpdateBinLocationInput {
   name: String!
-  storageAisleId: UUID!
-  isActive: Boolean!
+  isActive: Boolean
 }
 
 input UpdateDepotInput {
@@ -1061,12 +1060,10 @@ input UpdateParcelInput {
 
 input UpdateStorageAisleInput {
   name: String!
-  storageZoneId: UUID!
 }
 
 input UpdateStorageZoneInput {
   name: String!
-  depotId: UUID!
 }
 
 input UpdateUserInput {

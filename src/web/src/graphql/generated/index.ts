@@ -1346,9 +1346,8 @@ export type TransitionParcelStatusInput = {
 };
 
 export type UpdateBinLocationInput = {
-  isActive: Scalars['Boolean']['input'];
+  isActive?: InputMaybe<Scalars['Boolean']['input']>;
   name: Scalars['String']['input'];
-  storageAisleId: Scalars['UUID']['input'];
 };
 
 export type UpdateDepotInput = {
@@ -1401,11 +1400,9 @@ export type UpdateParcelInput = {
 
 export type UpdateStorageAisleInput = {
   name: Scalars['String']['input'];
-  storageZoneId: Scalars['UUID']['input'];
 };
 
 export type UpdateStorageZoneInput = {
-  depotId: Scalars['UUID']['input'];
   name: Scalars['String']['input'];
 };
 

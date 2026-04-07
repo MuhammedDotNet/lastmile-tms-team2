@@ -1,3 +1,5 @@
+// These are UI-facing models, not raw GraphQL transport types:
+// we strip __typename and normalize nested collections to plain arrays for component use.
 export interface DepotStorageLayout {
   depotId: string;
   depotName: string;
@@ -31,7 +33,6 @@ export interface CreateStorageZoneRequest {
 }
 
 export interface UpdateStorageZoneRequest {
-  depotId: string;
   name: string;
 }
 
@@ -41,7 +42,6 @@ export interface CreateStorageAisleRequest {
 }
 
 export interface UpdateStorageAisleRequest {
-  storageZoneId: string;
   name: string;
 }
 
@@ -52,7 +52,6 @@ export interface CreateBinLocationRequest {
 }
 
 export interface UpdateBinLocationRequest {
-  storageAisleId: string;
   name: string;
-  isActive: boolean;
+  isActive?: boolean;
 }

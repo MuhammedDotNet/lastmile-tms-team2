@@ -124,7 +124,6 @@ export const binLocationsService = {
     const data = await graphqlRequest<UpdateStorageZoneMutation>(UPDATE_STORAGE_ZONE, {
       id,
       input: {
-        depotId: req.depotId,
         name: req.name,
       },
     });
@@ -155,7 +154,6 @@ export const binLocationsService = {
     const data = await graphqlRequest<UpdateStorageAisleMutation>(UPDATE_STORAGE_AISLE, {
       id,
       input: {
-        storageZoneId: req.storageZoneId,
         name: req.name,
       },
     });
@@ -187,9 +185,8 @@ export const binLocationsService = {
     const data = await graphqlRequest<UpdateBinLocationMutation>(UPDATE_BIN_LOCATION, {
       id,
       input: {
-        storageAisleId: req.storageAisleId,
         name: req.name,
-        isActive: req.isActive,
+        ...(req.isActive !== undefined ? { isActive: req.isActive } : {}),
       },
     });
 
