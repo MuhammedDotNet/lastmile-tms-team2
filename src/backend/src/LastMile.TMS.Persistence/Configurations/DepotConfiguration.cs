@@ -33,5 +33,10 @@ public class DepotConfiguration : IEntityTypeConfiguration<Depot>
             .WithOne(x => x.Depot)
             .HasForeignKey(x => x.DepotId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasMany(x => x.StorageZones)
+            .WithOne(x => x.Depot)
+            .HasForeignKey(x => x.DepotId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }
