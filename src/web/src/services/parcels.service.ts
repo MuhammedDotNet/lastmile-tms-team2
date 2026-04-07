@@ -287,6 +287,8 @@ export const parcelsService = {
   getRegisteredParcels: async (
     _statusFilter?: string | null,
   ): Promise<GetRegisteredParcelsQuery["registeredParcels"]> => {
+    void _statusFilter;
+
     if (USE_MOCK) {
       return mockParcels;
     }

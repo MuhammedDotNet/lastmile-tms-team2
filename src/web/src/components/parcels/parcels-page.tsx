@@ -110,7 +110,7 @@ export default function ParcelsPage() {
     currentPageCursor,
   );
 
-  const parcels = data?.nodes ?? [];
+  const parcels = useMemo(() => data?.nodes ?? [], [data?.nodes]);
   const total = data?.totalCount ?? 0;
   const pageInfo = data?.pageInfo ?? {
     hasNextPage: false,
