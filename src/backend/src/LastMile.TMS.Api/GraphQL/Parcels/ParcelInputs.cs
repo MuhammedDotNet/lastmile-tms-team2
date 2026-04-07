@@ -67,3 +67,19 @@ public sealed class TransitionParcelStatusInput
     public string? Location { get; set; }
     public string? Description { get; set; }
 }
+
+public sealed class StartInboundReceivingSessionInput
+{
+    public Guid ManifestId { get; set; }
+}
+
+public sealed class ScanInboundParcelInput
+{
+    public Guid SessionId { get; set; }
+    public string Barcode { get; set; } = string.Empty;
+}
+
+public sealed class ConfirmInboundReceivingSessionInput
+{
+    public Guid SessionId { get; set; }
+}

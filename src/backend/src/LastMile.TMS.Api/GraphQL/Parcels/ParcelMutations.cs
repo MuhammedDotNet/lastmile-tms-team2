@@ -36,4 +36,25 @@ public sealed class ParcelMutations
         [Service] ISender mediator = null!,
         CancellationToken cancellationToken = default) =>
         mediator.Send(input.ToDto(), cancellationToken);
+
+    [Authorize(Roles = new[] { "OperationsManager", "Admin", "Dispatcher", "WarehouseOperator" })]
+    public Task<InboundReceivingSessionDto> StartInboundReceivingSession(
+        StartInboundReceivingSessionInput input,
+        [Service] ISender mediator = null!,
+        CancellationToken cancellationToken = default) =>
+        mediator.Send(input.ToDto(), cancellationToken);
+
+    [Authorize(Roles = new[] { "OperationsManager", "Admin", "Dispatcher", "WarehouseOperator" })]
+    public Task<InboundParcelScanResultDto> ScanInboundParcel(
+        ScanInboundParcelInput input,
+        [Service] ISender mediator = null!,
+        CancellationToken cancellationToken = default) =>
+        mediator.Send(input.ToDto(), cancellationToken);
+
+    [Authorize(Roles = new[] { "OperationsManager", "Admin", "Dispatcher", "WarehouseOperator" })]
+    public Task<InboundReceivingSessionDto> ConfirmInboundReceivingSession(
+        ConfirmInboundReceivingSessionInput input,
+        [Service] ISender mediator = null!,
+        CancellationToken cancellationToken = default) =>
+        mediator.Send(input.ToDto(), cancellationToken);
 }

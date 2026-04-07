@@ -301,6 +301,60 @@ public sealed class TrackingEventType : ObjectType<TrackingEventDto>
     }
 }
 
+public sealed class InboundManifestType : ObjectType<InboundManifestDto>
+{
+    protected override void Configure(IObjectTypeDescriptor<InboundManifestDto> descriptor)
+    {
+        descriptor.Name("InboundManifest");
+        descriptor.BindFieldsImplicitly();
+    }
+}
+
+public sealed class InboundReceivingSessionType : ObjectType<InboundReceivingSessionDto>
+{
+    protected override void Configure(IObjectTypeDescriptor<InboundReceivingSessionDto> descriptor)
+    {
+        descriptor.Name("InboundReceivingSession");
+        descriptor.BindFieldsImplicitly();
+    }
+}
+
+public sealed class InboundExpectedParcelType : ObjectType<InboundExpectedParcelDto>
+{
+    protected override void Configure(IObjectTypeDescriptor<InboundExpectedParcelDto> descriptor)
+    {
+        descriptor.Name("InboundExpectedParcel");
+        descriptor.BindFieldsImplicitly();
+    }
+}
+
+public sealed class InboundScannedParcelType : ObjectType<InboundScannedParcelDto>
+{
+    protected override void Configure(IObjectTypeDescriptor<InboundScannedParcelDto> descriptor)
+    {
+        descriptor.Name("InboundScannedParcel");
+        descriptor.BindFieldsImplicitly();
+    }
+}
+
+public sealed class InboundReceivingExceptionType : ObjectType<InboundReceivingExceptionDto>
+{
+    protected override void Configure(IObjectTypeDescriptor<InboundReceivingExceptionDto> descriptor)
+    {
+        descriptor.Name("InboundReceivingException");
+        descriptor.BindFieldsImplicitly();
+    }
+}
+
+public sealed class InboundParcelScanResultType : ObjectType<InboundParcelScanResultDto>
+{
+    protected override void Configure(IObjectTypeDescriptor<InboundParcelScanResultDto> descriptor)
+    {
+        descriptor.Name("InboundParcelScanResult");
+        descriptor.BindFieldsImplicitly();
+    }
+}
+
 public sealed class ParcelFilterInputType : FilterInputType<Parcel>
 {
     protected override void Configure(IFilterInputTypeDescriptor<Parcel> descriptor)

@@ -4,6 +4,7 @@ using FluentAssertions;
 using LastMile.TMS.Domain.Entities;
 using LastMile.TMS.Domain.Enums;
 using LastMile.TMS.Persistence;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -1590,6 +1591,294 @@ public class ParcelGraphQLTests(CustomWebApplicationFactory factory)
 
     #endregion
 
+    #region inbound receiving
+
+    [Fact]
+    public async Task GetOpenInboundManifests_ForAssignedDepot_ReturnsOpenManifest()
+    {
+        var operatorEmail = await SeedWarehouseOperatorAsync();
+        var expectedParcelId = await SeedParcelAsync(
+            DbSeeder.TestZoneId,
+            "LMINBOUNDAPI0001",
+            ParcelStatus.Registered);
+        var missingParcelId = await SeedParcelAsync(
+            DbSeeder.TestZoneId,
+            "LMINBOUNDAPI0002",
+            ParcelStatus.Registered);
+        await SeedInboundManifestAsync("MAN-API-001", "TRUCK-API-1", expectedParcelId, missingParcelId);
+
+        var token = await GetAccessTokenAsync(operatorEmail, "Warehouse@12345");
+
+        using var document = await PostGraphQLAsync(
+            """
+            query GetOpenInboundManifests {
+              openInboundManifests {
+                manifestNumber
+                truckIdentifier
+                depotName
+                expectedParcelCount
+                openSessionId
+                status
+              }
+            }
+            """,
+            accessToken: token);
+
+        document.RootElement.TryGetProperty("errors", out var errors)
+            .Should().BeFalse("openInboundManifests should not return errors: {0}", errors.ToString());
+
+        var manifest = document.RootElement
+            .GetProperty("data")
+            .GetProperty("openInboundManifests")
+            .EnumerateArray()
+            .Single();
+
+        manifest.GetProperty("manifestNumber").GetString().Should().Be("MAN-API-001");
+        manifest.GetProperty("truckIdentifier").GetString().Should().Be("TRUCK-API-1");
+        manifest.GetProperty("depotName").GetString().Should().Be("Test Depot");
+        manifest.GetProperty("expectedParcelCount").GetInt32().Should().Be(2);
+        manifest.GetProperty("openSessionId").ValueKind.Should().Be(JsonValueKind.Null);
+        manifest.GetProperty("status").GetString().Should().Be("Open");
+    }
+
+    [Fact]
+    public async Task InboundReceivingFlow_StartScanQueryAndConfirm_ReturnsExpectedSessionState()
+    {
+        var operatorEmail = await SeedWarehouseOperatorAsync();
+        var expectedParcelId = await SeedParcelAsync(
+            DbSeeder.TestZoneId,
+            "LMINBOUNDAPI0101",
+            ParcelStatus.Registered);
+        var missingParcelId = await SeedParcelAsync(
+            DbSeeder.TestZoneId,
+            "LMINBOUNDAPI0102",
+            ParcelStatus.Registered);
+        await SeedParcelAsync(
+            DbSeeder.TestZoneId,
+            "LMINBOUNDAPI0199",
+            ParcelStatus.Registered);
+
+        var manifestId = await SeedInboundManifestAsync(
+            "MAN-API-010",
+            "TRUCK-API-10",
+            expectedParcelId,
+            missingParcelId);
+
+        var token = await GetAccessTokenAsync(operatorEmail, "Warehouse@12345");
+
+        using var startDoc = await PostGraphQLAsync(
+            """
+            mutation StartInboundReceivingSession($input: StartInboundReceivingSessionInput!) {
+              startInboundReceivingSession(input: $input) {
+                id
+                manifestId
+                status
+                expectedParcelCount
+                scannedExpectedCount
+                scannedUnexpectedCount
+                remainingExpectedCount
+              }
+            }
+            """,
+            variables: new
+            {
+                input = new
+                {
+                    manifestId = manifestId.ToString(),
+                }
+            },
+            accessToken: token);
+
+        startDoc.RootElement.TryGetProperty("errors", out var startErrors)
+            .Should().BeFalse("startInboundReceivingSession should not return errors: {0}", startErrors.ToString());
+
+        var session = startDoc.RootElement
+            .GetProperty("data")
+            .GetProperty("startInboundReceivingSession");
+
+        var sessionId = session.GetProperty("id").GetString()!;
+        session.GetProperty("manifestId").GetString().Should().Be(manifestId.ToString());
+        session.GetProperty("status").GetString().Should().Be("Open");
+        session.GetProperty("expectedParcelCount").GetInt32().Should().Be(2);
+        session.GetProperty("remainingExpectedCount").GetInt32().Should().Be(2);
+
+        using var expectedScanDoc = await PostGraphQLAsync(
+            """
+            mutation ScanInboundParcel($input: ScanInboundParcelInput!) {
+              scanInboundParcel(input: $input) {
+                isExpected
+                scannedParcel {
+                  trackingNumber
+                  matchType
+                }
+                session {
+                  scannedExpectedCount
+                  scannedUnexpectedCount
+                  remainingExpectedCount
+                }
+              }
+            }
+            """,
+            variables: new
+            {
+                input = new
+                {
+                    sessionId,
+                    barcode = "LMINBOUNDAPI0101",
+                }
+            },
+            accessToken: token);
+
+        expectedScanDoc.RootElement.TryGetProperty("errors", out var expectedScanErrors)
+            .Should().BeFalse("expected scan should not return errors: {0}", expectedScanErrors.ToString());
+
+        var expectedScan = expectedScanDoc.RootElement
+            .GetProperty("data")
+            .GetProperty("scanInboundParcel");
+
+        expectedScan.GetProperty("isExpected").GetBoolean().Should().BeTrue();
+        expectedScan.GetProperty("scannedParcel").GetProperty("trackingNumber").GetString().Should().Be("LMINBOUNDAPI0101");
+        expectedScan.GetProperty("scannedParcel").GetProperty("matchType").GetString().Should().Be("Expected");
+        expectedScan.GetProperty("session").GetProperty("scannedExpectedCount").GetInt32().Should().Be(1);
+        expectedScan.GetProperty("session").GetProperty("remainingExpectedCount").GetInt32().Should().Be(1);
+
+        using var unexpectedScanDoc = await PostGraphQLAsync(
+            """
+            mutation ScanInboundParcel($input: ScanInboundParcelInput!) {
+              scanInboundParcel(input: $input) {
+                isExpected
+                scannedParcel {
+                  trackingNumber
+                  matchType
+                }
+                session {
+                  scannedExpectedCount
+                  scannedUnexpectedCount
+                  exceptions {
+                    exceptionType
+                    trackingNumber
+                  }
+                }
+              }
+            }
+            """,
+            variables: new
+            {
+                input = new
+                {
+                    sessionId,
+                    barcode = "LMINBOUNDAPI0199",
+                }
+            },
+            accessToken: token);
+
+        unexpectedScanDoc.RootElement.TryGetProperty("errors", out var unexpectedErrors)
+            .Should().BeFalse("unexpected scan should not return errors: {0}", unexpectedErrors.ToString());
+
+        var unexpectedScan = unexpectedScanDoc.RootElement
+            .GetProperty("data")
+            .GetProperty("scanInboundParcel");
+
+        unexpectedScan.GetProperty("isExpected").GetBoolean().Should().BeFalse();
+        unexpectedScan.GetProperty("scannedParcel").GetProperty("matchType").GetString().Should().Be("Unexpected");
+        unexpectedScan.GetProperty("session").GetProperty("scannedUnexpectedCount").GetInt32().Should().Be(1);
+        unexpectedScan.GetProperty("session").GetProperty("exceptions").EnumerateArray()
+            .Should().Contain(entry =>
+                entry.GetProperty("exceptionType").GetString() == "Unexpected"
+                && entry.GetProperty("trackingNumber").GetString() == "LMINBOUNDAPI0199");
+
+        using var sessionDoc = await PostGraphQLAsync(
+            """
+            query GetInboundReceivingSession($sessionId: UUID!) {
+              inboundReceivingSession(sessionId: $sessionId) {
+                id
+                status
+                remainingExpectedCount
+                expectedParcels {
+                  trackingNumber
+                  isScanned
+                }
+              }
+            }
+            """,
+            variables: new { sessionId },
+            accessToken: token);
+
+        sessionDoc.RootElement.TryGetProperty("errors", out var sessionErrors)
+            .Should().BeFalse("inboundReceivingSession should not return errors: {0}", sessionErrors.ToString());
+
+        var sessionState = sessionDoc.RootElement
+            .GetProperty("data")
+            .GetProperty("inboundReceivingSession");
+
+        sessionState.GetProperty("status").GetString().Should().Be("Open");
+        sessionState.GetProperty("remainingExpectedCount").GetInt32().Should().Be(1);
+        sessionState.GetProperty("expectedParcels").EnumerateArray()
+            .Should().Contain(entry =>
+                entry.GetProperty("trackingNumber").GetString() == "LMINBOUNDAPI0102"
+                && entry.GetProperty("isScanned").GetBoolean() == false);
+
+        using var confirmDoc = await PostGraphQLAsync(
+            """
+            mutation ConfirmInboundReceivingSession($input: ConfirmInboundReceivingSessionInput!) {
+              confirmInboundReceivingSession(input: $input) {
+                status
+                remainingExpectedCount
+                exceptions {
+                  exceptionType
+                  trackingNumber
+                }
+              }
+            }
+            """,
+            variables: new
+            {
+                input = new
+                {
+                    sessionId,
+                }
+            },
+            accessToken: token);
+
+        confirmDoc.RootElement.TryGetProperty("errors", out var confirmErrors)
+            .Should().BeFalse("confirmInboundReceivingSession should not return errors: {0}", confirmErrors.ToString());
+
+        var confirmed = confirmDoc.RootElement
+            .GetProperty("data")
+            .GetProperty("confirmInboundReceivingSession");
+
+        confirmed.GetProperty("status").GetString().Should().Be("Confirmed");
+        confirmed.GetProperty("remainingExpectedCount").GetInt32().Should().Be(0);
+        var exceptions = confirmed.GetProperty("exceptions").EnumerateArray().ToList();
+        exceptions.Should().Contain(entry =>
+            entry.GetProperty("exceptionType").GetString() == "Unexpected"
+            && entry.GetProperty("trackingNumber").GetString() == "LMINBOUNDAPI0199");
+        exceptions.Should().Contain(entry =>
+            entry.GetProperty("exceptionType").GetString() == "Missing"
+            && entry.GetProperty("trackingNumber").GetString() == "LMINBOUNDAPI0102");
+    }
+
+    [Fact]
+    public async Task InboundReceivingQueries_RejectDriverRole()
+    {
+        var token = await GetAccessTokenAsync("driver.test@lastmile.local", "Driver@12345");
+
+        using var document = await PostGraphQLAsync(
+            """
+            query GetOpenInboundManifests {
+              openInboundManifests {
+                id
+              }
+            }
+            """,
+            accessToken: token);
+
+        document.RootElement.TryGetProperty("errors", out var errors)
+            .Should().BeTrue("drivers should not be authorized to access inbound receiving queries");
+    }
+
+    #endregion
+
     public Task InitializeAsync() => Factory.ResetDatabaseAsync();
 
     public Task DisposeAsync() => Task.CompletedTask;
@@ -1649,6 +1938,66 @@ public class ParcelGraphQLTests(CustomWebApplicationFactory factory)
         dbContext.Parcels.Add(parcel);
         await dbContext.SaveChangesAsync();
         return parcel.Id;
+    }
+
+    private async Task<string> SeedWarehouseOperatorAsync()
+    {
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var email = $"warehouse.operator.{Guid.NewGuid():N}@lastmile.local";
+
+        var user = new ApplicationUser
+        {
+            Id = Guid.NewGuid(),
+            UserName = email,
+            Email = email,
+            FirstName = "Warehouse",
+            LastName = "Operator",
+            DepotId = DbSeeder.TestDepotId,
+            ZoneId = DbSeeder.TestZoneId,
+            IsActive = true,
+            CreatedAt = DateTimeOffset.UtcNow,
+            CreatedBy = "tests",
+        };
+
+        var createResult = await userManager.CreateAsync(user, "Warehouse@12345");
+        createResult.Succeeded.Should().BeTrue(string.Join(", ", createResult.Errors.Select(error => error.Description)));
+
+        var roleResult = await userManager.AddToRoleAsync(user, PredefinedRole.WarehouseOperator.ToString());
+        roleResult.Succeeded.Should().BeTrue(string.Join(", ", roleResult.Errors.Select(error => error.Description)));
+
+        return email;
+    }
+
+    private async Task<Guid> SeedInboundManifestAsync(
+        string manifestNumber,
+        string truckIdentifier,
+        params Guid[] parcelIds)
+    {
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var manifest = new InboundManifest
+        {
+            Id = Guid.NewGuid(),
+            ManifestNumber = manifestNumber,
+            TruckIdentifier = truckIdentifier,
+            DepotId = DbSeeder.TestDepotId,
+            Status = InboundManifestStatus.Open,
+            CreatedAt = DateTimeOffset.UtcNow,
+            CreatedBy = "tests",
+            Lines = parcelIds.Select(parcelId => new InboundManifestLine
+            {
+                Id = Guid.NewGuid(),
+                ParcelId = parcelId,
+                CreatedAt = DateTimeOffset.UtcNow,
+                CreatedBy = "tests",
+            }).ToList(),
+        };
+
+        dbContext.Add(manifest);
+        await dbContext.SaveChangesAsync();
+        return manifest.Id;
     }
 
     private async Task SeedRouteAndProofOfDeliveryAsync(Guid parcelId)

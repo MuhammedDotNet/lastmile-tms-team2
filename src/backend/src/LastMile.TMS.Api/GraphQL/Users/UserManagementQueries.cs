@@ -11,9 +11,9 @@ using MediatR;
 namespace LastMile.TMS.Api.GraphQL.Users;
 
 [ExtendObjectType(OperationTypeNames.Query)]
-[Authorize(Roles = new[] { nameof(PredefinedRole.Admin) })]
 public sealed class UserManagementQueries
 {
+    [Authorize(Roles = new[] { nameof(PredefinedRole.Admin) })]
     [UseProjection]
     [UseFiltering(typeof(UserManagementUserFilterInputType))]
     [UseSorting(typeof(UserManagementUserSortInputType))]
@@ -25,6 +25,7 @@ public sealed class UserManagementQueries
         [Service] IUserReadService readService = null!) =>
         readService.GetUsers(search, isActive, depotId, zoneId);
 
+    [Authorize(Roles = new[] { nameof(PredefinedRole.Admin) })]
     [UseFirstOrDefault]
     [UseProjection]
     public IQueryable<ApplicationUser> User(
@@ -32,6 +33,7 @@ public sealed class UserManagementQueries
         [Service] IUserReadService readService = null!) =>
         readService.GetUsers().Where(u => u.Id == id);
 
+    [Authorize(Roles = new[] { nameof(PredefinedRole.Admin) })]
     public Task<UserManagementLookupsDto> UserManagementLookups(
         [Service] ISender sender,
         CancellationToken cancellationToken) =>

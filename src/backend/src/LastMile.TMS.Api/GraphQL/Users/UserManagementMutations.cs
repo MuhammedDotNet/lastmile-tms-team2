@@ -10,27 +10,30 @@ using MediatR;
 namespace LastMile.TMS.Api.GraphQL.Users;
 
 [ExtendObjectType(OperationTypeNames.Mutation)]
-[Authorize(Roles = new[] { nameof(PredefinedRole.Admin) })]
 public sealed class UserManagementMutations
 {
+    [Authorize(Roles = new[] { nameof(PredefinedRole.Admin) })]
     public Task<ApplicationUser> CreateUser(
         CreateUserInput input,
         [Service] ISender sender,
         CancellationToken cancellationToken) =>
         sender.Send(new CreateUserCommand(input.ToDto()), cancellationToken);
 
+    [Authorize(Roles = new[] { nameof(PredefinedRole.Admin) })]
     public Task<ApplicationUser> UpdateUser(
         UpdateUserInput input,
         [Service] ISender sender,
         CancellationToken cancellationToken) =>
         sender.Send(new UpdateUserCommand(input.Id, input.ToDto()), cancellationToken);
 
+    [Authorize(Roles = new[] { nameof(PredefinedRole.Admin) })]
     public Task<ApplicationUser> DeactivateUser(
         Guid userId,
         [Service] ISender sender,
         CancellationToken cancellationToken) =>
         sender.Send(new DeactivateUserCommand(userId), cancellationToken);
 
+    [Authorize(Roles = new[] { nameof(PredefinedRole.Admin) })]
     public Task<UserActionResultDto> SendPasswordResetEmail(
         Guid userId,
         [Service] ISender sender,
