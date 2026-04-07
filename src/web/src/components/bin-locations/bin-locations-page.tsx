@@ -171,7 +171,7 @@ export default function BinLocationsPage() {
   const { data: depots, isLoading: depotsLoading, error: depotsError } = useDepots();
   const deleteDialogRef = useRef<HTMLDivElement | null>(null);
   const [selectedDepotId, setSelectedDepotId] = useState("");
-  const [expandedZoneIds, setExpandedZoneIds] = useState<Set<string>>(new Set());
+  const [collapsedZoneIds, setCollapsedZoneIds] = useState<Set<string>>(new Set());
   const [createState, setCreateState] = useState<CreateState>(null);
   const [editState, setEditState] = useState<EditState>(null);
   const [deleteState, setDeleteState] = useState<DeleteState>(null);
@@ -179,7 +179,11 @@ export default function BinLocationsPage() {
   const [draftIsActive, setDraftIsActive] = useState(true);
   const [submitError, setSubmitError] = useState<string | undefined>();
 
-  const layoutQuery = useDepotStorageLayout(selectedDepotId);
+  const activeDepotId = depots?.some((depot) => depot.id === selectedDepotId)
+    ? selectedDepotId
+    : depots?.[0]?.id ?? "";
+
+  const layoutQuery = useDepotStorageLayout(activeDepotId);
   const createStorageZone = useCreateStorageZone();
   const updateStorageZone = useUpdateStorageZone();
   const deleteStorageZone = useDeleteStorageZone();
@@ -190,48 +194,13 @@ export default function BinLocationsPage() {
   const updateBinLocation = useUpdateBinLocation();
   const deleteBinLocation = useDeleteBinLocation();
 
-  useEffect(() => {
-    if (!selectedDepotId && depots?.length) {
-      setSelectedDepotId(depots[0].id);
-    }
-  }, [depots, selectedDepotId]);
-
   const layout = layoutQuery.data;
-  const zoneIdSignature = (layout?.storageZones ?? []).map((zone) => zone.id).join("|");
-
-  useEffect(() => {
-    if (!layout?.storageZones) {
-      return;
-    }
-
-    setExpandedZoneIds((current) => {
-      const next = new Set(current);
-      const validIds = new Set(layout.storageZones.map((zone) => zone.id));
-      let changed = false;
-
-      for (const zoneId of next) {
-        if (!validIds.has(zoneId)) {
-          next.delete(zoneId);
-          changed = true;
-        }
-      }
-
-      for (const zone of layout.storageZones) {
-        if (!next.has(zone.id)) {
-          next.add(zone.id);
-          changed = true;
-        }
-      }
-
-      return changed ? next : current;
-    });
-  }, [layout, zoneIdSignature]);
 
   const queryError = depotsError ?? layoutQuery.error;
   const isLoading =
     status === "loading"
     || depotsLoading
-    || (Boolean(selectedDepotId) && layoutQuery.isLoading);
+    || (Boolean(activeDepotId) && layoutQuery.isLoading);
 
   let totalAisles = 0;
   let totalBins = 0;
@@ -251,7 +220,7 @@ export default function BinLocationsPage() {
   }
 
   function toggleZone(zoneId: string) {
-    setExpandedZoneIds((current) => {
+    setCollapsedZoneIds((current) => {
       const next = new Set(current);
       if (next.has(zoneId)) {
         next.delete(zoneId);
@@ -276,7 +245,11 @@ export default function BinLocationsPage() {
     setDraftName("");
     setDraftIsActive(true);
     setSubmitError(undefined);
-    setExpandedZoneIds((current) => new Set(current).add(storageZoneId));
+    setCollapsedZoneIds((current) => {
+      const next = new Set(current);
+      next.delete(storageZoneId);
+      return next;
+    });
   }
 
   function startCreateBin(storageAisleId: string) {
@@ -321,9 +294,9 @@ export default function BinLocationsPage() {
     }
 
     try {
-      if (createState?.kind === "zone" && selectedDepotId) {
+      if (createState?.kind === "zone" && activeDepotId) {
         await createStorageZone.mutateAsync({
-          depotId: selectedDepotId,
+          depotId: activeDepotId,
           name,
         });
       } else if (createState?.kind === "aisle") {
@@ -597,9 +570,10 @@ export default function BinLocationsPage() {
         <select
           id="bin-location-depot"
           aria-label="Depot"
-          value={selectedDepotId}
+          value={activeDepotId}
           onChange={(event) => {
             setSelectedDepotId(event.target.value);
+            setCollapsedZoneIds(new Set());
             resetDrafts();
           }}
           className="mt-1 flex h-10 w-full items-center rounded-xl border border-input/90 bg-background px-3 py-2 text-sm"
@@ -632,7 +606,7 @@ export default function BinLocationsPage() {
       {layout?.storageZones.length ? (
         <div className="space-y-4">
           {layout.storageZones.map((zone) => {
-            const isExpanded = expandedZoneIds.has(zone.id);
+            const isExpanded = !collapsedZoneIds.has(zone.id);
 
             return (
               <section
