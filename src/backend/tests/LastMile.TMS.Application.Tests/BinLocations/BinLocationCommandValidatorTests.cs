@@ -65,7 +65,6 @@ public class BinLocationCommandValidatorTests
         var command = new UpdateBinLocationCommand(Guid.Empty, new UpdateBinLocationDto
         {
             Name = "BIN-01",
-            StorageAisleId = Guid.NewGuid(),
             IsActive = true
         });
 
@@ -73,5 +72,17 @@ public class BinLocationCommandValidatorTests
 
         result.IsValid.Should().BeFalse();
         result.Errors.Should().Contain(x => x.PropertyName == nameof(UpdateBinLocationCommand.Id));
+    }
+
+    [Fact]
+    public void UpdateBinLocationCommandValidator_ShouldRejectMissingDto()
+    {
+        var validator = new UpdateBinLocationCommandValidator();
+        var command = new UpdateBinLocationCommand(Guid.NewGuid(), null!);
+
+        var result = validator.Validate(command);
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(x => x.PropertyName == "Dto");
     }
 }

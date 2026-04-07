@@ -10,6 +10,8 @@ namespace LastMile.TMS.Api.Tests.GraphQL;
 [Collection(ApiTestCollection.Name)]
 public class BinLocationGraphQLTests : GraphQLTestBase, IAsyncLifetime
 {
+    private static string Normalize(string name) => name.Trim().ToUpperInvariant();
+
     public BinLocationGraphQLTests(CustomWebApplicationFactory factory) : base(factory)
     {
     }
@@ -118,12 +120,12 @@ public class BinLocationGraphQLTests : GraphQLTestBase, IAsyncLifetime
                 id = storageZoneId,
                 input = new
                 {
-                    depotId,
                     name = "Storage Zone B"
                 }
             },
             token);
 
+        updateZoneDocument.RootElement.TryGetProperty("errors", out _).Should().BeFalse(updateZoneDocument.RootElement.GetRawText());
         updateZoneDocument.RootElement
             .GetProperty("data")
             .GetProperty("updateStorageZone")
@@ -152,6 +154,7 @@ public class BinLocationGraphQLTests : GraphQLTestBase, IAsyncLifetime
             },
             token);
 
+        createAisleDocument.RootElement.TryGetProperty("errors", out _).Should().BeFalse(createAisleDocument.RootElement.GetRawText());
         var storageAisleId = createAisleDocument.RootElement
             .GetProperty("data")
             .GetProperty("createStorageAisle")
@@ -172,12 +175,12 @@ public class BinLocationGraphQLTests : GraphQLTestBase, IAsyncLifetime
                 id = storageAisleId,
                 input = new
                 {
-                    storageZoneId,
                     name = "Aisle B"
                 }
             },
             token);
 
+        updateAisleDocument.RootElement.TryGetProperty("errors", out _).Should().BeFalse(updateAisleDocument.RootElement.GetRawText());
         updateAisleDocument.RootElement
             .GetProperty("data")
             .GetProperty("updateStorageAisle")
@@ -208,6 +211,7 @@ public class BinLocationGraphQLTests : GraphQLTestBase, IAsyncLifetime
             },
             token);
 
+        createBinDocument.RootElement.TryGetProperty("errors", out _).Should().BeFalse(createBinDocument.RootElement.GetRawText());
         var binLocationId = createBinDocument.RootElement
             .GetProperty("data")
             .GetProperty("createBinLocation")
@@ -229,18 +233,17 @@ public class BinLocationGraphQLTests : GraphQLTestBase, IAsyncLifetime
                 id = binLocationId,
                 input = new
                 {
-                    storageAisleId,
-                    name = "BIN-02",
-                    isActive = false
+                    name = "BIN-02"
                 }
             },
             token);
 
+        updateBinDocument.RootElement.TryGetProperty("errors", out _).Should().BeFalse(updateBinDocument.RootElement.GetRawText());
         var updatedBin = updateBinDocument.RootElement
             .GetProperty("data")
             .GetProperty("updateBinLocation");
         updatedBin.GetProperty("name").GetString().Should().Be("BIN-02");
-        updatedBin.GetProperty("isActive").GetBoolean().Should().BeFalse();
+        updatedBin.GetProperty("isActive").GetBoolean().Should().BeTrue();
 
         using var deleteBinDocument = await PostGraphQLAsync(
             """
@@ -353,6 +356,7 @@ public class BinLocationGraphQLTests : GraphQLTestBase, IAsyncLifetime
         var storageZone = new StorageZone
         {
             Name = "Storage Zone A",
+            NormalizedName = Normalize("Storage Zone A"),
             Depot = depot,
             CreatedAt = DateTimeOffset.UtcNow,
             CreatedBy = "tests"
@@ -361,6 +365,7 @@ public class BinLocationGraphQLTests : GraphQLTestBase, IAsyncLifetime
         var aisle = new StorageAisle
         {
             Name = "Aisle A",
+            NormalizedName = Normalize("Aisle A"),
             StorageZone = storageZone,
             CreatedAt = DateTimeOffset.UtcNow,
             CreatedBy = "tests"
@@ -369,6 +374,7 @@ public class BinLocationGraphQLTests : GraphQLTestBase, IAsyncLifetime
         var bin = new BinLocation
         {
             Name = "BIN-01",
+            NormalizedName = Normalize("BIN-01"),
             StorageAisle = aisle,
             IsActive = true,
             CreatedAt = DateTimeOffset.UtcNow,

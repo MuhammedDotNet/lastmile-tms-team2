@@ -10,6 +10,8 @@ namespace LastMile.TMS.Application.Tests.BinLocations;
 
 public class BinLocationCommandHandlerTests
 {
+    private static string Normalize(string name) => name.Trim().ToUpperInvariant();
+
     private static AppDbContext MakeDbContext() =>
         new(
             new DbContextOptionsBuilder<AppDbContext>()
@@ -49,6 +51,7 @@ public class BinLocationCommandHandlerTests
         var storageZone = new StorageZone
         {
             Name = name,
+            NormalizedName = Normalize(name),
             DepotId = depot.Id,
             Depot = depot,
         };
@@ -68,6 +71,7 @@ public class BinLocationCommandHandlerTests
         var aisle = new StorageAisle
         {
             Name = name,
+            NormalizedName = Normalize(name),
             StorageZoneId = storageZone.Id,
             StorageZone = storageZone,
         };
@@ -88,6 +92,7 @@ public class BinLocationCommandHandlerTests
         var bin = new BinLocation
         {
             Name = name,
+            NormalizedName = Normalize(name),
             StorageAisleId = storageAisle.Id,
             StorageAisle = storageAisle,
             IsActive = isActive,
@@ -131,7 +136,6 @@ public class BinLocationCommandHandlerTests
                 new UpdateBinLocationDto
                 {
                     Name = "  BIN-02  ",
-                    StorageAisleId = bin.StorageAisleId,
                     IsActive = false
                 }),
             CancellationToken.None);
@@ -143,6 +147,31 @@ public class BinLocationCommandHandlerTests
         var persisted = await db.BinLocations.SingleAsync(x => x.Id == bin.Id);
         persisted.Name.Should().Be("BIN-02");
         persisted.IsActive.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task UpdateBinLocation_WithNullIsActive_KeepsCurrentStatus()
+    {
+        var db = MakeDbContext();
+        var bin = await SeedBinLocationAsync(db, name: "BIN-01", isActive: true);
+        var handler = new UpdateBinLocationCommandHandler(db);
+
+        var result = await handler.Handle(
+            new UpdateBinLocationCommand(
+                bin.Id,
+                new UpdateBinLocationDto
+                {
+                    Name = "BIN-02",
+                    IsActive = null
+                }),
+            CancellationToken.None);
+
+        result.Should().NotBeNull();
+        result!.IsActive.Should().BeTrue();
+
+        var persisted = await db.BinLocations.SingleAsync(x => x.Id == bin.Id);
+        persisted.Name.Should().Be("BIN-02");
+        persisted.IsActive.Should().BeTrue();
     }
 
     [Fact]
