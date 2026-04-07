@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  Boxes,
   Building2,
   LayoutDashboard,
   Map,
@@ -26,6 +27,12 @@ export const dashboardNavItems: readonly DashboardNavItem[] = [
   { href: "/routes", label: "Routes", icon: Route },
   { href: "/zones", label: "Zones", icon: Map },
   { href: "/depots", label: "Depots", icon: Building2 },
+  {
+    href: "/bin-locations",
+    label: "Bin Locations",
+    icon: Boxes,
+    requiredRoles: ["Admin", "OperationsManager"],
+  },
 ] as const;
 
 export function getDashboardNavItems(userRoles?: string[]) {
