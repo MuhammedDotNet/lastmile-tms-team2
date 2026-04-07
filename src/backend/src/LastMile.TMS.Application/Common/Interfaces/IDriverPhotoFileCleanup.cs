@@ -1,11 +1,11 @@
 namespace LastMile.TMS.Application.Common.Interfaces;
 
 /// <summary>
-/// Deletes driver photos stored under wwwroot/uploads/drivers (single file or orphan sweep).
+/// Deletes driver photos stored in object storage or under legacy wwwroot/uploads/drivers.
 /// </summary>
 public interface IDriverPhotoFileCleanup
 {
-    void TryDeleteStoredPhoto(string? photoUrl);
+    Task TryDeleteStoredPhotoAsync(string? photoUrl, CancellationToken cancellationToken = default);
 
     Task<int> DeleteOrphanDriverPhotosAsync(CancellationToken cancellationToken = default);
 }

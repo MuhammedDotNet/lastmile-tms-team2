@@ -1,5 +1,5 @@
-using System.Text.RegularExpressions;
 using LastMile.TMS.Application.Common.Interfaces;
+using LastMile.TMS.Application.Drivers.Support;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using IoPath = System.IO.Path;
@@ -7,48 +7,38 @@ using IoPath = System.IO.Path;
 namespace LastMile.TMS.Infrastructure.Services;
 
 /// <summary>
-/// Removes files under wwwroot/uploads/drivers when they are no longer referenced (see API upload endpoint).
+/// Removes driver photos that are no longer referenced, from object storage or the legacy uploads folder.
 /// </summary>
 public sealed class DriverPhotoFileCleanup : IDriverPhotoFileCleanup
 {
-    private const string UploadsDriversPrefix = "/uploads/drivers/";
-
-    private static readonly Regex StoredFileNameRegex = new(
-        @"^[a-f0-9]{32}\.(jpg|jpeg|png|webp|gif)$",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
-
     private readonly IWebHostEnvironment _env;
     private readonly IAppDbContext _dbContext;
+    private readonly IFileStorageService _fileStorageService;
 
-    public DriverPhotoFileCleanup(IWebHostEnvironment env, IAppDbContext dbContext)
+    public DriverPhotoFileCleanup(
+        IWebHostEnvironment env,
+        IAppDbContext dbContext,
+        IFileStorageService fileStorageService)
     {
         _env = env;
         _dbContext = dbContext;
+        _fileStorageService = fileStorageService;
     }
 
-    public void TryDeleteStoredPhoto(string? photoUrl)
+    public async Task TryDeleteStoredPhotoAsync(
+        string? photoUrl,
+        CancellationToken cancellationToken = default)
     {
-        var fileName = TryGetStoredFileName(photoUrl);
-        if (fileName is null)
+        if (!DriverPhotoReference.TryParse(photoUrl, out var photoReference))
             return;
 
-        if (!TryResolvePhysicalPath(fileName, out var fullPath))
+        if (photoReference.Location == DriverPhotoLocation.ObjectStorage)
+        {
+            await _fileStorageService.DeleteIfExistsAsync(photoReference.StorageKey, cancellationToken);
             return;
+        }
 
-        if (!File.Exists(fullPath))
-            return;
-
-        try
-        {
-            File.Delete(fullPath);
-        }
-        catch (IOException)
-        {
-            // Best-effort cleanup; do not fail the business operation.
-        }
-        catch (UnauthorizedAccessException)
-        {
-        }
+        TryDeleteLegacyFile(photoReference.FileName);
     }
 
     public async Task<int> DeleteOrphanDriverPhotosAsync(CancellationToken cancellationToken = default)
@@ -59,14 +49,50 @@ public sealed class DriverPhotoFileCleanup : IDriverPhotoFileCleanup
             .Select(d => d.PhotoUrl!)
             .ToListAsync(cancellationToken);
 
-        var referencedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var referencedLegacyNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var referencedObjectKeys = new HashSet<string>(StringComparer.Ordinal);
         foreach (var url in urls)
         {
-            var name = TryGetStoredFileName(url);
-            if (name is not null)
-                referencedNames.Add(name);
+            if (!DriverPhotoReference.TryParse(url, out var photoReference))
+                continue;
+
+            if (photoReference.Location == DriverPhotoLocation.ObjectStorage)
+            {
+                referencedObjectKeys.Add(photoReference.StorageKey);
+            }
+            else
+            {
+                referencedLegacyNames.Add(photoReference.FileName);
+            }
         }
 
+        var deleted = await DeleteOrphanObjectStoragePhotosAsync(referencedObjectKeys, cancellationToken);
+        deleted += DeleteOrphanLegacyPhotos(referencedLegacyNames);
+        return deleted;
+    }
+
+    private async Task<int> DeleteOrphanObjectStoragePhotosAsync(
+        HashSet<string> referencedObjectKeys,
+        CancellationToken cancellationToken)
+    {
+        var deleted = 0;
+        var keys = await _fileStorageService.ListKeysAsync(DriverPhotoReference.StoragePrefix, cancellationToken);
+        foreach (var key in keys)
+        {
+            if (referencedObjectKeys.Contains(key))
+            {
+                continue;
+            }
+
+            await _fileStorageService.DeleteIfExistsAsync(key, cancellationToken);
+            deleted++;
+        }
+
+        return deleted;
+    }
+
+    private int DeleteOrphanLegacyPhotos(HashSet<string> referencedNames)
+    {
         var driversDir = IoPath.Combine(GetWebRootPath(), "uploads", "drivers");
         if (!Directory.Exists(driversDir))
             return 0;
@@ -81,7 +107,7 @@ public sealed class DriverPhotoFileCleanup : IDriverPhotoFileCleanup
         foreach (var fullPath in Directory.EnumerateFiles(driversDir))
         {
             var fileName = IoPath.GetFileName(fullPath);
-            if (!StoredFileNameRegex.IsMatch(fileName))
+            if (!DriverPhotoReference.IsValidFileName(fileName))
                 continue;
 
             if (referencedNames.Contains(fileName))
@@ -115,31 +141,25 @@ public sealed class DriverPhotoFileCleanup : IDriverPhotoFileCleanup
             : _env.WebRootPath;
     }
 
-    private static string? TryGetStoredFileName(string? photoUrl)
+    private void TryDeleteLegacyFile(string fileName)
     {
-        if (string.IsNullOrWhiteSpace(photoUrl))
-            return null;
+        if (!TryResolvePhysicalPath(fileName, out var fullPath))
+            return;
 
-        var path = photoUrl.Trim();
-        if (path.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
-            || path.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        if (!File.Exists(fullPath))
+            return;
+
+        try
         {
-            if (!Uri.TryCreate(path, UriKind.Absolute, out var uri))
-                return null;
-            path = uri.AbsolutePath;
+            File.Delete(fullPath);
         }
-
-        if (!path.StartsWith(UploadsDriversPrefix, StringComparison.Ordinal))
-            return null;
-
-        var fileName = path[UploadsDriversPrefix.Length..];
-        if (fileName.Length == 0 || fileName.AsSpan().IndexOfAny(IoPath.GetInvalidFileNameChars()) >= 0)
-            return null;
-
-        if (!StoredFileNameRegex.IsMatch(fileName))
-            return null;
-
-        return fileName;
+        catch (IOException)
+        {
+            // Best-effort cleanup; do not fail the business operation.
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
     }
 
     private bool TryResolvePhysicalPath(string fileName, out string fullPath)
@@ -154,9 +174,6 @@ public sealed class DriverPhotoFileCleanup : IDriverPhotoFileCleanup
             ? StringComparison.OrdinalIgnoreCase
             : StringComparison.Ordinal;
         var prefix = root.TrimEnd(IoPath.DirectorySeparatorChar) + IoPath.DirectorySeparatorChar;
-        if (!fullPath.StartsWith(prefix, comparison))
-            return false;
-
-        return true;
+        return fullPath.StartsWith(prefix, comparison);
     }
 }

@@ -1,6 +1,7 @@
 using LastMile.TMS.Application.Common.Interfaces;
 using LastMile.TMS.Application.Drivers.DTOs;
 using LastMile.TMS.Application.Drivers.Mappings;
+using LastMile.TMS.Application.Drivers.Support;
 using LastMile.TMS.Domain.Entities;
 using LastMile.TMS.Domain.Enums;
 using MediatR;
@@ -45,7 +46,12 @@ public sealed class CreateDriverCommandHandler(
             throw new InvalidOperationException("A driver with this license number already exists");
 
         var now = DateTimeOffset.UtcNow;
-        var driver = request.Dto.ToEntity();
+        var normalizedDto = request.Dto with
+        {
+            PhotoUrl = DriverPhotoReference.NormalizeStoredUrl(request.Dto.PhotoUrl),
+        };
+
+        var driver = normalizedDto.ToEntity();
         driver.CreatedAt = now;
         driver.CreatedBy = currentUser.UserName ?? currentUser.UserId;
 

@@ -1,5 +1,6 @@
 using FluentValidation;
 using LastMile.TMS.Application.Drivers.DTOs;
+using LastMile.TMS.Application.Drivers.Support;
 
 namespace LastMile.TMS.Application.Drivers.Commands;
 
@@ -31,6 +32,10 @@ public sealed class CreateDriverCommandValidator : AbstractValidator<CreateDrive
         RuleFor(x => x.Dto.AvailabilitySchedule)
             .Must(HaveUniqueDaysOfWeek)
             .WithMessage("Each day of the week can appear only once in the availability schedule.");
+
+        RuleFor(x => x.Dto.PhotoUrl)
+            .Must(DriverPhotoReference.IsSupportedPhotoUrl)
+            .WithMessage("PhotoUrl must reference an uploaded driver photo.");
     }
 
     private static bool HaveUniqueDaysOfWeek(

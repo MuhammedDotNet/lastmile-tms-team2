@@ -3,7 +3,7 @@ import { getSession } from "next-auth/react";
 import { absoluteApiAssetUrl, apiBaseUrl, parseApiErrorMessage } from "@/lib/network/api";
 
 /**
- * Uploads an image to the API and returns an absolute URL suitable for `Driver.photoUrl`.
+ * Uploads an image to the API and returns an absolute proxy URL suitable for `Driver.photoUrl`.
  */
 export async function uploadDriverPhoto(file: File): Promise<string> {
   const session = await getSession();

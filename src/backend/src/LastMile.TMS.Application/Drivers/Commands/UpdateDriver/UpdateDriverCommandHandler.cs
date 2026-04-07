@@ -1,6 +1,7 @@
 using LastMile.TMS.Application.Common.Interfaces;
 using LastMile.TMS.Application.Drivers.DTOs;
 using LastMile.TMS.Application.Drivers.Mappings;
+using LastMile.TMS.Application.Drivers.Support;
 using LastMile.TMS.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -54,7 +55,12 @@ public sealed class UpdateDriverCommandHandler(
             throw new InvalidOperationException("A driver with this license number already exists");
 
         var now = DateTimeOffset.UtcNow;
-        request.Dto.UpdateEntity(driver);
+        var normalizedDto = request.Dto with
+        {
+            PhotoUrl = DriverPhotoReference.NormalizeStoredUrl(request.Dto.PhotoUrl),
+        };
+
+        normalizedDto.UpdateEntity(driver);
         driver.LastModifiedAt = now;
         driver.LastModifiedBy = currentUser.UserName ?? currentUser.UserId;
 
@@ -102,7 +108,7 @@ public sealed class UpdateDriverCommandHandler(
         await dbContext.SaveChangesAsync(cancellationToken);
 
         if (!string.Equals(previousPhotoUrl, driver.PhotoUrl, StringComparison.Ordinal))
-            driverPhotoFileCleanup.TryDeleteStoredPhoto(previousPhotoUrl);
+            await driverPhotoFileCleanup.TryDeleteStoredPhotoAsync(previousPhotoUrl, cancellationToken);
 
         driver.Zone = (await dbContext.Zones.FindAsync([driver.ZoneId], cancellationToken))!;
         driver.Depot = (await dbContext.Depots.FindAsync([driver.DepotId], cancellationToken))!;
