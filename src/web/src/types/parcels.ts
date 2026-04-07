@@ -270,3 +270,88 @@ export interface TransitionParcelStatusRequest {
   location?: string;
   description?: string;
 }
+
+export interface InboundManifest {
+  id: string;
+  manifestNumber: string;
+  truckIdentifier: string | null;
+  depotId: string;
+  depotName: string;
+  status: string;
+  expectedParcelCount: number;
+  scannedExpectedCount: number;
+  scannedUnexpectedCount: number;
+  openSessionId: string | null;
+  createdAt: string;
+}
+
+export interface InboundExpectedParcel {
+  manifestLineId: string;
+  parcelId: string;
+  trackingNumber: string;
+  barcode: string;
+  status: string;
+  isScanned: boolean;
+}
+
+export interface InboundScannedParcel {
+  id: string;
+  parcelId: string;
+  trackingNumber: string;
+  barcode: string;
+  matchType: string;
+  status: string;
+  scannedAt: string;
+  scannedBy: string | null;
+}
+
+export interface InboundReceivingException {
+  id: string;
+  parcelId: string | null;
+  manifestLineId: string | null;
+  exceptionType: string;
+  trackingNumber: string;
+  barcode: string;
+  createdAt: string;
+}
+
+export interface InboundReceivingSession {
+  id: string;
+  manifestId: string;
+  manifestNumber: string;
+  truckIdentifier: string | null;
+  depotId: string;
+  depotName: string;
+  status: string;
+  startedAt: string;
+  startedBy: string | null;
+  confirmedAt: string | null;
+  confirmedBy: string | null;
+  expectedParcelCount: number;
+  scannedExpectedCount: number;
+  scannedUnexpectedCount: number;
+  remainingExpectedCount: number;
+  expectedParcels: InboundExpectedParcel[];
+  scannedParcels: InboundScannedParcel[];
+  exceptions: InboundReceivingException[];
+}
+
+export interface StartInboundReceivingSessionRequest {
+  manifestId: string;
+}
+
+export interface ScanInboundParcelRequest {
+  sessionId: string;
+  barcode: string;
+}
+
+export interface ConfirmInboundReceivingSessionRequest {
+  sessionId: string;
+}
+
+export interface InboundParcelScanResult {
+  sessionId: string;
+  isExpected: boolean;
+  scannedParcel: InboundScannedParcel;
+  session: InboundReceivingSession;
+}

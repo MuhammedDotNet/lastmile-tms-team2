@@ -23,6 +23,11 @@ public interface IAppDbContext
     DbSet<ParcelChangeHistoryEntry> ParcelChangeHistoryEntries { get; }
     DbSet<ParcelImport> ParcelImports { get; }
     DbSet<ParcelImportRowFailure> ParcelImportRowFailures { get; }
+    DbSet<InboundManifest> InboundManifests { get; }
+    DbSet<InboundManifestLine> InboundManifestLines { get; }
+    DbSet<InboundReceivingSession> InboundReceivingSessions { get; }
+    DbSet<InboundReceivingScan> InboundReceivingScans { get; }
+    DbSet<InboundReceivingException> InboundReceivingExceptions { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

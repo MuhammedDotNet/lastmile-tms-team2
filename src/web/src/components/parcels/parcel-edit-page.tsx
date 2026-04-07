@@ -31,18 +31,19 @@ export default function ParcelEditPage() {
   const { status: sessionStatus } = useSession();
   const { data: parcel, isLoading } = useParcel(parcelKey);
   const updateParcel = useUpdateParcel();
+  const trackingNumber = parcel?.trackingNumber;
 
   useEffect(() => {
     if (
-      !parcel ||
+      !trackingNumber ||
       !isGuidString(parcelKey) ||
-      parcel.trackingNumber === parcelKey
+      trackingNumber === parcelKey
     ) {
       return;
     }
 
-    router.replace(getParcelEditPath(parcel.trackingNumber));
-  }, [parcel?.trackingNumber, parcelKey, router]);
+    router.replace(getParcelEditPath(trackingNumber));
+  }, [parcelKey, router, trackingNumber]);
 
   if (sessionStatus === "loading" || isLoading) {
     return <DetailPageSkeleton variant="neutral" />;

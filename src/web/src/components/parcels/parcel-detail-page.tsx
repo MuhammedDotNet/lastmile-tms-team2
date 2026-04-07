@@ -98,20 +98,21 @@ export default function ParcelDetailPage() {
   const cancelParcel = useCancelParcel();
   const downloadParcelLabel = useDownloadParcelLabel();
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+  const trackingNumber = parcel?.trackingNumber;
 
   useParcelRealtimeUpdates(parcel);
 
   useEffect(() => {
     if (
-      !parcel ||
+      !trackingNumber ||
       !isGuidString(parcelKey) ||
-      parcel.trackingNumber === parcelKey
+      trackingNumber === parcelKey
     ) {
       return;
     }
 
-    router.replace(getParcelDetailPath(parcel.trackingNumber));
-  }, [parcel?.trackingNumber, parcelKey, router]);
+    router.replace(getParcelDetailPath(trackingNumber));
+  }, [parcelKey, router, trackingNumber]);
 
   async function handleDownload(format: LabelDownloadFormat) {
     if (!parcel) {

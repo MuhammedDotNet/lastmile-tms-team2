@@ -24,6 +24,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<ParcelChangeHistoryEntry> ParcelChangeHistoryEntries => Set<ParcelChangeHistoryEntry>();
     public DbSet<ParcelImport> ParcelImports => Set<ParcelImport>();
     public DbSet<ParcelImportRowFailure> ParcelImportRowFailures => Set<ParcelImportRowFailure>();
+    public DbSet<InboundManifest> InboundManifests => Set<InboundManifest>();
+    public DbSet<InboundManifestLine> InboundManifestLines => Set<InboundManifestLine>();
+    public DbSet<InboundReceivingSession> InboundReceivingSessions => Set<InboundReceivingSession>();
+    public DbSet<InboundReceivingScan> InboundReceivingScans => Set<InboundReceivingScan>();
+    public DbSet<InboundReceivingException> InboundReceivingExceptions => Set<InboundReceivingException>();
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {

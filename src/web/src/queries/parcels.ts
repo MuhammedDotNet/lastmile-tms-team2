@@ -30,6 +30,12 @@ import type {
   UpdateParcelRequest,
   UploadParcelImportRequest,
   UploadParcelImportResult,
+  ConfirmInboundReceivingSessionRequest,
+  InboundManifest,
+  InboundParcelScanResult,
+  InboundReceivingSession,
+  ScanInboundParcelRequest,
+  StartInboundReceivingSessionRequest,
 } from "@/types/parcels";
 
 const parcelImportPollingStatuses = new Set(["Queued", "Processing"]);
@@ -73,6 +79,9 @@ export const parcelKeys = {
   imports: () => [...parcelKeys.all, "imports"] as const,
   importDetail: (id: string) => [...parcelKeys.imports(), "detail", id] as const,
   trackingEvents: (parcelId: string) => [...parcelKeys.detail(parcelId), "trackingEvents"] as const,
+  inboundManifests: () => [...parcelKeys.all, "inboundManifests"] as const,
+  inboundSession: (sessionId?: string | null) =>
+    [...parcelKeys.all, "inboundSession", sessionId ?? ""] as const,
 };
 
 export function useParcelsForRouteCreation(
@@ -275,6 +284,61 @@ export function useTransitionParcelStatus() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: parcelKeys.all });
       qc.invalidateQueries({ queryKey: parcelKeys.details() });
+    },
+  });
+}
+
+export function useOpenInboundManifests() {
+  const { status } = useSession();
+  return useQuery<InboundManifest[]>({
+    queryKey: parcelKeys.inboundManifests(),
+    queryFn: () => parcelsService.getOpenInboundManifests(),
+    enabled: status === "authenticated",
+  });
+}
+
+export function useInboundReceivingSession(sessionId: string | null | undefined) {
+  const { status } = useSession();
+  return useQuery<InboundReceivingSession | null>({
+    queryKey: parcelKeys.inboundSession(sessionId),
+    queryFn: () => parcelsService.getInboundReceivingSession(sessionId!),
+    enabled: status === "authenticated" && !!sessionId,
+  });
+}
+
+export function useStartInboundReceivingSession() {
+  const qc = useQueryClient();
+  return useMutation<InboundReceivingSession, Error, StartInboundReceivingSessionRequest>({
+    mutationFn: (request) => parcelsService.startInboundReceivingSession(request),
+    onSuccess: async (session) => {
+      qc.setQueryData(parcelKeys.inboundSession(session.id), session);
+      await qc.invalidateQueries({ queryKey: parcelKeys.inboundManifests() });
+    },
+  });
+}
+
+export function useScanInboundParcel() {
+  const qc = useQueryClient();
+  return useMutation<InboundParcelScanResult, Error, ScanInboundParcelRequest>({
+    mutationFn: (request) => parcelsService.scanInboundParcel(request),
+    onSuccess: async (result) => {
+      qc.setQueryData(parcelKeys.inboundSession(result.session.id), result.session);
+      await qc.invalidateQueries({ queryKey: parcelKeys.inboundManifests() });
+      await qc.invalidateQueries({ queryKey: parcelKeys.all });
+      await qc.invalidateQueries({ queryKey: parcelKeys.details() });
+    },
+  });
+}
+
+export function useConfirmInboundReceivingSession() {
+  const qc = useQueryClient();
+  return useMutation<InboundReceivingSession, Error, ConfirmInboundReceivingSessionRequest>({
+    mutationFn: (request) => parcelsService.confirmInboundReceivingSession(request),
+    onSuccess: async (session) => {
+      qc.setQueryData(parcelKeys.inboundSession(session.id), session);
+      await qc.invalidateQueries({ queryKey: parcelKeys.inboundManifests() });
+      await qc.invalidateQueries({ queryKey: parcelKeys.all });
+      await qc.invalidateQueries({ queryKey: parcelKeys.details() });
     },
   });
 }

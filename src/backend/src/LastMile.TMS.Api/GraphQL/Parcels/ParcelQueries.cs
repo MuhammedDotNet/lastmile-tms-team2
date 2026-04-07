@@ -82,6 +82,19 @@ public sealed class ParcelQueries
         CancellationToken cancellationToken) =>
         readService.GetTrackingEventsAsync(parcelId, cancellationToken);
 
+    [Authorize(Roles = new[] { "OperationsManager", "Admin", "Dispatcher", "WarehouseOperator" })]
+    public Task<IReadOnlyList<InboundManifestDto>> GetOpenInboundManifests(
+        [Service] ISender mediator,
+        CancellationToken cancellationToken) =>
+        mediator.Send(new GetOpenInboundManifestsQuery(), cancellationToken);
+
+    [Authorize(Roles = new[] { "OperationsManager", "Admin", "Dispatcher", "WarehouseOperator" })]
+    public Task<InboundReceivingSessionDto?> GetInboundReceivingSession(
+        Guid sessionId,
+        [Service] ISender mediator,
+        CancellationToken cancellationToken) =>
+        mediator.Send(new GetInboundReceivingSessionQuery(sessionId), cancellationToken);
+
     private static IQueryable<Parcel> ApplyParcelSearch(IQueryable<Parcel> query, string? search)
     {
         if (string.IsNullOrWhiteSpace(search))

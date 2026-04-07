@@ -18,5 +18,17 @@ public static partial class ParcelInputMapper
         this TransitionParcelStatusInput input)
         => new(input.ParcelId, input.NewStatus, input.Location, input.Description);
 
+    public static StartInboundReceivingSessionCommand ToDto(
+        this StartInboundReceivingSessionInput input)
+        => new(input.ManifestId);
+
+    public static ScanInboundParcelCommand ToDto(
+        this ScanInboundParcelInput input)
+        => new(input.SessionId, input.Barcode);
+
+    public static ConfirmInboundReceivingSessionCommand ToDto(
+        this ConfirmInboundReceivingSessionInput input)
+        => new(input.SessionId);
+
     private static DateTime DateTimeOffsetToUtc(DateTimeOffset value) => value.UtcDateTime;
 }
