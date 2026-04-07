@@ -172,4 +172,19 @@ describe("BinLocationsPage", () => {
       });
     });
   });
+
+  it("renders an accessible delete dialog and closes it on Escape", async () => {
+    render(<BinLocationsPage />);
+
+    const user = userEvent.setup();
+    await user.click(screen.getAllByRole("button", { name: /delete/i })[0]);
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+  });
 });

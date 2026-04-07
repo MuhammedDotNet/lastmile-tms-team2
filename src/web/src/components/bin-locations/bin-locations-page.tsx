@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Boxes,
   ChevronDown,
@@ -8,7 +8,6 @@ import {
   Pencil,
   Plus,
   Trash2,
-  X,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import {
@@ -58,6 +57,18 @@ type DeleteState =
   | { kind: "aisle"; id: string; name: string }
   | { kind: "bin"; id: string; name: string }
   | null;
+
+function getDialogFocusableElements(container: HTMLElement | null): HTMLElement[] {
+  if (!container) {
+    return [];
+  }
+
+  return Array.from(
+    container.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    ),
+  );
+}
 
 function NameForm({
   id,
@@ -158,6 +169,7 @@ function BinForm({
 export default function BinLocationsPage() {
   const { status } = useSession();
   const { data: depots, isLoading: depotsLoading, error: depotsError } = useDepots();
+  const deleteDialogRef = useRef<HTMLDivElement | null>(null);
   const [selectedDepotId, setSelectedDepotId] = useState("");
   const [expandedZoneIds, setExpandedZoneIds] = useState<Set<string>>(new Set());
   const [createState, setCreateState] = useState<CreateState>(null);
@@ -347,7 +359,6 @@ export default function BinLocationsPage() {
         await updateStorageZone.mutateAsync({
           id: editState.zone.id,
           data: {
-            depotId: editState.zone.depotId,
             name,
           },
         });
@@ -355,7 +366,6 @@ export default function BinLocationsPage() {
         await updateStorageAisle.mutateAsync({
           id: editState.aisle.id,
           data: {
-            storageZoneId: editState.aisle.storageZoneId,
             name,
           },
         });
@@ -363,7 +373,6 @@ export default function BinLocationsPage() {
         await updateBinLocation.mutateAsync({
           id: editState.bin.id,
           data: {
-            storageAisleId: editState.bin.storageAisleId,
             name,
             isActive: draftIsActive,
           },
@@ -396,6 +405,79 @@ export default function BinLocationsPage() {
       setSubmitError(getErrorMessage(error));
     }
   }
+
+  useEffect(() => {
+    if (!deleteState) {
+      return;
+    }
+
+    const dialog = deleteDialogRef.current;
+    const previousActiveElement =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    const previousOverflow = document.body.style.overflow;
+
+    document.body.style.overflow = "hidden";
+
+    const animationFrameId = window.requestAnimationFrame(() => {
+      const focusableElements = getDialogFocusableElements(dialog);
+      if (focusableElements.length) {
+        focusableElements[0].focus();
+      } else {
+        dialog?.focus();
+      }
+    });
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (!deleteDialogRef.current) {
+        return;
+      }
+
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setDeleteState(null);
+        return;
+      }
+
+      if (event.key !== "Tab") {
+        return;
+      }
+
+      const focusableElements = getDialogFocusableElements(deleteDialogRef.current);
+      if (!focusableElements.length) {
+        event.preventDefault();
+        deleteDialogRef.current.focus();
+        return;
+      }
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+      const activeElement = document.activeElement;
+
+      if (event.shiftKey) {
+        if (activeElement === firstElement || activeElement === deleteDialogRef.current) {
+          event.preventDefault();
+          lastElement.focus();
+        }
+        return;
+      }
+
+      if (activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.cancelAnimationFrame(animationFrameId);
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      previousActiveElement?.focus();
+    };
+  }, [deleteState]);
 
   if (isLoading) {
     return <ListPageLoading />;
@@ -444,12 +526,27 @@ export default function BinLocationsPage() {
   return (
     <>
       {deleteState ? (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4">
-          <div className="mt-[15vh] w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-xl">
-            <h2 className="mb-2 text-lg font-semibold">
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setDeleteState(null);
+            }
+          }}
+        >
+          <div
+            ref={deleteDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="bin-location-delete-title"
+            aria-describedby="bin-location-delete-description"
+            tabIndex={-1}
+            className="mt-[15vh] w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-xl"
+          >
+            <h2 id="bin-location-delete-title" className="mb-2 text-lg font-semibold">
               Delete {deleteState.kind === "zone" ? "storage zone" : deleteState.kind === "aisle" ? "storage aisle" : "bin"}
             </h2>
-            <p className="mb-6 text-sm text-muted-foreground">
+            <p id="bin-location-delete-description" className="mb-6 text-sm text-muted-foreground">
               Are you sure you want to delete <strong>{deleteState.name}</strong>?
             </p>
             <div className="flex justify-end gap-3">
