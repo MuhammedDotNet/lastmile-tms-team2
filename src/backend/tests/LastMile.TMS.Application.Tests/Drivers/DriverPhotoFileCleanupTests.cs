@@ -9,7 +9,7 @@ namespace LastMile.TMS.Application.Tests.Drivers;
 public class DriverPhotoFileCleanupTests
 {
     [Fact]
-    public void TryDeleteStoredPhoto_RelativePath_DeletesMatchingFile()
+    public async Task TryDeleteStoredPhotoAsync_RelativePath_DeletesMatchingFile()
     {
         var root = Path.Combine(Path.GetTempPath(), $"lm-driver-photo-{Guid.NewGuid():N}");
         try
@@ -25,9 +25,10 @@ public class DriverPhotoFileCleanupTests
             var env = Substitute.For<IWebHostEnvironment>();
             env.WebRootPath.Returns(wwwroot);
             var db = Substitute.For<IAppDbContext>();
+            var fileStorage = new InMemoryFileStorageService();
 
-            var sut = new DriverPhotoFileCleanup(env, db);
-            sut.TryDeleteStoredPhoto($"/uploads/drivers/{name}");
+            var sut = new DriverPhotoFileCleanup(env, db, fileStorage);
+            await sut.TryDeleteStoredPhotoAsync($"/uploads/drivers/{name}");
 
             File.Exists(full).Should().BeFalse();
         }
@@ -46,7 +47,7 @@ public class DriverPhotoFileCleanupTests
     }
 
     [Fact]
-    public void TryDeleteStoredPhoto_AbsoluteUrl_DeletesMatchingFile()
+    public async Task TryDeleteStoredPhotoAsync_AbsoluteUrl_DeletesMatchingFile()
     {
         var root = Path.Combine(Path.GetTempPath(), $"lm-driver-photo-{Guid.NewGuid():N}");
         try
@@ -62,9 +63,10 @@ public class DriverPhotoFileCleanupTests
             var env = Substitute.For<IWebHostEnvironment>();
             env.WebRootPath.Returns(wwwroot);
             var db = Substitute.For<IAppDbContext>();
+            var fileStorage = new InMemoryFileStorageService();
 
-            var sut = new DriverPhotoFileCleanup(env, db);
-            sut.TryDeleteStoredPhoto($"https://api.example.com/uploads/drivers/{name}");
+            var sut = new DriverPhotoFileCleanup(env, db, fileStorage);
+            await sut.TryDeleteStoredPhotoAsync($"https://api.example.com/uploads/drivers/{name}");
 
             File.Exists(full).Should().BeFalse();
         }
@@ -82,7 +84,7 @@ public class DriverPhotoFileCleanupTests
     }
 
     [Fact]
-    public void TryDeleteStoredPhoto_InvalidFileName_DoesNotDeleteOutsideFolder()
+    public async Task TryDeleteStoredPhotoAsync_InvalidFileName_DoesNotDeleteOutsideFolder()
     {
         var root = Path.Combine(Path.GetTempPath(), $"lm-driver-photo-{Guid.NewGuid():N}");
         try
@@ -95,9 +97,10 @@ public class DriverPhotoFileCleanupTests
             var env = Substitute.For<IWebHostEnvironment>();
             env.WebRootPath.Returns(wwwroot);
             var db = Substitute.For<IAppDbContext>();
+            var fileStorage = new InMemoryFileStorageService();
 
-            var sut = new DriverPhotoFileCleanup(env, db);
-            sut.TryDeleteStoredPhoto("/uploads/drivers/../../../secret.txt");
+            var sut = new DriverPhotoFileCleanup(env, db, fileStorage);
+            await sut.TryDeleteStoredPhotoAsync("/uploads/drivers/../../../secret.txt");
 
             File.Exists(secret).Should().BeTrue();
         }

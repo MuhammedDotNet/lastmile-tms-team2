@@ -15,6 +15,10 @@ function apiImageRemotePatterns(): NonNullable<
     { protocol: "https", hostname: "localhost", pathname: "/uploads/**" },
     { protocol: "http", hostname: "127.0.0.1", pathname: "/uploads/**" },
     { protocol: "https", hostname: "127.0.0.1", pathname: "/uploads/**" },
+    { protocol: "http", hostname: "localhost", pathname: "/api/drivers/photo/**" },
+    { protocol: "https", hostname: "localhost", pathname: "/api/drivers/photo/**" },
+    { protocol: "http", hostname: "127.0.0.1", pathname: "/api/drivers/photo/**" },
+    { protocol: "https", hostname: "127.0.0.1", pathname: "/api/drivers/photo/**" },
   ];
 
   const url = process.env.NEXT_PUBLIC_API_URL;
@@ -26,6 +30,12 @@ function apiImageRemotePatterns(): NonNullable<
         hostname: u.hostname,
         ...(u.port ? { port: u.port } : {}),
         pathname: "/uploads/**",
+      });
+      patterns.push({
+        protocol: u.protocol === "https:" ? "https" : "http",
+        hostname: u.hostname,
+        ...(u.port ? { port: u.port } : {}),
+        pathname: "/api/drivers/photo/**",
       });
     } catch {
       // ignore invalid URL at build time

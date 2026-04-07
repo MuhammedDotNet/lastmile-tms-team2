@@ -36,7 +36,7 @@ public sealed class DeleteDriverCommandHandler(
         dbContext.Drivers.Remove(driver);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        driverPhotoFileCleanup.TryDeleteStoredPhoto(photoUrl);
+        await driverPhotoFileCleanup.TryDeleteStoredPhotoAsync(photoUrl, cancellationToken);
 
         return true;
     }

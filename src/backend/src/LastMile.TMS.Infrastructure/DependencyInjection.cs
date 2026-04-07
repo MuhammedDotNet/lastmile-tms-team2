@@ -24,9 +24,18 @@ public static class DependencyInjection
         QuestPDF.Settings.License = LicenseType.Community;
 
         services.AddHttpContextAccessor();
+        services.AddOptions<StorageOptions>()
+            .Bind(configuration.GetSection("Storage"))
+            .Validate(
+                options => disableExternalInfrastructure
+                    || (!string.IsNullOrWhiteSpace(options.AccessKey)
+                        && !string.IsNullOrWhiteSpace(options.SecretKey)),
+                "Storage access key and secret key are required when external infrastructure is enabled.")
+            .ValidateOnStart();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IDriverPhotoFileCleanup, DriverPhotoFileCleanup>();
         services.AddScoped<DriverPhotoOrphanCleanupJob>();
+        services.AddScoped<StorageBackfillRunner>();
         services.AddScoped<FrontendBaseUrlResolver>();
         services.AddScoped<IZoneBoundaryParser, ZoneBoundaryParser>();
         services.AddSingleton<IZplLabelRasterizer, ZplLabelRasterizer>();
@@ -34,6 +43,16 @@ public static class DependencyInjection
         services.AddScoped<IParcelImportFileParser, ParcelImportFileParser>();
         services.AddScoped<IParcelImportTemplateGenerator, ParcelImportTemplateGenerator>();
         services.AddScoped<ParcelImportBackgroundJob>();
+
+        if (disableExternalInfrastructure)
+        {
+            services.AddSingleton<InMemoryFileStorageService>();
+            services.AddSingleton<IFileStorageService>(provider => provider.GetRequiredService<InMemoryFileStorageService>());
+        }
+        else
+        {
+            services.AddSingleton<IFileStorageService, S3CompatibleFileStorageService>();
+        }
 
         // Parcel registration geocoding and zone matching
         if (enableTestSupport)
