@@ -64,7 +64,79 @@ type GeoLocation {
   longitude: Float!
 }
 
-type Mutation @authorize(roles: [ "Admin" ]) {
+type InboundExpectedParcel {
+  manifestLineId: UUID!
+  parcelId: UUID!
+  trackingNumber: String!
+  barcode: String!
+  status: String!
+  isScanned: Boolean!
+}
+
+type InboundManifest {
+  id: UUID!
+  manifestNumber: String!
+  truckIdentifier: String
+  depotId: UUID!
+  depotName: String!
+  status: String!
+  expectedParcelCount: Int!
+  scannedExpectedCount: Int!
+  scannedUnexpectedCount: Int!
+  openSessionId: UUID
+  createdAt: DateTime!
+}
+
+type InboundParcelScanResult {
+  sessionId: UUID!
+  isExpected: Boolean!
+  scannedParcel: InboundScannedParcel!
+  session: InboundReceivingSession!
+}
+
+type InboundReceivingException {
+  id: UUID!
+  parcelId: UUID
+  manifestLineId: UUID
+  exceptionType: String!
+  trackingNumber: String!
+  barcode: String!
+  createdAt: DateTime!
+}
+
+type InboundReceivingSession {
+  id: UUID!
+  manifestId: UUID!
+  manifestNumber: String!
+  truckIdentifier: String
+  depotId: UUID!
+  depotName: String!
+  status: String!
+  startedAt: DateTime!
+  startedBy: String
+  confirmedAt: DateTime
+  confirmedBy: String
+  expectedParcelCount: Int!
+  scannedExpectedCount: Int!
+  scannedUnexpectedCount: Int!
+  remainingExpectedCount: Int!
+  expectedParcels: [InboundExpectedParcel!]!
+  scannedParcels: [InboundScannedParcel!]!
+  exceptions: [InboundReceivingException!]!
+}
+
+type InboundScannedParcel {
+  id: UUID!
+  parcelId: UUID!
+  trackingNumber: String!
+  barcode: String!
+  matchType: String!
+  status: String!
+  scannedAt: DateTime!
+  scannedBy: String
+}
+
+type Mutation {
   createDepot(input: CreateDepotInput!): Depot! @authorize(roles: [ "Admin", "OperationsManager" ]) @cost(weight: "10")
   updateDepot(id: UUID! input: UpdateDepotInput!): Depot @authorize(roles: [ "Admin", "OperationsManager" ]) @cost(weight: "10")
   deleteDepot(id: UUID!): Boolean! @authorize(roles: [ "Admin", "OperationsManager" ]) @cost(weight: "10")
@@ -75,11 +147,14 @@ type Mutation @authorize(roles: [ "Admin" ]) {
   updateParcel(input: UpdateParcelInput!): ParcelDetail @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
   cancelParcel(input: CancelParcelInput!): ParcelDetail @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
   transitionParcelStatus(input: TransitionParcelStatusInput!): ParcelDto! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
+  startInboundReceivingSession(input: StartInboundReceivingSessionInput!): InboundReceivingSession! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
+  scanInboundParcel(input: ScanInboundParcelInput!): InboundParcelScanResult! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
+  confirmInboundReceivingSession(input: ConfirmInboundReceivingSessionInput!): InboundReceivingSession! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
   createRoute(input: CreateRouteInput!): Route! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
-  createUser(input: CreateUserInput!): UserManagementUser! @cost(weight: "10")
-  updateUser(input: UpdateUserInput!): UserManagementUser! @cost(weight: "10")
-  deactivateUser(userId: UUID!): UserManagementUser! @cost(weight: "10")
-  sendPasswordResetEmail(userId: UUID!): UserActionResultDto! @cost(weight: "10")
+  createUser(input: CreateUserInput!): UserManagementUser! @authorize(roles: [ "Admin" ]) @cost(weight: "10")
+  updateUser(input: UpdateUserInput!): UserManagementUser! @authorize(roles: [ "Admin" ]) @cost(weight: "10")
+  deactivateUser(userId: UUID!): UserManagementUser! @authorize(roles: [ "Admin" ]) @cost(weight: "10")
+  sendPasswordResetEmail(userId: UUID!): UserActionResultDto! @authorize(roles: [ "Admin" ]) @cost(weight: "10")
   requestPasswordReset(email: String!): UserActionResultDto! @allowAnonymous @cost(weight: "10")
   completePasswordReset(input: CompletePasswordResetInput!): UserActionResultDto! @allowAnonymous @cost(weight: "10")
   createVehicle(input: CreateVehicleInput!): Vehicle! @authorize(roles: [ "Admin", "OperationsManager" ]) @cost(weight: "10")
@@ -95,6 +170,18 @@ type OperatingHours {
   openTime: TimeSpan
   closedTime: TimeSpan
   isClosed: Boolean!
+}
+
+"Information about pagination in a connection."
+type PageInfo {
+  "Indicates whether more edges exist following the set defined by the clients arguments."
+  hasNextPage: Boolean!
+  "Indicates whether more edges exist prior the set defined by the clients arguments."
+  hasPreviousPage: Boolean!
+  "When paginating backwards, the cursor to continue."
+  startCursor: String
+  "When paginating forwards, the cursor to continue."
+  endCursor: String
 }
 
 type ParcelChangeHistory {
@@ -133,8 +220,12 @@ type ParcelDetail {
   lastModifiedAt: DateTime
   canEdit: Boolean!
   canCancel: Boolean!
+  senderAddress: ParcelDetailAddress!
   recipientAddress: ParcelDetailAddress!
+  statusTimeline: [TrackingEventDto!]!
   changeHistory: [ParcelChangeHistory!]!
+  routeAssignment: ParcelRouteAssignment
+  proofOfDelivery: ParcelProofOfDelivery
   allowedNextStatuses: [String!]!
 }
 
@@ -223,29 +314,74 @@ type ParcelImportRowFailurePreview {
   originalRowValues: String!
 }
 
+type ParcelProofOfDelivery {
+  receivedBy: String
+  deliveryLocation: String
+  deliveredAt: DateTime!
+  hasSignatureImage: Boolean!
+  hasPhoto: Boolean!
+}
+
+type ParcelRouteAssignment {
+  routeId: UUID!
+  routeStatus: String!
+  startDate: DateTime!
+  endDate: DateTime
+  driverId: UUID!
+  driverName: String!
+  vehicleId: UUID!
+  vehiclePlate: String!
+}
+
 type ParcelRouteOption {
   id: UUID!
   trackingNumber: String!
   weight: Decimal!
-  weightUnit: WeightUnit!
+  weightUnit: String
+  zoneId: UUID!
+  zoneName: String @cost(weight: "10")
 }
 
-type Query @authorize(roles: [ "Admin" ]) {
+"A connection to a list of items."
+type PreLoadParcelsConnectionConnection {
+  "Information to aid in pagination."
+  pageInfo: PageInfo!
+  "A list of edges."
+  edges: [PreLoadParcelsConnectionEdge!]
+  "A flattened list of the nodes."
+  nodes: [RegisteredParcel!]
+  "Identifies the total count of items in the connection."
+  totalCount: Int! @cost(weight: "10")
+}
+
+"An edge in a connection."
+type PreLoadParcelsConnectionEdge {
+  "A cursor for use in pagination."
+  cursor: String!
+  "The item at the end of the edge."
+  node: RegisteredParcel!
+}
+
+type Query {
   depots(where: DepotFilterInput @cost(weight: "10") order: [DepotSortInput!] @cost(weight: "10")): [Depot!]! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
   depot(id: UUID!): Depot @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
   drivers(order: [DriverSortInput!] @cost(weight: "10") where: DriverFilterInput @cost(weight: "10")): [Driver!]! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
   driver(id: UUID!): Driver @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
   parcel(id: UUID!): ParcelDetail @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
-  parcelsForRouteCreation: [RegisteredParcel!]! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
+  parcelByTrackingNumber(trackingNumber: String!): ParcelDetail @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
+  parcelsForRouteCreation(vehicleId: UUID! driverId: UUID!): [RegisteredParcel!]! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
   registeredParcels(search: String where: ParcelFilterInput @cost(weight: "10") order: [ParcelSortInput!] @cost(weight: "10")): [RegisteredParcel!]! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
   preLoadParcels(search: String where: ParcelFilterInput @cost(weight: "10") order: [ParcelSortInput!] @cost(weight: "10")): [RegisteredParcel!]! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
+  preLoadParcelsConnection(search: String "Returns the first _n_ elements from the list." first: Int "Returns the elements in the list that come after the specified cursor." after: String "Returns the last _n_ elements from the list." last: Int "Returns the elements in the list that come before the specified cursor." before: String where: ParcelFilterInput @cost(weight: "10") order: [ParcelSortInput!] @cost(weight: "10")): PreLoadParcelsConnectionConnection @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @listSize(assumedSize: 100, slicingArguments: [ "first", "last" ], sizedFields: [ "edges", "nodes" ]) @cost(weight: "10")
   parcelImports: [ParcelImportHistory!]! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
   parcelImport(id: UUID!): ParcelImport @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
   parcelTrackingEvents(parcelId: UUID!): [TrackingEventDto!]! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
+  openInboundManifests: [InboundManifest!]! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
+  inboundReceivingSession(sessionId: UUID!): InboundReceivingSession @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
   routes(where: RouteFilterInput @cost(weight: "10") order: [RouteSortInput!] @cost(weight: "10")): [Route!]! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
-  users(search: String isActive: Boolean depotId: UUID zoneId: UUID where: UserManagementUserFilterInput @cost(weight: "10") order: [UserManagementUserSortInput!] @cost(weight: "10")): [UserManagementUser!]! @cost(weight: "10")
-  user(id: UUID!): UserManagementUser @cost(weight: "10")
-  userManagementLookups: UserManagementLookupsDto! @cost(weight: "10")
+  users(search: String isActive: Boolean depotId: UUID zoneId: UUID where: UserManagementUserFilterInput @cost(weight: "10") order: [UserManagementUserSortInput!] @cost(weight: "10")): [UserManagementUser!]! @authorize(roles: [ "Admin" ]) @cost(weight: "10")
+  user(id: UUID!): UserManagementUser @authorize(roles: [ "Admin" ]) @cost(weight: "10")
+  userManagementLookups: UserManagementLookupsDto! @authorize(roles: [ "Admin" ]) @cost(weight: "10")
   vehicles(where: VehicleFilterInput @cost(weight: "10") order: [VehicleSortInput!] @cost(weight: "10")): [Vehicle!]! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
   zones(where: ZoneFilterInput @cost(weight: "10") order: [ZoneSortInput!] @cost(weight: "10")): [Zone!]! @cost(weight: "10")
   zone(id: UUID!): Zone @cost(weight: "10")
@@ -270,11 +406,9 @@ type RegisteredParcel {
   deliveryAttempts: Int!
   description: String
   zoneId: UUID!
-  zone: Zone @cost(weight: "10")
   zoneName: String @cost(weight: "10")
   depotId: UUID @cost(weight: "10")
   depotName: String @cost(weight: "10")
-  recipientAddress: Address!
   recipientContactName: String @cost(weight: "10")
   recipientCompanyName: String @cost(weight: "10")
   recipientStreet1: String @cost(weight: "10")
@@ -441,6 +575,10 @@ input CompletePasswordResetInput {
   email: String!
   token: String!
   newPassword: String!
+}
+
+input ConfirmInboundReceivingSessionInput {
+  sessionId: UUID!
 }
 
 input CreateDepotInput {
@@ -761,11 +899,20 @@ input RouteStatusOperationFilterInput {
   nin: [RouteStatus!] @cost(weight: "10")
 }
 
+input ScanInboundParcelInput {
+  sessionId: UUID!
+  barcode: String!
+}
+
 input ServiceTypeOperationFilterInput {
   eq: ServiceType @cost(weight: "10")
   neq: ServiceType @cost(weight: "10")
   in: [ServiceType!] @cost(weight: "10")
   nin: [ServiceType!] @cost(weight: "10")
+}
+
+input StartInboundReceivingSessionInput {
+  manifestId: UUID!
 }
 
 input StringOperationFilterInput {
@@ -1091,6 +1238,9 @@ directive @authorize("The name of the authorization policy that determines acces
 
 "The purpose of the `cost` directive is to define a `weight` for GraphQL types, fields, and arguments. Static analysis can use these weights when calculating the overall cost of a query or response."
 directive @cost("The `weight` argument defines what value to add to the overall cost for every appearance, or possible appearance, of a type, field, argument, etc." weight: String!) on SCALAR | OBJECT | FIELD_DEFINITION | ARGUMENT_DEFINITION | ENUM | INPUT_FIELD_DEFINITION
+
+"The purpose of the `@listSize` directive is to either inform the static analysis about the size of returned lists (if that information is statically available), or to point the analysis to where to find that information."
+directive @listSize("The `assumedSize` argument can be used to statically define the maximum length of a list returned by a field." assumedSize: Int "The `slicingArguments` argument can be used to define which of the field's arguments with numeric type are slicing arguments, so that their value determines the size of the list returned by that field. It may specify a list of multiple slicing arguments." slicingArguments: [String!] "The `sizedFields` argument can be used to define that the value of the `assumedSize` argument or of a slicing argument does not affect the size of a list returned by a field itself, but that of a list returned by one of its sub-fields." sizedFields: [String!] "The `requireOneSlicingArgument` argument can be used to inform the static analysis that it should expect that exactly one of the defined slicing arguments is present in a query. If that is not the case (i.e., if none or multiple slicing arguments are present), the static analysis may throw an error." requireOneSlicingArgument: Boolean! = true) on FIELD_DEFINITION
 
 "The `@specifiedBy` directive is used within the type system definition language to provide a URL for specifying the behavior of custom scalar definitions."
 directive @specifiedBy("The specifiedBy URL points to a human-readable specification. This field will only read a result for scalar types." url: String!) on SCALAR

@@ -22,31 +22,40 @@ vi.mock("@/components/ui/label", () => ({
 }));
 
 vi.mock("@/queries/parcels", () => ({
-  usePreLoadParcels: () => ({
-    data: [
-      {
-        id: "parcel-1",
-        trackingNumber: "LM202604010001",
-        status: "REGISTERED",
-        serviceType: "STANDARD",
-        weight: 2.5,
-        weightUnit: "KG",
-        parcelType: "Box",
-        createdAt: "2026-04-01T09:15:00Z",
-        zoneName: "North Zone",
+  usePreLoadParcelsPage: () => ({
+    data: {
+      totalCount: 2,
+      pageInfo: {
+        hasNextPage: false,
+        hasPreviousPage: false,
+        startCursor: "0",
+        endCursor: "2",
       },
-      {
-        id: "parcel-2",
-        trackingNumber: "LM202604010002",
-        status: "STAGED",
-        serviceType: "EXPRESS",
-        weight: 1.1,
-        weightUnit: "KG",
-        parcelType: "Envelope",
-        createdAt: "2026-04-01T09:30:00Z",
-        zoneName: "Central Zone",
-      },
-    ],
+      nodes: [
+        {
+          id: "parcel-1",
+          trackingNumber: "LM202604010001",
+          status: "REGISTERED",
+          serviceType: "STANDARD",
+          weight: 2.5,
+          weightUnit: "KG",
+          parcelType: "Box",
+          createdAt: "2026-04-01T09:15:00Z",
+          zoneName: "North Zone",
+        },
+        {
+          id: "parcel-2",
+          trackingNumber: "LM202604010002",
+          status: "STAGED",
+          serviceType: "EXPRESS",
+          weight: 1.1,
+          weightUnit: "KG",
+          parcelType: "Envelope",
+          createdAt: "2026-04-01T09:30:00Z",
+          zoneName: "Central Zone",
+        },
+      ],
+    },
     isLoading: false,
     error: null,
   }),
@@ -104,6 +113,14 @@ describe("ParcelsPage", () => {
     await waitFor(() => {
       expect(mockDownloadBulkLabels).toHaveBeenCalledWith(["parcel-1"], "zpl");
     });
+  });
+
+  it("uses tracking-number URLs for parcel detail links", () => {
+    render(<ParcelsPage />);
+
+    expect(
+      screen.getByRole("link", { name: "LM202604010001" }),
+    ).toHaveAttribute("href", "/parcels/LM202604010001");
   });
 
   it("selects all visible parcels from the header control", async () => {

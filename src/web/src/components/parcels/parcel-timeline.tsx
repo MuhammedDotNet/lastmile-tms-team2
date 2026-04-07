@@ -14,10 +14,7 @@ import {
 } from "lucide-react";
 
 import { DetailPanel } from "@/components/detail";
-import { QueryErrorAlert } from "@/components/feedback/query-error-alert";
 import { formatParcelStatus } from "@/lib/labels/parcels";
-import { getErrorMessage } from "@/lib/network/error-message";
-import { useParcelTrackingEvents } from "@/queries/parcels";
 import type { TrackingEvent } from "@/types/parcels";
 
 function getEventIcon(eventType: string) {
@@ -113,34 +110,21 @@ function TimelineItem({ event }: { event: TrackingEvent }) {
 }
 
 interface ParcelTimelineProps {
-  parcelId: string;
+  events: TrackingEvent[];
 }
 
-export function ParcelTimeline({ parcelId }: ParcelTimelineProps) {
-  const { data: events, isLoading, error } = useParcelTrackingEvents(parcelId);
-
+export function ParcelTimeline({ events }: ParcelTimelineProps) {
   return (
     <DetailPanel
-      title="Tracking History"
+      title="Status timeline"
       description="Timeline of status changes and location updates for this parcel."
     >
-      {isLoading && (
-        <div className="flex items-center justify-center py-8">
-          <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-        </div>
-      )}
-      {error && (
-        <QueryErrorAlert
-          title="Could not load tracking events"
-          message={getErrorMessage(error)}
-        />
-      )}
-      {!isLoading && !error && events && events.length === 0 && (
+      {events.length === 0 && (
         <p className="py-4 text-sm text-muted-foreground">
           No tracking events recorded yet.
         </p>
       )}
-      {!isLoading && !error && events && events.length > 0 && (
+      {events.length > 0 && (
         <div className="space-y-0">
           {events.map((event) => (
             <TimelineItem key={event.id} event={event} />

@@ -20,8 +20,11 @@ public sealed class UpdateParcelCommandHandler(
     public async Task<ParcelDetailDto?> Handle(UpdateParcelCommand request, CancellationToken cancellationToken)
     {
         var parcel = await dbContext.Parcels
+            .Include(p => p.ShipperAddress)
             .Include(p => p.RecipientAddress)
             .Include(p => p.ChangeHistory)
+            .Include(p => p.TrackingEvents)
+            .Include(p => p.DeliveryConfirmation)
             .Include(p => p.Zone)
             .ThenInclude(z => z!.Depot)
             .FirstOrDefaultAsync(p => p.Id == request.Dto.Id, cancellationToken);

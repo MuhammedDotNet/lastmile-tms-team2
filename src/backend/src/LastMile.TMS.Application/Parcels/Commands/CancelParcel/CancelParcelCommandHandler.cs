@@ -1,6 +1,7 @@
 using LastMile.TMS.Application.Common.Interfaces;
 using LastMile.TMS.Application.Parcels.DTOs;
 using LastMile.TMS.Application.Parcels.Mappings;
+using LastMile.TMS.Application.Parcels.Services;
 using LastMile.TMS.Application.Parcels.Support;
 using LastMile.TMS.Domain.Entities;
 using LastMile.TMS.Domain.Enums;
@@ -11,14 +12,17 @@ namespace LastMile.TMS.Application.Parcels.Commands;
 
 public sealed class CancelParcelCommandHandler(
     IAppDbContext dbContext,
-    ICurrentUserService currentUser) : IRequestHandler<CancelParcelCommand, ParcelDetailDto?>
+    ICurrentUserService currentUser,
+    IParcelUpdateNotifier parcelUpdateNotifier) : IRequestHandler<CancelParcelCommand, ParcelDetailDto?>
 {
     public async Task<ParcelDetailDto?> Handle(CancelParcelCommand request, CancellationToken cancellationToken)
     {
         var parcel = await dbContext.Parcels
+            .Include(p => p.ShipperAddress)
             .Include(p => p.RecipientAddress)
             .Include(p => p.ChangeHistory)
             .Include(p => p.TrackingEvents)
+            .Include(p => p.DeliveryConfirmation)
             .Include(p => p.Zone)
             .ThenInclude(z => z!.Depot)
             .FirstOrDefaultAsync(p => p.Id == request.ParcelId, cancellationToken);
@@ -96,6 +100,9 @@ public sealed class CancelParcelCommandHandler(
                 actor));
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        await parcelUpdateNotifier.NotifyParcelUpdatedAsync(
+            new ParcelUpdateNotification(parcel.TrackingNumber, parcel.Status.ToString(), parcel.LastModifiedAt),
+            cancellationToken);
 
         return parcel.ToDetailDto();
     }

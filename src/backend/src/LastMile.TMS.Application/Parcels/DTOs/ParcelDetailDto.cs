@@ -45,8 +45,12 @@ public sealed record ParcelDetailDto
     public DateTimeOffset? LastModifiedAt { get; init; }
     public bool CanEdit { get; init; }
     public bool CanCancel { get; init; }
+    public ParcelDetailAddressDto SenderAddress { get; init; } = new();
     public ParcelDetailAddressDto RecipientAddress { get; init; } = new();
+    public IReadOnlyList<TrackingEventDto> StatusTimeline { get; init; } = [];
     public IReadOnlyList<ParcelChangeHistoryDto> ChangeHistory { get; init; } = [];
+    public ParcelRouteAssignmentDto? RouteAssignment { get; init; }
+    public ParcelProofOfDeliveryDto? ProofOfDelivery { get; init; }
 
     /// <summary>
     /// GraphQL <c>ParcelStatus</c> enum names (e.g. RECEIVED_AT_DEPOT) valid from the current status.
@@ -66,4 +70,29 @@ public sealed record ParcelChangeHistoryDto
     public string? ChangedBy { get; init; }
 
     public ParcelChangeHistoryDto() { }
+}
+
+public sealed record ParcelRouteAssignmentDto
+{
+    public Guid RouteId { get; init; }
+    public string RouteStatus { get; init; } = string.Empty;
+    public DateTimeOffset StartDate { get; init; }
+    public DateTimeOffset? EndDate { get; init; }
+    public Guid DriverId { get; init; }
+    public string DriverName { get; init; } = string.Empty;
+    public Guid VehicleId { get; init; }
+    public string VehiclePlate { get; init; } = string.Empty;
+
+    public ParcelRouteAssignmentDto() { }
+}
+
+public sealed record ParcelProofOfDeliveryDto
+{
+    public string? ReceivedBy { get; init; }
+    public string? DeliveryLocation { get; init; }
+    public DateTimeOffset DeliveredAt { get; init; }
+    public bool HasSignatureImage { get; init; }
+    public bool HasPhoto { get; init; }
+
+    public ParcelProofOfDeliveryDto() { }
 }
