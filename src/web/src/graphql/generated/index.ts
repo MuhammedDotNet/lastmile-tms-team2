@@ -107,6 +107,10 @@ export type CompletePasswordResetInput = {
   token: Scalars['String']['input'];
 };
 
+export type ConfirmInboundReceivingSessionInput = {
+  sessionId: Scalars['UUID']['input'];
+};
+
 export type CreateDepotInput = {
   address: AddressInput;
   isActive: Scalars['Boolean']['input'];
@@ -347,6 +351,84 @@ export type GeoLocation = {
   longitude: Scalars['Float']['output'];
 };
 
+export type InboundExpectedParcel = {
+  __typename?: 'InboundExpectedParcel';
+  barcode: Scalars['String']['output'];
+  isScanned: Scalars['Boolean']['output'];
+  manifestLineId: Scalars['UUID']['output'];
+  parcelId: Scalars['UUID']['output'];
+  status: Scalars['String']['output'];
+  trackingNumber: Scalars['String']['output'];
+};
+
+export type InboundManifest = {
+  __typename?: 'InboundManifest';
+  createdAt: Scalars['DateTime']['output'];
+  depotId: Scalars['UUID']['output'];
+  depotName: Scalars['String']['output'];
+  expectedParcelCount: Scalars['Int']['output'];
+  id: Scalars['UUID']['output'];
+  manifestNumber: Scalars['String']['output'];
+  openSessionId?: Maybe<Scalars['UUID']['output']>;
+  scannedExpectedCount: Scalars['Int']['output'];
+  scannedUnexpectedCount: Scalars['Int']['output'];
+  status: Scalars['String']['output'];
+  truckIdentifier?: Maybe<Scalars['String']['output']>;
+};
+
+export type InboundParcelScanResult = {
+  __typename?: 'InboundParcelScanResult';
+  isExpected: Scalars['Boolean']['output'];
+  scannedParcel: InboundScannedParcel;
+  session: InboundReceivingSession;
+  sessionId: Scalars['UUID']['output'];
+};
+
+export type InboundReceivingException = {
+  __typename?: 'InboundReceivingException';
+  barcode: Scalars['String']['output'];
+  createdAt: Scalars['DateTime']['output'];
+  exceptionType: Scalars['String']['output'];
+  id: Scalars['UUID']['output'];
+  manifestLineId?: Maybe<Scalars['UUID']['output']>;
+  parcelId?: Maybe<Scalars['UUID']['output']>;
+  trackingNumber: Scalars['String']['output'];
+};
+
+export type InboundReceivingSession = {
+  __typename?: 'InboundReceivingSession';
+  confirmedAt?: Maybe<Scalars['DateTime']['output']>;
+  confirmedBy?: Maybe<Scalars['String']['output']>;
+  depotId: Scalars['UUID']['output'];
+  depotName: Scalars['String']['output'];
+  exceptions: Array<InboundReceivingException>;
+  expectedParcelCount: Scalars['Int']['output'];
+  expectedParcels: Array<InboundExpectedParcel>;
+  id: Scalars['UUID']['output'];
+  manifestId: Scalars['UUID']['output'];
+  manifestNumber: Scalars['String']['output'];
+  remainingExpectedCount: Scalars['Int']['output'];
+  scannedExpectedCount: Scalars['Int']['output'];
+  scannedParcels: Array<InboundScannedParcel>;
+  scannedUnexpectedCount: Scalars['Int']['output'];
+  startedAt: Scalars['DateTime']['output'];
+  startedBy?: Maybe<Scalars['String']['output']>;
+  status: Scalars['String']['output'];
+  truckIdentifier?: Maybe<Scalars['String']['output']>;
+};
+
+export type InboundScannedParcel = {
+  __typename?: 'InboundScannedParcel';
+  barcode: Scalars['String']['output'];
+  id: Scalars['UUID']['output'];
+  matchType: Scalars['String']['output'];
+  parcelId: Scalars['UUID']['output'];
+  scannedAt: Scalars['DateTime']['output'];
+  scannedBy?: Maybe<Scalars['String']['output']>;
+  status: Scalars['String']['output'];
+  trackingNumber: Scalars['String']['output'];
+};
+
 export type IntOperationFilterInput = {
   eq?: InputMaybe<Scalars['Int']['input']>;
   gt?: InputMaybe<Scalars['Int']['input']>;
@@ -366,6 +448,7 @@ export type Mutation = {
   __typename?: 'Mutation';
   cancelParcel?: Maybe<ParcelDetail>;
   completePasswordReset: UserActionResultDto;
+  confirmInboundReceivingSession: InboundReceivingSession;
   createDepot: Depot;
   createDriver: Driver;
   createRoute: Route;
@@ -379,7 +462,9 @@ export type Mutation = {
   deleteZone: Scalars['Boolean']['output'];
   registerParcel: ParcelDto;
   requestPasswordReset: UserActionResultDto;
+  scanInboundParcel: InboundParcelScanResult;
   sendPasswordResetEmail: UserActionResultDto;
+  startInboundReceivingSession: InboundReceivingSession;
   transitionParcelStatus: ParcelDto;
   updateDepot?: Maybe<Depot>;
   updateDriver: Driver;
@@ -397,6 +482,11 @@ export type MutationCancelParcelArgs = {
 
 export type MutationCompletePasswordResetArgs = {
   input: CompletePasswordResetInput;
+};
+
+
+export type MutationConfirmInboundReceivingSessionArgs = {
+  input: ConfirmInboundReceivingSessionInput;
 };
 
 
@@ -465,8 +555,18 @@ export type MutationRequestPasswordResetArgs = {
 };
 
 
+export type MutationScanInboundParcelArgs = {
+  input: ScanInboundParcelInput;
+};
+
+
 export type MutationSendPasswordResetEmailArgs = {
   userId: Scalars['UUID']['input'];
+};
+
+
+export type MutationStartInboundReceivingSessionArgs = {
+  input: StartInboundReceivingSessionInput;
 };
 
 
@@ -740,7 +840,6 @@ export type ParcelRouteOption = {
   trackingNumber: Scalars['String']['output'];
   weight: Scalars['Decimal']['output'];
   weightUnit?: Maybe<Scalars['String']['output']>;
-  zone?: Maybe<Zone>;
   zoneId: Scalars['UUID']['output'];
   zoneName?: Maybe<Scalars['String']['output']>;
 };
@@ -807,6 +906,8 @@ export type Query = {
   depots: Array<Depot>;
   driver?: Maybe<Driver>;
   drivers: Array<Driver>;
+  inboundReceivingSession?: Maybe<InboundReceivingSession>;
+  openInboundManifests: Array<InboundManifest>;
   parcel?: Maybe<ParcelDetail>;
   parcelByTrackingNumber?: Maybe<ParcelDetail>;
   parcelImport?: Maybe<ParcelImport>;
@@ -845,6 +946,11 @@ export type QueryDriverArgs = {
 export type QueryDriversArgs = {
   order?: InputMaybe<Array<DriverSortInput>>;
   where?: InputMaybe<DriverFilterInput>;
+};
+
+
+export type QueryInboundReceivingSessionArgs = {
+  sessionId: Scalars['UUID']['input'];
 };
 
 
@@ -984,7 +1090,6 @@ export type RegisteredParcel = {
   lastModifiedAt?: Maybe<Scalars['DateTime']['output']>;
   length: Scalars['Decimal']['output'];
   parcelType?: Maybe<Scalars['String']['output']>;
-  recipientAddress: Address;
   recipientCity?: Maybe<Scalars['String']['output']>;
   recipientCompanyName?: Maybe<Scalars['String']['output']>;
   recipientContactName?: Maybe<Scalars['String']['output']>;
@@ -996,7 +1101,6 @@ export type RegisteredParcel = {
   weight: Scalars['Decimal']['output'];
   weightUnit?: Maybe<Scalars['String']['output']>;
   width: Scalars['Decimal']['output'];
-  zone?: Maybe<Zone>;
   zoneId: Scalars['UUID']['output'];
   zoneName?: Maybe<Scalars['String']['output']>;
 };
@@ -1058,6 +1162,11 @@ export type RouteStatusOperationFilterInput = {
   nin?: InputMaybe<Array<RouteStatus>>;
 };
 
+export type ScanInboundParcelInput = {
+  barcode: Scalars['String']['input'];
+  sessionId: Scalars['UUID']['input'];
+};
+
 export type ServiceType =
   | 'ECONOMY'
   | 'EXPRESS'
@@ -1074,6 +1183,10 @@ export type ServiceTypeOperationFilterInput = {
 export type SortEnumType =
   | 'ASC'
   | 'DESC';
+
+export type StartInboundReceivingSessionInput = {
+  manifestId: Scalars['UUID']['input'];
+};
 
 export type StringOperationFilterInput = {
   and?: InputMaybe<Array<StringOperationFilterInput>>;
