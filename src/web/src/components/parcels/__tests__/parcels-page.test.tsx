@@ -123,6 +123,14 @@ describe("ParcelsPage", () => {
     ).toHaveAttribute("href", "/parcels/LM202604010001");
   });
 
+  it("shows a route staging entry point from the pre-load queue", () => {
+    render(<ParcelsPage />);
+
+    expect(
+      screen.getByRole("link", { name: /route staging/i }),
+    ).toHaveAttribute("href", "/parcels/staging");
+  });
+
   it("selects all visible parcels from the header control", async () => {
     render(<ParcelsPage />);
 

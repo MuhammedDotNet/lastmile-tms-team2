@@ -1,12 +1,11 @@
 import { z } from "zod";
 
-import { guidString } from "@/lib/validation/guid-string";
-
 const selectMsg = "Select a value from the list.";
 
 export const routeCreateFormSchema = z.object({
-  vehicleId: guidString(selectMsg),
-  driverId: guidString(selectMsg),
+  vehicleId: z.string().min(1, selectMsg),
+  driverId: z.string().min(1, selectMsg),
+  stagingArea: z.enum(["A", "B"]),
   startDate: z
     .string()
     .min(1, "Choose a start date and time.")
@@ -15,7 +14,7 @@ export const routeCreateFormSchema = z.object({
     .number()
     .int("Mileage must be a whole number.")
     .min(0, "Mileage cannot be negative."),
-  parcelIds: z.array(guidString("Invalid parcel id.")),
+  parcelIds: z.array(z.string().min(1, "Invalid parcel id.")),
 });
 
 export type RouteCreateFormValues = z.infer<typeof routeCreateFormSchema>;

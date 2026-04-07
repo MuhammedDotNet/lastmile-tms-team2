@@ -7,4 +7,5 @@ export type {
   GetRoutesQueryVariables,
   CreateRouteMutation,
   CreateRouteMutationVariables,
+  StagingArea,
 } from "./generated";

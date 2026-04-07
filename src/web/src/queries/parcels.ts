@@ -34,7 +34,11 @@ import type {
   InboundManifest,
   InboundParcelScanResult,
   InboundReceivingSession,
+  RouteStagingBoard,
   ScanInboundParcelRequest,
+  StageParcelForRouteRequest,
+  StageParcelForRouteResult,
+  StagingRouteSummary,
   StartInboundReceivingSessionRequest,
 } from "@/types/parcels";
 
@@ -82,6 +86,9 @@ export const parcelKeys = {
   inboundManifests: () => [...parcelKeys.all, "inboundManifests"] as const,
   inboundSession: (sessionId?: string | null) =>
     [...parcelKeys.all, "inboundSession", sessionId ?? ""] as const,
+  stagingRoutes: () => [...parcelKeys.all, "stagingRoutes"] as const,
+  routeStagingBoard: (routeId?: string | null) =>
+    [...parcelKeys.all, "routeStagingBoard", routeId ?? ""] as const,
 };
 
 export function useParcelsForRouteCreation(
@@ -93,6 +100,37 @@ export function useParcelsForRouteCreation(
     queryKey: parcelKeys.forRoute(vehicleId, driverId),
     queryFn: () => parcelsService.getForRouteCreation(vehicleId!, driverId!),
     enabled: status === "authenticated" && !!vehicleId && !!driverId,
+  });
+}
+
+export function useStagingRoutes() {
+  const { status } = useSession();
+  return useQuery<StagingRouteSummary[]>({
+    queryKey: parcelKeys.stagingRoutes(),
+    queryFn: () => parcelsService.getStagingRoutes(),
+    enabled: status === "authenticated",
+  });
+}
+
+export function useRouteStagingBoard(routeId?: string | null) {
+  const { status } = useSession();
+  return useQuery<RouteStagingBoard | null>({
+    queryKey: parcelKeys.routeStagingBoard(routeId),
+    queryFn: () => parcelsService.getRouteStagingBoard(routeId!),
+    enabled: status === "authenticated" && !!routeId,
+  });
+}
+
+export function useStageParcelForRoute() {
+  const qc = useQueryClient();
+  return useMutation<StageParcelForRouteResult, Error, StageParcelForRouteRequest>({
+    mutationFn: (request) => parcelsService.stageParcelForRoute(request),
+    onSuccess: async (result, variables) => {
+      qc.setQueryData(parcelKeys.routeStagingBoard(variables.routeId), result.board);
+      await qc.invalidateQueries({ queryKey: parcelKeys.stagingRoutes() });
+      await qc.invalidateQueries({ queryKey: parcelKeys.all });
+      await qc.invalidateQueries({ queryKey: parcelKeys.details() });
+    },
   });
 }
 

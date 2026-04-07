@@ -1,0 +1,69 @@
+query GetStagingRoutes {
+  stagingRoutes {
+    id
+    vehicleId
+    vehiclePlate
+    driverId
+    driverName
+    status
+    stagingArea
+    startDate
+    expectedParcelCount
+    stagedParcelCount
+    remainingParcelCount
+  }
+}
+
+query GetRouteStagingBoard($routeId: UUID!) {
+  routeStagingBoard(routeId: $routeId) {
+    id
+    vehicleId
+    vehiclePlate
+    driverId
+    driverName
+    status
+    stagingArea
+    startDate
+    expectedParcelCount
+    stagedParcelCount
+    remainingParcelCount
+    expectedParcels {
+      parcelId
+      trackingNumber
+      barcode
+      status
+      isStaged
+    }
+  }
+}
+
+mutation StageParcelForRoute($input: StageParcelForRouteInput!) {
+  stageParcelForRoute(input: $input) {
+    outcome
+    message
+    trackingNumber
+    parcelId
+    conflictingRouteId
+    conflictingStagingArea
+    board {
+      id
+      vehicleId
+      vehiclePlate
+      driverId
+      driverName
+      status
+      stagingArea
+      startDate
+      expectedParcelCount
+      stagedParcelCount
+      remainingParcelCount
+      expectedParcels {
+        parcelId
+        trackingNumber
+        barcode
+        status
+        isStaged
+      }
+    }
+  }
+}

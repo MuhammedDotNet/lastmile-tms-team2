@@ -132,9 +132,12 @@ export function SelectDropdown<T extends string | number>({
         data-invalid={invalid || undefined}
         aria-expanded={dropdownOpen}
         aria-haspopup="listbox"
-        aria-labelledby={id ? `${id}-label` : undefined}
+        aria-labelledby={id ? `${id}-label ${id}-value` : undefined}
       >
-        <span className={!selectedOption ? "text-muted-foreground" : ""}>
+        <span
+          id={id ? `${id}-value` : undefined}
+          className={!selectedOption ? "text-muted-foreground" : ""}
+        >
           {displayLabel}
         </span>
         <ChevronDown

@@ -26,6 +26,7 @@ function mapRoute(raw: NonNullable<GetRoutesQuery["routes"]>[number]): Route {
     vehiclePlate: raw.vehiclePlate?.trim() || "Unknown vehicle",
     driverId: raw.driverId,
     driverName: raw.driverName?.trim() || "Unknown driver",
+    stagingArea: raw.stagingArea,
     startDate: raw.startDate,
     endDate: raw.endDate ?? null,
     startMileage: raw.startMileage,
@@ -86,6 +87,7 @@ export const routesService = {
         vehiclePlate: "Mock Vehicle",
         driverId: data.driverId,
         driverName: "Mock Driver",
+        stagingArea: data.stagingArea,
         startDate: data.startDate,
         endDate: null,
         startMileage: data.startMileage,
@@ -105,6 +107,7 @@ export const routesService = {
         input: {
           vehicleId: data.vehicleId,
           driverId: data.driverId,
+          stagingArea: data.stagingArea,
           startDate: data.startDate,
           startMileage: data.startMileage,
           parcelIds: data.parcelIds,

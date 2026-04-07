@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowUpDown, ArrowUp, ArrowDown, FileText, Package, PackagePlus, Printer, ScanSearch, Search, X } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, FileText, Package, PackagePlus, Printer, Route, ScanSearch, Search, X } from "lucide-react";
 import { useSession } from "next-auth/react";
 
 import { QueryErrorAlert } from "@/components/feedback/query-error-alert";
@@ -32,7 +32,11 @@ import {
   formatParcelStatus,
   parcelStatusBadgeClass,
 } from "@/lib/labels/parcels";
-import { getParcelDetailPath, getParcelInboundPath } from "@/lib/parcels/paths";
+import {
+  getParcelDetailPath,
+  getParcelInboundPath,
+  getParcelStagingPath,
+} from "@/lib/parcels/paths";
 import { getErrorMessage } from "@/lib/network/error-message";
 import { appToast } from "@/lib/toast/app-toast";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -315,6 +319,13 @@ export default function ParcelsPage() {
             >
               <ScanSearch className="h-4 w-4" aria-hidden />
               Inbound Receiving
+            </Link>
+            <Link
+              href={getParcelStagingPath()}
+              className={cn(buttonVariants({ variant: "outline" }))}
+            >
+              <Route className="h-4 w-4" aria-hidden />
+              Route Staging
             </Link>
             <Button
               variant="outline"
