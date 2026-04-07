@@ -13,6 +13,9 @@ public sealed class CreateRouteCommandValidator : AbstractValidator<CreateRouteC
         RuleFor(x => x.Dto.DriverId)
             .NotEmpty();
 
+        RuleFor(x => x.Dto.StagingArea)
+            .IsInEnum();
+
         RuleFor(x => x.Dto.StartMileage)
             .GreaterThanOrEqualTo(0);
 

@@ -355,6 +355,42 @@ public sealed class InboundParcelScanResultType : ObjectType<InboundParcelScanRe
     }
 }
 
+public sealed class StagingRouteType : ObjectType<StagingRouteDto>
+{
+    protected override void Configure(IObjectTypeDescriptor<StagingRouteDto> descriptor)
+    {
+        descriptor.Name("StagingRoute");
+        descriptor.BindFieldsImplicitly();
+    }
+}
+
+public sealed class RouteStagingExpectedParcelType : ObjectType<RouteStagingExpectedParcelDto>
+{
+    protected override void Configure(IObjectTypeDescriptor<RouteStagingExpectedParcelDto> descriptor)
+    {
+        descriptor.Name("RouteStagingExpectedParcel");
+        descriptor.BindFieldsImplicitly();
+    }
+}
+
+public sealed class RouteStagingBoardType : ObjectType<RouteStagingBoardDto>
+{
+    protected override void Configure(IObjectTypeDescriptor<RouteStagingBoardDto> descriptor)
+    {
+        descriptor.Name("RouteStagingBoard");
+        descriptor.BindFieldsImplicitly();
+    }
+}
+
+public sealed class StageParcelForRouteResultType : ObjectType<StageParcelForRouteResultDto>
+{
+    protected override void Configure(IObjectTypeDescriptor<StageParcelForRouteResultDto> descriptor)
+    {
+        descriptor.Name("StageParcelForRouteResult");
+        descriptor.BindFieldsImplicitly();
+    }
+}
+
 public sealed class ParcelFilterInputType : FilterInputType<Parcel>
 {
     protected override void Configure(IFilterInputTypeDescriptor<Parcel> descriptor)

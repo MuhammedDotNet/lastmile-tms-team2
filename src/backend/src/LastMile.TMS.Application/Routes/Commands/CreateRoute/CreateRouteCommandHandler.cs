@@ -62,6 +62,22 @@ public sealed class CreateRouteCommandHandler(
         if (parcels.Any(parcel => parcel.ZoneId != driver.ZoneId))
             throw new InvalidOperationException("All route parcels must belong to the driver's zone.");
 
+        var requestedParcelIds = request.Dto.ParcelIds.ToHashSet();
+        var parcelsAlreadyAssigned = await dbContext.Routes
+            .AsNoTracking()
+            .Where(route =>
+                (route.Status == RouteStatus.Planned || route.Status == RouteStatus.InProgress)
+                && route.Parcels.Any(parcel => requestedParcelIds.Contains(parcel.Id)))
+            .SelectMany(route => route.Parcels
+                .Where(parcel => requestedParcelIds.Contains(parcel.Id))
+                .Select(parcel => parcel.TrackingNumber))
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        if (parcelsAlreadyAssigned.Count > 0)
+            throw new InvalidOperationException(
+                $"Parcels already assigned to an active route: {string.Join(", ", parcelsAlreadyAssigned)}");
+
         var requestedStart = request.Dto.StartDate;
         var requestedEndExclusive = DateTimeOffset.MaxValue;
         var driverHasOverlappingRoute = await dbContext.Routes
@@ -101,10 +117,6 @@ public sealed class CreateRouteCommandHandler(
         foreach (var parcel in parcels)
         {
             route.Parcels.Add(parcel);
-            if (parcel.Status == ParcelStatus.Sorted || parcel.Status == ParcelStatus.Staged)
-            {
-                parcel.Status = ParcelStatus.Loaded;
-            }
         }
 
         vehicle.Status = VehicleStatus.InUse;
