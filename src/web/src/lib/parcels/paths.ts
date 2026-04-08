@@ -9,3 +9,7 @@ export function getParcelEditPath(trackingNumber: string): string {
 export function getParcelInboundPath(): string {
   return "/parcels/inbound";
 }
+
+export function getParcelStagingPath(): string {
+  return "/parcels/staging";
+}

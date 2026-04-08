@@ -10,19 +10,23 @@ import {
   GET_PARCEL_TRACKING_EVENTS,
   PARCEL,
   PARCEL_BY_TRACKING_NUMBER,
+  GET_ROUTE_STAGING_BOARD,
   PRELOAD_PARCELS,
   PRELOAD_PARCELS_CONNECTION,
   PARCELS_FOR_ROUTE,
   REGISTER_PARCEL,
   REGISTERED_PARCELS,
   SCAN_INBOUND_PARCEL,
+  GET_STAGING_ROUTES,
   START_INBOUND_RECEIVING_SESSION,
+  STAGE_PARCEL_FOR_ROUTE,
   TRANSITION_PARCEL_STATUS,
   UPDATE_PARCEL,
 } from "@/graphql/parcels";
 import type { ParcelFilterInput, ParcelSortInput } from "@/graphql/generated";
 import type {
   CancelParcelMutation,
+  GetRouteStagingBoardQuery,
   GetParcelByTrackingNumberQuery,
   GetParcelImportQuery,
   GetParcelImportsQuery,
@@ -34,9 +38,11 @@ import type {
   GetPreLoadParcelsConnectionQuery,
   GetPreLoadParcelsQuery,
   GetRegisteredParcelsQuery,
+  GetStagingRoutesQuery,
   ConfirmInboundReceivingSessionMutation,
   ScanInboundParcelMutation,
   StartInboundReceivingSessionMutation,
+  StageParcelForRouteMutation,
   TransitionParcelStatusMutation,
   UpdateParcelMutation,
 } from "@/graphql/parcels";
@@ -66,7 +72,11 @@ import type {
   InboundManifest,
   InboundParcelScanResult,
   InboundReceivingSession,
+  RouteStagingBoard,
   ScanInboundParcelRequest,
+  StageParcelForRouteRequest,
+  StageParcelForRouteResult,
+  StagingRouteSummary,
   StartInboundReceivingSessionRequest,
 } from "@/types/parcels";
 
@@ -113,6 +123,63 @@ function findMockParcel(parcelKey: string) {
     (candidate) =>
       candidate.id === parcelKey || candidate.trackingNumber === parcelKey,
   );
+}
+
+function mapStagingRoute(
+  raw: NonNullable<GetStagingRoutesQuery["stagingRoutes"]>[number],
+): StagingRouteSummary {
+  return {
+    id: raw.id,
+    vehicleId: raw.vehicleId,
+    vehiclePlate: raw.vehiclePlate,
+    driverId: raw.driverId,
+    driverName: raw.driverName,
+    status: raw.status,
+    stagingArea: raw.stagingArea,
+    startDate: raw.startDate,
+    expectedParcelCount: raw.expectedParcelCount,
+    stagedParcelCount: raw.stagedParcelCount,
+    remainingParcelCount: raw.remainingParcelCount,
+  };
+}
+
+function mapRouteStagingBoard(
+  raw: NonNullable<GetRouteStagingBoardQuery["routeStagingBoard"]>,
+): RouteStagingBoard {
+  return {
+    id: raw.id,
+    vehicleId: raw.vehicleId,
+    vehiclePlate: raw.vehiclePlate,
+    driverId: raw.driverId,
+    driverName: raw.driverName,
+    status: raw.status,
+    stagingArea: raw.stagingArea,
+    startDate: raw.startDate,
+    expectedParcelCount: raw.expectedParcelCount,
+    stagedParcelCount: raw.stagedParcelCount,
+    remainingParcelCount: raw.remainingParcelCount,
+    expectedParcels: raw.expectedParcels.map((parcel) => ({
+      parcelId: parcel.parcelId,
+      trackingNumber: parcel.trackingNumber,
+      barcode: parcel.barcode,
+      status: parcel.status,
+      isStaged: parcel.isStaged,
+    })),
+  };
+}
+
+function mapStageParcelForRouteResult(
+  raw: StageParcelForRouteMutation["stageParcelForRoute"],
+): StageParcelForRouteResult {
+  return {
+    outcome: raw.outcome,
+    message: raw.message,
+    trackingNumber: raw.trackingNumber ?? null,
+    parcelId: raw.parcelId ?? null,
+    conflictingRouteId: raw.conflictingRouteId ?? null,
+    conflictingStagingArea: raw.conflictingStagingArea ?? null,
+    board: mapRouteStagingBoard(raw.board),
+  };
 }
 
 async function authenticatedRequest(
@@ -282,6 +349,51 @@ export const parcelsService = {
       zoneId: parcel.zoneId,
       zoneName: parcel.zoneName ?? null,
     }));
+  },
+
+  getStagingRoutes: async (): Promise<StagingRouteSummary[]> => {
+    if (USE_MOCK) {
+      return [];
+    }
+
+    const data = await graphqlRequest<GetStagingRoutesQuery>(GET_STAGING_ROUTES);
+    return data.stagingRoutes.map(mapStagingRoute);
+  },
+
+  getRouteStagingBoard: async (
+    routeId: string,
+  ): Promise<RouteStagingBoard | null> => {
+    if (USE_MOCK) {
+      return null;
+    }
+
+    const data = await graphqlRequest<GetRouteStagingBoardQuery>(
+      GET_ROUTE_STAGING_BOARD,
+      { routeId },
+    );
+
+    return data.routeStagingBoard
+      ? mapRouteStagingBoard(data.routeStagingBoard)
+      : null;
+  },
+
+  stageParcelForRoute: async (
+    request: StageParcelForRouteRequest,
+  ): Promise<StageParcelForRouteResult> => {
+    if (USE_MOCK) {
+      throw new Error("Route staging is not available in mock mode.");
+    }
+
+    const data = await graphqlRequest<{
+      stageParcelForRoute: StageParcelForRouteMutation["stageParcelForRoute"];
+    }>(STAGE_PARCEL_FOR_ROUTE, {
+      input: {
+        routeId: request.routeId,
+        barcode: request.barcode,
+      },
+    });
+
+    return mapStageParcelForRouteResult(data.stageParcelForRoute);
   },
 
   getRegisteredParcels: async (

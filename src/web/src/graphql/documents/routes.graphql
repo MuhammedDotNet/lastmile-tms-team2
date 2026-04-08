@@ -5,6 +5,7 @@ query GetRoutes($where: RouteFilterInput, $order: [RouteSortInput!]) {
     vehiclePlate
     driverId
     driverName
+    stagingArea
     startDate
     endDate
     startMileage
@@ -24,6 +25,7 @@ mutation CreateRoute($input: CreateRouteInput!) {
     vehiclePlate
     driverId
     driverName
+    stagingArea
     startDate
     endDate
     startMileage

@@ -83,3 +83,9 @@ public sealed class ConfirmInboundReceivingSessionInput
 {
     public Guid SessionId { get; set; }
 }
+
+public sealed class StageParcelForRouteInput
+{
+    public Guid RouteId { get; set; }
+    public string Barcode { get; set; } = string.Empty;
+}

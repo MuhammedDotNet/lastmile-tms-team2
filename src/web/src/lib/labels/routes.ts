@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import type { RouteStatus } from "@/types/routes";
+import type { RouteStatus, StagingArea } from "@/types/routes";
 
 export const ROUTE_STATUS_LABELS: Record<RouteStatus, string> = {
   PLANNED: "Planned",
@@ -14,6 +14,11 @@ export const ROUTE_STATUS_ORDER: RouteStatus[] = [
   "COMPLETED",
   "CANCELLED",
 ];
+
+export const STAGING_AREA_LABELS: Record<StagingArea, string> = {
+  A: "Area A",
+  B: "Area B",
+};
 
 const routeStatusBadgeBase =
   "inline-flex max-w-full min-w-0 items-center truncate rounded-full px-2 py-0.5 text-xs font-medium";

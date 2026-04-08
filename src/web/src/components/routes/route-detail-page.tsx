@@ -31,7 +31,11 @@ import { buttonVariants } from "@/components/ui/button";
 import { QueryErrorAlert } from "@/components/feedback/query-error-alert";
 import { getErrorMessage } from "@/lib/network/error-message";
 import { cn } from "@/lib/utils";
-import { ROUTE_STATUS_LABELS, routeStatusBadgeClass } from "@/lib/labels/routes";
+import {
+  ROUTE_STATUS_LABELS,
+  STAGING_AREA_LABELS,
+  routeStatusBadgeClass,
+} from "@/lib/labels/routes";
 import { useRoute } from "@/queries/routes";
 
 /** Backend default DateTimeOffset was not set on create for older routes year 0001 */
@@ -158,6 +162,11 @@ export default function RouteDetailPage({
               value: route.driverName,
               icon: <User className="size-5" aria-hidden />,
             },
+            {
+              label: "Staging area",
+              value: STAGING_AREA_LABELS[route.stagingArea],
+              icon: <MapPin className="size-5" aria-hidden />,
+            },
           ]}
         />
 
@@ -177,6 +186,9 @@ export default function RouteDetailPage({
               </Link>
             </DetailField>
             <DetailField label="Driver">{route.driverName}</DetailField>
+            <DetailField label="Staging area">
+              {STAGING_AREA_LABELS[route.stagingArea]}
+            </DetailField>
             <DetailField label="Start date">
               {new Date(route.startDate).toLocaleString()}
             </DetailField>

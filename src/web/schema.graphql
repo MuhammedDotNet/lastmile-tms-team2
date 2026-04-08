@@ -180,6 +180,7 @@ type Mutation {
   startInboundReceivingSession(input: StartInboundReceivingSessionInput!): InboundReceivingSession! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
   scanInboundParcel(input: ScanInboundParcelInput!): InboundParcelScanResult! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
   confirmInboundReceivingSession(input: ConfirmInboundReceivingSessionInput!): InboundReceivingSession! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
+  stageParcelForRoute(input: StageParcelForRouteInput!): StageParcelForRouteResult! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
   createRoute(input: CreateRouteInput!): Route! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
   createUser(input: CreateUserInput!): UserManagementUser! @authorize(roles: [ "Admin" ]) @cost(weight: "10")
   updateUser(input: UpdateUserInput!): UserManagementUser! @authorize(roles: [ "Admin" ]) @cost(weight: "10")
@@ -409,6 +410,8 @@ type Query {
   parcelTrackingEvents(parcelId: UUID!): [TrackingEventDto!]! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
   openInboundManifests: [InboundManifest!]! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
   inboundReceivingSession(sessionId: UUID!): InboundReceivingSession @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
+  stagingRoutes: [StagingRoute!]! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
+  routeStagingBoard(routeId: UUID!): RouteStagingBoard @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
   routes(where: RouteFilterInput @cost(weight: "10") order: [RouteSortInput!] @cost(weight: "10")): [Route!]! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
   users(search: String isActive: Boolean depotId: UUID zoneId: UUID where: UserManagementUserFilterInput @cost(weight: "10") order: [UserManagementUserSortInput!] @cost(weight: "10")): [UserManagementUser!]! @authorize(roles: [ "Admin" ]) @cost(weight: "10")
   user(id: UUID!): UserManagementUser @authorize(roles: [ "Admin" ]) @cost(weight: "10")
@@ -459,11 +462,59 @@ type Route {
   endDate: DateTime
   startMileage: Int!
   endMileage: Int!
+  stagingArea: StagingArea!
   totalMileage: Int! @cost(weight: "10")
   status: RouteStatus!
   parcelCount: Int! @cost(weight: "10")
   parcelsDelivered: Int! @cost(weight: "10")
   createdAt: DateTime!
+}
+
+type RouteStagingBoard {
+  id: UUID!
+  vehicleId: UUID!
+  vehiclePlate: String!
+  driverId: UUID!
+  driverName: String!
+  status: RouteStatus!
+  stagingArea: StagingArea!
+  startDate: DateTime!
+  expectedParcelCount: Int!
+  stagedParcelCount: Int!
+  remainingParcelCount: Int!
+  expectedParcels: [RouteStagingExpectedParcel!]!
+}
+
+type RouteStagingExpectedParcel {
+  parcelId: UUID!
+  trackingNumber: String!
+  barcode: String!
+  status: String!
+  isStaged: Boolean!
+}
+
+type StageParcelForRouteResult {
+  outcome: RouteStagingScanOutcome!
+  message: String!
+  trackingNumber: String
+  parcelId: UUID
+  conflictingRouteId: UUID
+  conflictingStagingArea: StagingArea
+  board: RouteStagingBoard!
+}
+
+type StagingRoute {
+  id: UUID!
+  vehicleId: UUID!
+  vehiclePlate: String!
+  driverId: UUID!
+  driverName: String!
+  status: RouteStatus!
+  stagingArea: StagingArea!
+  startDate: DateTime!
+  expectedParcelCount: Int!
+  stagedParcelCount: Int!
+  remainingParcelCount: Int!
 }
 
 type StorageAisle {
@@ -665,6 +716,7 @@ input CreateDriverInput {
 input CreateRouteInput {
   vehicleId: UUID!
   driverId: UUID!
+  stagingArea: StagingArea!
   startDate: DateTime!
   startMileage: Int!
   parcelIds: [UUID!]!
@@ -938,6 +990,7 @@ input RouteFilterInput {
   endDate: DateTimeOperationFilterInput
   startMileage: IntOperationFilterInput
   endMileage: IntOperationFilterInput
+  stagingArea: StagingAreaOperationFilterInput
   status: RouteStatusOperationFilterInput
   createdAt: DateTimeOperationFilterInput
 }
@@ -950,6 +1003,7 @@ input RouteSortInput {
   endDate: SortEnumType @cost(weight: "10")
   startMileage: SortEnumType @cost(weight: "10")
   endMileage: SortEnumType @cost(weight: "10")
+  stagingArea: SortEnumType @cost(weight: "10")
   status: SortEnumType @cost(weight: "10")
   createdAt: SortEnumType @cost(weight: "10")
 }
@@ -971,6 +1025,18 @@ input ServiceTypeOperationFilterInput {
   neq: ServiceType @cost(weight: "10")
   in: [ServiceType!] @cost(weight: "10")
   nin: [ServiceType!] @cost(weight: "10")
+}
+
+input StageParcelForRouteInput {
+  routeId: UUID!
+  barcode: String!
+}
+
+input StagingAreaOperationFilterInput {
+  eq: StagingArea @cost(weight: "10")
+  neq: StagingArea @cost(weight: "10")
+  in: [StagingArea!] @cost(weight: "10")
+  nin: [StagingArea!] @cost(weight: "10")
 }
 
 input StartInboundReceivingSessionInput {
@@ -1262,6 +1328,14 @@ enum ParcelStatus {
   EXCEPTION
 }
 
+enum RouteStagingScanOutcome {
+  STAGED
+  ALREADY_STAGED
+  WRONG_ROUTE
+  NOT_EXPECTED
+  INVALID_STATUS
+}
+
 enum RouteStatus {
   PLANNED
   IN_PROGRESS
@@ -1279,6 +1353,11 @@ enum ServiceType {
 enum SortEnumType {
   ASC
   DESC
+}
+
+enum StagingArea {
+  A
+  B
 }
 
 enum UserRole {

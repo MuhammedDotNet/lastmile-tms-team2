@@ -1,3 +1,5 @@
+export type { RouteStagingScanOutcome } from "@/graphql/generated";
+
 /** Matches backend `WeightUnit`: Lb = 0, Kg = 1 */
 export const ParcelWeightUnit = {
   Lb: 0,
@@ -354,4 +356,45 @@ export interface InboundParcelScanResult {
   isExpected: boolean;
   scannedParcel: InboundScannedParcel;
   session: InboundReceivingSession;
+}
+
+export interface StagingRouteSummary {
+  id: string;
+  vehicleId: string;
+  vehiclePlate: string;
+  driverId: string;
+  driverName: string;
+  status: import("@/graphql/generated").RouteStatus;
+  stagingArea: import("@/graphql/generated").StagingArea;
+  startDate: string;
+  expectedParcelCount: number;
+  stagedParcelCount: number;
+  remainingParcelCount: number;
+}
+
+export interface RouteStagingExpectedParcel {
+  parcelId: string;
+  trackingNumber: string;
+  barcode: string;
+  status: string;
+  isStaged: boolean;
+}
+
+export interface RouteStagingBoard extends StagingRouteSummary {
+  expectedParcels: RouteStagingExpectedParcel[];
+}
+
+export interface StageParcelForRouteRequest {
+  routeId: string;
+  barcode: string;
+}
+
+export interface StageParcelForRouteResult {
+  outcome: import("@/graphql/generated").RouteStagingScanOutcome;
+  message: string;
+  trackingNumber: string | null;
+  parcelId: string | null;
+  conflictingRouteId: string | null;
+  conflictingStagingArea: import("@/graphql/generated").StagingArea | null;
+  board: RouteStagingBoard;
 }

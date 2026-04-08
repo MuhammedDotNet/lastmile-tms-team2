@@ -95,6 +95,19 @@ public sealed class ParcelQueries
         CancellationToken cancellationToken) =>
         mediator.Send(new GetInboundReceivingSessionQuery(sessionId), cancellationToken);
 
+    [Authorize(Roles = new[] { "OperationsManager", "Admin", "Dispatcher", "WarehouseOperator" })]
+    public Task<IReadOnlyList<StagingRouteDto>> GetStagingRoutes(
+        [Service] ISender mediator,
+        CancellationToken cancellationToken) =>
+        mediator.Send(new GetStagingRoutesQuery(), cancellationToken);
+
+    [Authorize(Roles = new[] { "OperationsManager", "Admin", "Dispatcher", "WarehouseOperator" })]
+    public Task<RouteStagingBoardDto?> GetRouteStagingBoard(
+        Guid routeId,
+        [Service] ISender mediator,
+        CancellationToken cancellationToken) =>
+        mediator.Send(new GetRouteStagingBoardQuery(routeId), cancellationToken);
+
     private static IQueryable<Parcel> ApplyParcelSearch(IQueryable<Parcel> query, string? search)
     {
         if (string.IsNullOrWhiteSpace(search))

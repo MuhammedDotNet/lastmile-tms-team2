@@ -37,6 +37,7 @@ export function DetailFormField({
           aria-hidden
         />
         <Label
+          id={htmlFor ? `${htmlFor}-label` : undefined}
           htmlFor={htmlFor}
           className={cn(
             "text-sm font-semibold leading-none",

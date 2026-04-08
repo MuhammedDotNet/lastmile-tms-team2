@@ -33,6 +33,7 @@ public sealed class RouteType : EntityObjectType<RouteEntity>
         descriptor.Field(r => r.EndDate);
         descriptor.Field(r => r.StartMileage);
         descriptor.Field(r => r.EndMileage);
+        descriptor.Field(r => r.StagingArea);
         descriptor.Field("totalMileage")
             .Type<NonNullType<IntType>>()
             .Resolve(ctx =>
@@ -136,6 +137,7 @@ public sealed class RouteFilterInputType : FilterInputType<RouteEntity>
         descriptor.Field(r => r.EndDate);
         descriptor.Field(r => r.StartMileage);
         descriptor.Field(r => r.EndMileage);
+        descriptor.Field(r => r.StagingArea);
         descriptor.Field(r => r.Status);
         descriptor.Field(r => r.CreatedAt);
     }
@@ -154,6 +156,7 @@ public sealed class RouteSortInputType : SortInputType<RouteEntity>
         descriptor.Field(r => r.EndDate);
         descriptor.Field(r => r.StartMileage);
         descriptor.Field(r => r.EndMileage);
+        descriptor.Field(r => r.StagingArea);
         descriptor.Field(r => r.Status);
         descriptor.Field(r => r.CreatedAt);
     }

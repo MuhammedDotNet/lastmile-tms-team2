@@ -30,5 +30,9 @@ public static partial class ParcelInputMapper
         this ConfirmInboundReceivingSessionInput input)
         => new(input.SessionId);
 
+    public static StageParcelForRouteCommand ToDto(
+        this StageParcelForRouteInput input)
+        => new(input.RouteId, input.Barcode);
+
     private static DateTime DateTimeOffsetToUtc(DateTimeOffset value) => value.UtcDateTime;
 }

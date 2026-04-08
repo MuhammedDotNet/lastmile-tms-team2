@@ -9,6 +9,7 @@ describe("routeCreateFormSchema", () => {
     const r = routeCreateFormSchema.safeParse({
       vehicleId: id,
       driverId: id,
+      stagingArea: "A",
       startDate: "2025-01-15T10:30",
       startMileage: 0,
       parcelIds: [],
@@ -20,6 +21,7 @@ describe("routeCreateFormSchema", () => {
     const r = routeCreateFormSchema.safeParse({
       vehicleId: id,
       driverId: id,
+      stagingArea: "A",
       startDate: "2025-01-15T10:30",
       startMileage: -1,
       parcelIds: [],

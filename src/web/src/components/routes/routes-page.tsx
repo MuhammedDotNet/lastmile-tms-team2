@@ -25,6 +25,7 @@ import { RouteStatusFilter } from "@/components/routes/route-status-filter";
 import { getErrorMessage } from "@/lib/network/error-message";
 import {
   ROUTE_STATUS_LABELS,
+  STAGING_AREA_LABELS,
   routeStatusBadgeClass,
 } from "@/lib/labels/routes";
 import { QueryErrorAlert } from "@/components/feedback/query-error-alert";
@@ -111,11 +112,12 @@ export default function RoutesPage() {
         />
       </div>
 
-      <ListDataTable minWidthClassName="min-w-[880px]">
+      <ListDataTable minWidthClassName="min-w-[980px]">
         <thead>
           <tr className={listDataTableHeadRowClass}>
             <th className={listDataTableThClass}>Vehicle</th>
             <th className={listDataTableThClass}>Driver</th>
+            <th className={listDataTableThClass}>Staging Area</th>
             <th
               className={cn(
                 listDataTableThClass,
@@ -152,6 +154,9 @@ export default function RoutesPage() {
               </td>
               <td className={cn(listDataTableTdClass, "max-w-[200px]")}>
                 <OverflowTooltipCell fullText={route.driverName} />
+              </td>
+              <td className={cn(listDataTableTdClass, "whitespace-nowrap")}>
+                {STAGING_AREA_LABELS[route.stagingArea]}
               </td>
               <td className={cn(listDataTableTdClass, "tabular-nums text-muted-foreground")}>
                 {new Date(route.startDate).toLocaleString()}

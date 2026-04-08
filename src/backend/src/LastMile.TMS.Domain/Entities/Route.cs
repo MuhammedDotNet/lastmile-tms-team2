@@ -17,6 +17,8 @@ public class Route : BaseAuditableEntity
     public int StartMileage { get; set; }
     public int EndMileage { get; set; }
 
+    public StagingArea StagingArea { get; set; }
+
     public RouteStatus Status { get; set; }
 
     public ICollection<Parcel> Parcels { get; set; } = new List<Parcel>();

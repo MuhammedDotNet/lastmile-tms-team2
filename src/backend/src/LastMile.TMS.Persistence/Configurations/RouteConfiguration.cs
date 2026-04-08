@@ -18,6 +18,9 @@ public class RouteConfiguration : IEntityTypeConfiguration<Route>
         builder.Property(x => x.Status)
             .IsRequired();
 
+        builder.Property(x => x.StagingArea)
+            .IsRequired();
+
         builder.Property(x => x.StartMileage)
             .IsRequired();
 

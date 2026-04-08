@@ -18,6 +18,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { DateTimePicker } from "@/components/form/date-time-picker";
 import { NaturalNumberInput } from "@/components/form/natural-number-input";
 import { SelectDropdown } from "@/components/form/select-dropdown";
+import { STAGING_AREA_LABELS } from "@/lib/labels/routes";
 import { API_RESOURCE_LOAD_ERROR } from "@/lib/network/api-messages";
 import { driverSelectOptions } from "@/lib/forms/drivers";
 import { vehicleSelectOptionsForRoute } from "@/lib/forms/vehicles";
@@ -33,6 +34,10 @@ import { useVehicles } from "@/queries/vehicles";
 import { useParcelsForRouteCreation } from "@/queries/parcels";
 import { useDrivers } from "@/queries/drivers";
 
+const stagingAreaOptions = [
+  { value: "A", label: STAGING_AREA_LABELS.A },
+  { value: "B", label: STAGING_AREA_LABELS.B },
+] as const;
 
 export default function NewRoutePage() {
   const router = useRouter();
@@ -40,6 +45,7 @@ export default function NewRoutePage() {
   const [formData, setFormData] = useState({
     vehicleId: "",
     driverId: "",
+    stagingArea: "" as "" | "A" | "B",
     startDate: new Date().toISOString().slice(0, 16),
     startMileage: 0,
     parcelIds: [] as string[],
@@ -149,7 +155,7 @@ export default function NewRoutePage() {
         variant="route"
         eyebrow="Dispatch"
         title="Create route"
-        description="Assign a vehicle, driver, start time, and parcels for this run."
+        description="Assign a vehicle, driver, staging area, start time, and expected parcels for this run."
         icon={<Route strokeWidth={1.75} />}
         action={
           <Link
@@ -171,14 +177,15 @@ export default function NewRoutePage() {
           aria-describedby="form-route-help"
         >
         <p id="form-route-help" className="sr-only">
-          Choose a vehicle first, then a driver from the same depot. Set
-          departure time and select parcels that fit capacity.
+          Choose a vehicle first, then a driver from the same depot. Assign a
+          staging area, set departure time, and select parcels that fit
+          capacity.
         </p>
         <DetailPanel
           className="form-page-panel-animate"
           section="route"
           title="Trip"
-          description="Vehicle, driver, and odometer at departure."
+          description="Vehicle, driver, staging area, and odometer at departure."
         >
           <div className="space-y-6">
             <DetailFormField
@@ -240,6 +247,25 @@ export default function NewRoutePage() {
               )}
             </DetailFormField>
 
+            <DetailFormField
+              label="Staging area"
+              htmlFor="staging-area"
+              error={errors.stagingArea}
+              description="Assign the route to area A or B for warehouse grouping."
+            >
+              <SelectDropdown
+                id="staging-area"
+                options={[...stagingAreaOptions]}
+                value={formData.stagingArea}
+                invalid={!!errors.stagingArea}
+                onChange={(value) => {
+                  clearError("stagingArea");
+                  setFormData({ ...formData, stagingArea: value });
+                }}
+                placeholder="Select staging area"
+              />
+            </DetailFormField>
+
             <div className="grid gap-6 sm:grid-cols-2">
               <DetailFormField
                 label="Start date"
@@ -279,7 +305,7 @@ export default function NewRoutePage() {
           className="form-page-panel-animate-delay"
           section="route"
           title="Parcels"
-          description="Choose parcels that are sorted or staged. Totals must fit the vehicle limits."
+          description="Choose parcels expected on this route. Totals must fit the vehicle limits, and warehouse operators will stage them later."
         >
           <div className="space-y-4">
             <div
