@@ -37,7 +37,18 @@ public sealed class UpdateStorageZoneCommandHandler(IAppDbContext db)
         entity.Name = name;
         entity.NormalizedName = normalizedName;
 
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex)
+            when (BinLocationPersistenceExceptionSupport.IsUniqueConstraintViolation(
+                ex,
+                BinLocationPersistenceExceptionSupport.StorageZoneNameIndex))
+        {
+            throw new InvalidOperationException(
+                $"A storage zone named '{name}' already exists for this depot.");
+        }
 
         return entity.ToResultDto();
     }

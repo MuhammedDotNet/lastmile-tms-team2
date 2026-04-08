@@ -37,7 +37,18 @@ public sealed class CreateStorageAisleCommandHandler(IAppDbContext db)
         entity.NormalizedName = normalizedName;
 
         db.StorageAisles.Add(entity);
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex)
+            when (BinLocationPersistenceExceptionSupport.IsUniqueConstraintViolation(
+                ex,
+                BinLocationPersistenceExceptionSupport.StorageAisleNameIndex))
+        {
+            throw new InvalidOperationException(
+                $"A storage aisle named '{name}' already exists for this storage zone.");
+        }
 
         return entity.ToResultDto();
     }

@@ -44,21 +44,20 @@ public sealed class CreateBinLocationCommandHandler(IAppDbContext db)
             await db.SaveChangesAsync(cancellationToken);
         }
         catch (DbUpdateException ex)
+            when (BinLocationPersistenceExceptionSupport.IsUniqueConstraintViolation(
+                ex,
+                BinLocationPersistenceExceptionSupport.BinLocationNameIndex))
         {
-            var duplicatePersisted = await db.BinLocations
-                .AnyAsync(
-                    x => x.StorageAisleId == request.Dto.StorageAisleId
-                        && x.NormalizedName == normalizedName,
-                    cancellationToken);
-
-            if (duplicatePersisted)
-            {
-                throw new InvalidOperationException(
-                    $"A bin location named '{name}' already exists for this storage aisle.",
-                    ex);
-            }
-
-            throw;
+            throw new InvalidOperationException(
+                $"A bin location named '{name}' already exists for this storage aisle.");
+        }
+        catch (DbUpdateException ex)
+            when (BinLocationPersistenceExceptionSupport.IsUniqueConstraintViolation(
+                ex,
+                BinLocationPersistenceExceptionSupport.BinLocationDeliveryZoneIndex))
+        {
+            throw new InvalidOperationException(
+                "The selected delivery zone is already assigned to another active bin location.");
         }
 
         return await db.BinLocations

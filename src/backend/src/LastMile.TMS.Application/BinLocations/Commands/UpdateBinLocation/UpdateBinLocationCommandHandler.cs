@@ -54,7 +54,26 @@ public sealed class UpdateBinLocationCommandHandler(IAppDbContext db)
             entity.IsActive = request.Dto.IsActive.Value;
         }
 
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex)
+            when (BinLocationPersistenceExceptionSupport.IsUniqueConstraintViolation(
+                ex,
+                BinLocationPersistenceExceptionSupport.BinLocationNameIndex))
+        {
+            throw new InvalidOperationException(
+                $"A bin location named '{name}' already exists for this storage aisle.");
+        }
+        catch (DbUpdateException ex)
+            when (BinLocationPersistenceExceptionSupport.IsUniqueConstraintViolation(
+                ex,
+                BinLocationPersistenceExceptionSupport.BinLocationDeliveryZoneIndex))
+        {
+            throw new InvalidOperationException(
+                "The selected delivery zone is already assigned to another active bin location.");
+        }
 
         return await db.BinLocations
             .AsNoTracking()
