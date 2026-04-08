@@ -14,5 +14,7 @@ public class Depot: BaseAuditableEntity
 
     public ICollection<Zone> Zones { get; set; } = new List<Zone>();
 
+    public ICollection<StorageZone> StorageZones { get; set; } = new List<StorageZone>();
+
     public ICollection<Driver> Drivers { get; set; } = new List<Driver>();
 }

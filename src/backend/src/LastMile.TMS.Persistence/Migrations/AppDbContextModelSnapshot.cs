@@ -249,6 +249,55 @@ namespace LastMile.TMS.Persistence.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("LastMile.TMS.Domain.Entities.BinLocation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("DeliveryZoneId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("StorageAisleId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DeliveryZoneId")
+                        .IsUnique()
+                        .HasFilter("\"DeliveryZoneId\" IS NOT NULL AND \"IsActive\" = TRUE");
+
+                    b.HasIndex("StorageAisleId", "NormalizedName")
+                        .IsUnique();
+
+                    b.ToTable("BinLocations", (string)null);
+                });
+
             modelBuilder.Entity("LastMile.TMS.Domain.Entities.DeliveryConfirmation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1158,6 +1207,84 @@ namespace LastMile.TMS.Persistence.Migrations
                     b.ToTable("Routes", (string)null);
                 });
 
+            modelBuilder.Entity("LastMile.TMS.Domain.Entities.StorageAisle", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("StorageZoneId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StorageZoneId", "NormalizedName")
+                        .IsUnique();
+
+                    b.ToTable("StorageAisles", (string)null);
+                });
+
+            modelBuilder.Entity("LastMile.TMS.Domain.Entities.StorageZone", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("DepotId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DepotId", "NormalizedName")
+                        .IsUnique();
+
+                    b.ToTable("StorageZones", (string)null);
+                });
+
             modelBuilder.Entity("LastMile.TMS.Domain.Entities.TrackingEvent", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1677,6 +1804,24 @@ namespace LastMile.TMS.Persistence.Migrations
                     b.Navigation("Zone");
                 });
 
+            modelBuilder.Entity("LastMile.TMS.Domain.Entities.BinLocation", b =>
+                {
+                    b.HasOne("LastMile.TMS.Domain.Entities.Zone", "DeliveryZone")
+                        .WithMany("AssignedBinLocations")
+                        .HasForeignKey("DeliveryZoneId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("LastMile.TMS.Domain.Entities.StorageAisle", "StorageAisle")
+                        .WithMany("BinLocations")
+                        .HasForeignKey("StorageAisleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("DeliveryZone");
+
+                    b.Navigation("StorageAisle");
+                });
+
             modelBuilder.Entity("LastMile.TMS.Domain.Entities.DeliveryConfirmation", b =>
                 {
                     b.HasOne("LastMile.TMS.Domain.Entities.Parcel", "Parcel")
@@ -1937,6 +2082,28 @@ namespace LastMile.TMS.Persistence.Migrations
                     b.Navigation("Vehicle");
                 });
 
+            modelBuilder.Entity("LastMile.TMS.Domain.Entities.StorageAisle", b =>
+                {
+                    b.HasOne("LastMile.TMS.Domain.Entities.StorageZone", "StorageZone")
+                        .WithMany("StorageAisles")
+                        .HasForeignKey("StorageZoneId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("StorageZone");
+                });
+
+            modelBuilder.Entity("LastMile.TMS.Domain.Entities.StorageZone", b =>
+                {
+                    b.HasOne("LastMile.TMS.Domain.Entities.Depot", "Depot")
+                        .WithMany("StorageZones")
+                        .HasForeignKey("DepotId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Depot");
+                });
+
             modelBuilder.Entity("LastMile.TMS.Domain.Entities.TrackingEvent", b =>
                 {
                     b.HasOne("LastMile.TMS.Domain.Entities.Parcel", "Parcel")
@@ -2105,6 +2272,8 @@ namespace LastMile.TMS.Persistence.Migrations
 
                     b.Navigation("OperatingHours");
 
+                    b.Navigation("StorageZones");
+
                     b.Navigation("Zones");
                 });
 
@@ -2152,8 +2321,20 @@ namespace LastMile.TMS.Persistence.Migrations
                     b.Navigation("RowFailures");
                 });
 
+            modelBuilder.Entity("LastMile.TMS.Domain.Entities.StorageAisle", b =>
+                {
+                    b.Navigation("BinLocations");
+                });
+
+            modelBuilder.Entity("LastMile.TMS.Domain.Entities.StorageZone", b =>
+                {
+                    b.Navigation("StorageAisles");
+                });
+
             modelBuilder.Entity("LastMile.TMS.Domain.Entities.Zone", b =>
                 {
+                    b.Navigation("AssignedBinLocations");
+
                     b.Navigation("Drivers");
 
                     b.Navigation("Parcels");

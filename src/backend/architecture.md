@@ -10,9 +10,10 @@ The backend is a layered .NET solution with:
 - REST reserved for auth and technical endpoints
 - CQRS in `Application`
 - Mapperly as the standard mapping tool
-- HotChocolate projection-backed reads for simple list/detail queries
+- HotChocolate projection-backed reads as the default path for simple list/detail queries
 
 Primary feature vocabulary:
+- `bin-locations`
 - `depots`
 - `drivers`
 - `parcels`
@@ -26,6 +27,7 @@ Primary feature vocabulary:
 - Keep business behavior in `Application`.
 - Keep GraphQL explicit. Domain entities may be returned from resolvers, but schema shape must always be controlled through explicit GraphQL types.
 - Use Mapperly for object mapping. Avoid handwritten property-by-property mapping except where domain rules or EF tracking make it necessary.
+- Prefer projection-backed GraphQL reads whenever the response shape maps cleanly to the entity graph.
 - Keep projection-backed reads pure. Read services used with `[UseProjection]` return `IQueryable<TEntity>` and do not pre-project into DTOs.
 - Organize by feature first, then by use case.
 - Prefer one obvious place for each responsibility: commands, queries, reads, mappings, DTOs.
@@ -63,13 +65,19 @@ Responsibilities:
 GraphQL feature structure:
 
 ```text
-LastMile.TMS.Api/GraphQL/
+  LastMile.TMS.Api/GraphQL/
   Common/
     EntityObjectType.cs
     Query.cs
     Mutation.cs
     GraphQLErrorFilter.cs
     DomainExceptionErrorFilter.cs
+  BinLocations/
+    BinLocationInputs.cs
+    BinLocationMappings.cs
+    BinLocationMutations.cs
+    BinLocationQueries.cs
+    BinLocationTypes.cs
   Depots/
     DepotInputs.cs
     DepotMappings.cs
@@ -119,10 +127,16 @@ Responsibilities:
 Canonical feature structure:
 
 ```text
-LastMile.TMS.Application/
+  LastMile.TMS.Application/
   Common/
     Behaviors/
     Interfaces/
+  BinLocations/
+    Commands/
+    Queries/
+    DTOs/
+    Mappings/
+    Support/
   Depots/
     Commands/
       CreateDepot/
@@ -180,9 +194,10 @@ Rules:
 - `Validator` exists only when needed.
 - `DTOs/` contains request/result DTOs only, not projection read models.
 - `Mappings/` contains Mapperly mapping classes and closely related mapping helpers.
-- `Reads/` contains `I<Feature>ReadService` plus implementation.
+- `Reads/` contains `I<Feature>ReadService` plus implementation when the feature uses projection-backed `IQueryable<TEntity>` reads.
 - `Services/` is for feature-specific ports or helper services declared in `Application`.
 - `Support/` is for feature-local rules and helpers that do not belong in DTOs, reads, or services.
+- Features that use MediatR-backed reads as an exception to the default projection-backed path may omit `Reads/` and keep read orchestration under `Queries/`.
 - Not every feature needs every folder. Keep the structure uniform, but do not add empty folders just for symmetry.
 
 ### `LastMile.TMS.Domain`
@@ -275,6 +290,23 @@ Notes:
 - Resource mutations usually return domain entities so the same GraphQL object type is reused for queries and mutations.
 - Workflow mutations may return DTOs when there is no shared resource graph. Examples: parcel registration result, password reset result.
 
+### Preferred GraphQL Read Path
+
+Default to projection-backed GraphQL reads whenever the response shape maps cleanly to the entity graph.
+
+Preferred path:
+- GraphQL resolver in `Api`
+- `IReadService` in `Application` returning `IQueryable<TEntity>`
+- HotChocolate middleware such as `[UseProjection]`, `[UseFiltering]`, `[UseSorting]`, and `[UsePaging]`
+- explicit GraphQL object types controlling the schema
+
+Use MediatR-backed query handlers only when projection-backed reads would add unnecessary complexity, such as:
+- aggregate or dashboard-style payloads
+- tree or layout responses
+- bundled lookup data returned together with the main result
+- workflow-specific reads
+- reads with non-trivial orchestration, authorization, or conditional shaping
+
 ### Projection-Backed Query Flow
 
 ```text
@@ -315,6 +347,7 @@ Use this for:
 - aggregate screens
 - bundled lookup payloads
 - reads with non-trivial authorization or orchestration
+- cases where projection-backed GraphQL reads would not fit cleanly
 
 ## Command and Query Conventions
 
@@ -329,7 +362,7 @@ Scalar-only commands are allowed for truly small actions such as:
 
 Queries:
 - keep query request/handler pairs under `Queries/<UseCase>/`
-- use handlers only when the read is more than simple projection-backed retrieval
+- use handlers only when the read is aggregate-oriented, workflow-specific, or does not fit cleanly into the projection-backed path
 
 ## Mapperly Conventions
 
@@ -401,11 +434,12 @@ Projection-backed today:
 - `zones`
 
 MediatR-backed today:
+- `bin-locations`
 - all mutations
 - workflow queries such as user management lookups
 - any future aggregate or orchestration-heavy read
 
-The real rule is complexity, not domain label.
+The real rule is not domain label. Prefer projection-backed GraphQL reads by default, and fall back to MediatR query handlers only when the read needs orchestration or an aggregate-shaped payload.
 
 ## What Belongs Where
 
@@ -439,20 +473,20 @@ Put code in `Persistence` when:
 
 1. Add or update the domain entity in `Domain` if required.
 2. Add persistence wiring and migrations in `Persistence`.
-3. In `Application`, create a feature folder with:
-   - `Commands/<UseCase>/`
-   - `Queries/<UseCase>/` if needed
-   - `DTOs/`
-   - `Mappings/`
-   - `Reads/`
-   - optional `Services/` or `Support/`
-4. Use Mapperly for `DTO <-> Entity` work.
-5. Choose the read path:
-   - projection-backed `IQueryable<TEntity>`
-   - MediatR-backed query handler
-6. In `Api/GraphQL/<Feature>`, add:
-   - `*Queries.cs`
-   - `*Mutations.cs` if needed
+ 3. In `Application`, create a feature folder with:
+     - `Commands/<UseCase>/`
+     - `Queries/<UseCase>/` if needed
+     - `DTOs/`
+     - `Mappings/`
+     - `Reads/` when you choose projection-backed read services
+     - optional `Services/` or `Support/`
+  4. Use Mapperly for `DTO <-> Entity` work.
+  5. Choose the read path:
+     - projection-backed `IQueryable<TEntity>` by default
+     - MediatR-backed query handler only when the read is aggregate-oriented, workflow-specific, or otherwise does not fit cleanly into the projection pipeline
+  6. In `Api/GraphQL/<Feature>`, add:
+     - `*Queries.cs`
+     - `*Mutations.cs` if needed
    - `*Inputs.cs` if needed
    - `*Mappings.cs` if needed
    - `*Types.cs`
