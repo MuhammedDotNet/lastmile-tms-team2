@@ -20,6 +20,22 @@ public sealed class UpdateZoneCommandHandler(
         if (zone is null)
             return null;
 
+        var assignedBinCount = (request.Dto.DepotId != zone.DepotId || (!request.Dto.IsActive && zone.IsActive))
+            ? await db.BinLocations.CountAsync(x => x.DeliveryZoneId == zone.Id, cancellationToken)
+            : 0;
+
+        if (!request.Dto.IsActive && zone.IsActive && assignedBinCount > 0)
+        {
+            throw new InvalidOperationException(
+                $"Cannot deactivate zone '{zone.Name}' because it is assigned to {assignedBinCount} bin location(s). Remove the bin assignments first.");
+        }
+
+        if (request.Dto.DepotId != zone.DepotId && assignedBinCount > 0)
+        {
+            throw new InvalidOperationException(
+                $"Cannot move zone '{zone.Name}' to a different depot while it is assigned to bin locations.");
+        }
+
         request.Dto.UpdateEntity(zone);
 
         if (HasBoundaryInput(request))

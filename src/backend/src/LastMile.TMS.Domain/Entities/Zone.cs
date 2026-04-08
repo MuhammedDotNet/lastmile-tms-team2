@@ -19,6 +19,8 @@ public class Zone: BaseAuditableEntity
 
     public ICollection<Driver> Drivers { get; set; } = new List<Driver>();
 
+    public ICollection<BinLocation> AssignedBinLocations { get; set; } = new List<BinLocation>();
+
     public void UpdateBoundary(Polygon boundary)
     {
         Boundary = boundary;

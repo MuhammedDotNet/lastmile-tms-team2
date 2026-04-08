@@ -178,6 +178,12 @@ vi.mock("@/components/form/select-dropdown", () => ({
   ),
 }));
 
+function getFutureDate(daysFromNow = 2): string {
+  const date = new Date();
+  date.setDate(date.getDate() + daysFromNow);
+  return date.toISOString().slice(0, 10);
+}
+
 describe("ParcelRegistrationForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -209,6 +215,7 @@ describe("ParcelRegistrationForm", () => {
 
   async function fillRequiredFields() {
     const user = userEvent.setup();
+    const futureDate = getFutureDate();
 
     await user.selectOptions(screen.getByTestId("shipperAddressId"), "address-1");
     fireEvent.change(screen.getByPlaceholderText("123 Main St"), {
@@ -227,7 +234,7 @@ describe("ParcelRegistrationForm", () => {
       target: { value: "62701" },
     });
     fireEvent.change(screen.getByLabelText(/est\. delivery date/i), {
-      target: { value: "2026-04-08" },
+      target: { value: futureDate },
     });
 
     return user;
@@ -270,13 +277,14 @@ describe("ParcelRegistrationForm", () => {
     render(<ParcelRegistrationForm />);
 
     const user = userEvent.setup();
+    const futureDate = getFutureDate();
     await user.selectOptions(screen.getByTestId("shipperAddressId"), "address-1");
     await user.click(screen.getByRole("button", { name: /use mapbox suggestion/i }));
     fireEvent.change(screen.getByLabelText(/recipient name/i), {
       target: { value: "John Doe" },
     });
     fireEvent.change(screen.getByLabelText(/est\. delivery date/i), {
-      target: { value: "2026-04-08" },
+      target: { value: futureDate },
     });
 
     await user.click(screen.getByRole("button", { name: /register parcel/i }));

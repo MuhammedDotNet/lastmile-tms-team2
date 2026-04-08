@@ -14,6 +14,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<Depot> Depots => Set<Depot>();
     public DbSet<OperatingHours> DepotOperatingHours => Set<OperatingHours>();
     public DbSet<Zone> Zones => Set<Zone>();
+    public DbSet<StorageZone> StorageZones => Set<StorageZone>();
+    public DbSet<StorageAisle> StorageAisles => Set<StorageAisle>();
+    public DbSet<BinLocation> BinLocations => Set<BinLocation>();
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();
     public DbSet<Driver> Drivers => Set<Driver>();

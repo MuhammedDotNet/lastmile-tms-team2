@@ -15,9 +15,19 @@ describe("dashboard navigation", () => {
     expect(adminItems).toContain("/users");
     expect(adminItems).toContain("/zones");
     expect(adminItems).toContain("/depots");
+    expect(adminItems).toContain("/bin-locations");
     expect(dispatcherItems).not.toContain("/users");
+    expect(dispatcherItems).not.toContain("/bin-locations");
     expect(dispatcherItems).toContain("/zones");
     expect(dispatcherItems).toContain("/depots");
+  });
+
+  it("shows bin locations to operations managers", () => {
+    const operationsItems = getDashboardNavItems(["OperationsManager"]).map(
+      (item) => item.href,
+    );
+
+    expect(operationsItems).toContain("/bin-locations");
   });
 
   it("matches active dashboard routes including nested paths", () => {

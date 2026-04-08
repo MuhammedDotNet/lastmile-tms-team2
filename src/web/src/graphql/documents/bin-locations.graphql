@@ -1,0 +1,136 @@
+query GetDepotStorageLayout($depotId: UUID!) {
+  depotStorageLayout(depotId: $depotId) {
+    depotId
+    depotName
+    availableDeliveryZones {
+      id
+      name
+    }
+    storageZones {
+      id
+      name
+      depotId
+      storageAisles {
+        id
+        name
+        storageZoneId
+        binLocations {
+          id
+          name
+          isActive
+          storageAisleId
+          deliveryZoneId
+          deliveryZoneName
+        }
+      }
+    }
+  }
+}
+
+mutation CreateStorageZone($input: CreateStorageZoneInput!) {
+  createStorageZone(input: $input) {
+    id
+    name
+    depotId
+    storageAisles {
+      id
+      name
+      storageZoneId
+      binLocations {
+        id
+        name
+        isActive
+        storageAisleId
+        deliveryZoneId
+        deliveryZoneName
+      }
+    }
+  }
+}
+
+mutation UpdateStorageZone($id: UUID!, $input: UpdateStorageZoneInput!) {
+  updateStorageZone(id: $id, input: $input) {
+    id
+    name
+    depotId
+    storageAisles {
+      id
+      name
+      storageZoneId
+      binLocations {
+        id
+        name
+        isActive
+        storageAisleId
+        deliveryZoneId
+        deliveryZoneName
+      }
+    }
+  }
+}
+
+mutation DeleteStorageZone($id: UUID!) {
+  deleteStorageZone(id: $id)
+}
+
+mutation CreateStorageAisle($input: CreateStorageAisleInput!) {
+  createStorageAisle(input: $input) {
+    id
+    name
+    storageZoneId
+    binLocations {
+      id
+      name
+      isActive
+      storageAisleId
+      deliveryZoneId
+      deliveryZoneName
+    }
+  }
+}
+
+mutation UpdateStorageAisle($id: UUID!, $input: UpdateStorageAisleInput!) {
+  updateStorageAisle(id: $id, input: $input) {
+    id
+    name
+    storageZoneId
+    binLocations {
+      id
+      name
+      isActive
+      storageAisleId
+      deliveryZoneId
+      deliveryZoneName
+    }
+  }
+}
+
+mutation DeleteStorageAisle($id: UUID!) {
+  deleteStorageAisle(id: $id)
+}
+
+mutation CreateBinLocation($input: CreateBinLocationInput!) {
+  createBinLocation(input: $input) {
+    id
+    name
+    isActive
+    storageAisleId
+    deliveryZoneId
+    deliveryZoneName
+  }
+}
+
+mutation UpdateBinLocation($id: UUID!, $input: UpdateBinLocationInput!) {
+  updateBinLocation(id: $id, input: $input) {
+    id
+    name
+    isActive
+    storageAisleId
+    deliveryZoneId
+    deliveryZoneName
+  }
+}
+
+mutation DeleteBinLocation($id: UUID!) {
+  deleteBinLocation(id: $id)
+}
