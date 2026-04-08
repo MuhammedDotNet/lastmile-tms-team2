@@ -19,6 +19,12 @@ describe("binLocationsService", () => {
       depotStorageLayout: {
         depotId: "depot-1",
         depotName: "North Depot",
+        availableDeliveryZones: [
+          {
+            id: "delivery-zone-1",
+            name: "Metro North",
+          },
+        ],
         storageZones: [
           {
             id: "zone-1",
@@ -35,6 +41,8 @@ describe("binLocationsService", () => {
                     name: "BIN-01",
                     isActive: true,
                     storageAisleId: "aisle-1",
+                    deliveryZoneId: "delivery-zone-1",
+                    deliveryZoneName: "Metro North",
                   },
                 ],
               },
@@ -47,10 +55,19 @@ describe("binLocationsService", () => {
     const result = await binLocationsService.getDepotStorageLayout("depot-1");
 
     expect(result?.depotName).toBe("North Depot");
+    expect(result?.availableDeliveryZones).toEqual([
+      {
+        id: "delivery-zone-1",
+        name: "Metro North",
+      },
+    ]);
     expect(result?.storageZones).toHaveLength(1);
     expect(result?.storageZones[0].storageAisles[0].binLocations[0].name).toBe(
       "BIN-01",
     );
+    expect(
+      result?.storageZones[0].storageAisles[0].binLocations[0].deliveryZoneName,
+    ).toBe("Metro North");
   });
 
   it("submits storage zone create payloads", async () => {
@@ -83,6 +100,8 @@ describe("binLocationsService", () => {
         name: "BIN-02",
         isActive: false,
         storageAisleId: "aisle-1",
+        deliveryZoneId: null,
+        deliveryZoneName: null,
       },
     });
 
@@ -100,6 +119,35 @@ describe("binLocationsService", () => {
     });
   });
 
+  it("submits bin create payloads with delivery zone assignments", async () => {
+    mockGraphql.mockResolvedValueOnce({
+      createBinLocation: {
+        id: "bin-2",
+        name: "BIN-02",
+        isActive: true,
+        storageAisleId: "aisle-1",
+        deliveryZoneId: "delivery-zone-1",
+        deliveryZoneName: "Metro North",
+      },
+    });
+
+    await binLocationsService.createBinLocation({
+      storageAisleId: "aisle-1",
+      name: "BIN-02",
+      isActive: true,
+      deliveryZoneId: "delivery-zone-1",
+    });
+
+    expect(mockGraphql).toHaveBeenCalledWith(expect.any(Object), {
+      input: {
+        storageAisleId: "aisle-1",
+        name: "BIN-02",
+        isActive: true,
+        deliveryZoneId: "delivery-zone-1",
+      },
+    });
+  });
+
   it("omits bin active state when no status change is requested", async () => {
     mockGraphql.mockResolvedValueOnce({
       updateBinLocation: {
@@ -107,6 +155,8 @@ describe("binLocationsService", () => {
         name: "BIN-03",
         isActive: true,
         storageAisleId: "aisle-1",
+        deliveryZoneId: "delivery-zone-1",
+        deliveryZoneName: "Metro North",
       },
     });
 
@@ -118,6 +168,32 @@ describe("binLocationsService", () => {
       id: "bin-1",
       input: {
         name: "BIN-03",
+      },
+    });
+  });
+
+  it("sends null delivery zone when clearing a bin assignment", async () => {
+    mockGraphql.mockResolvedValueOnce({
+      updateBinLocation: {
+        id: "bin-1",
+        name: "BIN-03",
+        isActive: true,
+        storageAisleId: "aisle-1",
+        deliveryZoneId: null,
+        deliveryZoneName: null,
+      },
+    });
+
+    await binLocationsService.updateBinLocation("bin-1", {
+      name: "BIN-03",
+      deliveryZoneId: null,
+    });
+
+    expect(mockGraphql).toHaveBeenCalledWith(expect.any(Object), {
+      id: "bin-1",
+      input: {
+        name: "BIN-03",
+        deliveryZoneId: null,
       },
     });
   });

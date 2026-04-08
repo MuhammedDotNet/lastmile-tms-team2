@@ -22,6 +22,10 @@ public sealed class UpdateBinLocationCommandHandler(IAppDbContext db)
 
         var name = BinLocationNameNormalizer.Normalize(request.Dto.Name);
         var normalizedName = BinLocationNameNormalizer.NormalizeForUniqueness(name);
+        var finalIsActive = request.Dto.IsActive ?? entity.IsActive;
+        var finalDeliveryZoneId = request.Dto.DeliveryZoneIdSpecified
+            ? request.Dto.DeliveryZoneId
+            : entity.DeliveryZoneId;
 
         var duplicateExists = await db.BinLocations
             .AnyAsync(
@@ -34,8 +38,17 @@ public sealed class UpdateBinLocationCommandHandler(IAppDbContext db)
             throw new InvalidOperationException($"A bin location named '{name}' already exists for this storage aisle.");
         }
 
+        var deliveryZoneAssignment = await BinLocationDeliveryZoneAssignmentSupport.EnsureValidAssignmentAsync(
+            db,
+            entity.StorageAisleId,
+            finalDeliveryZoneId,
+            finalIsActive,
+            entity.Id,
+            cancellationToken);
+
         entity.Name = name;
         entity.NormalizedName = normalizedName;
+        entity.DeliveryZoneId = deliveryZoneAssignment.DeliveryZoneId;
         if (request.Dto.IsActive.HasValue)
         {
             entity.IsActive = request.Dto.IsActive.Value;
@@ -43,6 +56,18 @@ public sealed class UpdateBinLocationCommandHandler(IAppDbContext db)
 
         await db.SaveChangesAsync(cancellationToken);
 
-        return entity.ToResultDto();
+        return await db.BinLocations
+            .AsNoTracking()
+            .Where(x => x.Id == entity.Id)
+            .Select(x => new BinLocationResultDto
+            {
+                Id = x.Id,
+                Name = x.Name,
+                IsActive = x.IsActive,
+                StorageAisleId = x.StorageAisleId,
+                DeliveryZoneId = x.DeliveryZoneId,
+                DeliveryZoneName = x.DeliveryZone != null ? x.DeliveryZone.Name : null,
+            })
+            .SingleAsync(cancellationToken);
     }
 }

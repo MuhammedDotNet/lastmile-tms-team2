@@ -5,11 +5,16 @@ using LastMile.TMS.Application.BinLocations.Queries;
 using LastMile.TMS.Domain.Entities;
 using LastMile.TMS.Persistence;
 using Microsoft.EntityFrameworkCore;
+using NetTopologySuite;
+using NetTopologySuite.Geometries;
 
 namespace LastMile.TMS.Application.Tests.BinLocations;
 
 public class BinLocationCommandHandlerTests
 {
+    private static readonly GeometryFactory GeometryFactory =
+        NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
+
     private static string Normalize(string name) => name.Trim().ToUpperInvariant();
 
     private static AppDbContext MakeDbContext() =>
@@ -85,7 +90,8 @@ public class BinLocationCommandHandlerTests
         AppDbContext db,
         StorageAisle? storageAisle = null,
         string name = "BIN-01",
-        bool isActive = true)
+        bool isActive = true,
+        Zone? deliveryZone = null)
     {
         storageAisle ??= await SeedStorageAisleAsync(db);
 
@@ -96,11 +102,49 @@ public class BinLocationCommandHandlerTests
             StorageAisleId = storageAisle.Id,
             StorageAisle = storageAisle,
             IsActive = isActive,
+            DeliveryZoneId = deliveryZone?.Id,
+            DeliveryZone = deliveryZone,
         };
 
         db.BinLocations.Add(bin);
         await db.SaveChangesAsync();
         return bin;
+    }
+
+    private static async Task<Zone> SeedDeliveryZoneAsync(
+        AppDbContext db,
+        Depot? depot = null,
+        string name = "Delivery Zone A",
+        bool isActive = true)
+    {
+        depot ??= await SeedDepotAsync(db);
+
+        var zone = new Zone
+        {
+            Name = name,
+            Boundary = CreateBoundary(),
+            IsActive = isActive,
+            DepotId = depot.Id,
+            Depot = depot,
+        };
+
+        db.Zones.Add(zone);
+        await db.SaveChangesAsync();
+        return zone;
+    }
+
+    private static Polygon CreateBoundary()
+    {
+        var polygon = GeometryFactory.CreatePolygon(
+            [
+                new Coordinate(144.95, -37.82),
+                new Coordinate(144.98, -37.82),
+                new Coordinate(144.98, -37.79),
+                new Coordinate(144.95, -37.79),
+                new Coordinate(144.95, -37.82),
+            ]);
+        polygon.SRID = 4326;
+        return polygon;
     }
 
     [Fact]
@@ -150,6 +194,108 @@ public class BinLocationCommandHandlerTests
     }
 
     [Fact]
+    public async Task CreateBinLocation_WithAssignedDeliveryZone_ReturnsAssignment()
+    {
+        var db = MakeDbContext();
+        var depot = await SeedDepotAsync(db);
+        var aisle = await SeedStorageAisleAsync(db, await SeedStorageZoneAsync(db, depot));
+        var deliveryZone = await SeedDeliveryZoneAsync(db, depot, "North Metro");
+        var handler = new CreateBinLocationCommandHandler(db);
+
+        var result = await handler.Handle(
+            new CreateBinLocationCommand(new CreateBinLocationDto
+            {
+                StorageAisleId = aisle.Id,
+                Name = "BIN-10",
+                IsActive = true,
+                DeliveryZoneId = deliveryZone.Id,
+            }),
+            CancellationToken.None);
+
+        result.DeliveryZoneId.Should().Be(deliveryZone.Id);
+        result.DeliveryZoneName.Should().Be("North Metro");
+
+        var persisted = await db.BinLocations.SingleAsync(x => x.Id == result.Id);
+        persisted.DeliveryZoneId.Should().Be(deliveryZone.Id);
+    }
+
+    [Fact]
+    public async Task CreateBinLocation_WithDeliveryZoneFromDifferentDepot_Throws()
+    {
+        var db = MakeDbContext();
+        var depotA = await SeedDepotAsync(db, "Depot A");
+        var depotB = await SeedDepotAsync(db, "Depot B");
+        var aisle = await SeedStorageAisleAsync(db, await SeedStorageZoneAsync(db, depotA));
+        var deliveryZone = await SeedDeliveryZoneAsync(db, depotB, "South Metro");
+        var handler = new CreateBinLocationCommandHandler(db);
+
+        var act = () => handler.Handle(
+            new CreateBinLocationCommand(new CreateBinLocationDto
+            {
+                StorageAisleId = aisle.Id,
+                Name = "BIN-10",
+                IsActive = true,
+                DeliveryZoneId = deliveryZone.Id,
+            }),
+            CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*same depot*");
+    }
+
+    [Fact]
+    public async Task CreateBinLocation_WithTakenDeliveryZoneAndActiveBin_Throws()
+    {
+        var db = MakeDbContext();
+        var depot = await SeedDepotAsync(db);
+        var storageZone = await SeedStorageZoneAsync(db, depot);
+        var firstAisle = await SeedStorageAisleAsync(db, storageZone, "Aisle A");
+        var secondAisle = await SeedStorageAisleAsync(db, storageZone, "Aisle B");
+        var deliveryZone = await SeedDeliveryZoneAsync(db, depot, "North Metro");
+        await SeedBinLocationAsync(db, firstAisle, "BIN-01", true, deliveryZone);
+        var handler = new CreateBinLocationCommandHandler(db);
+
+        var act = () => handler.Handle(
+            new CreateBinLocationCommand(new CreateBinLocationDto
+            {
+                StorageAisleId = secondAisle.Id,
+                Name = "BIN-02",
+                IsActive = true,
+                DeliveryZoneId = deliveryZone.Id,
+            }),
+            CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*already assigned*");
+    }
+
+    [Fact]
+    public async Task CreateBinLocation_WithTakenDeliveryZoneAndInactiveBin_AllowsReuse()
+    {
+        var db = MakeDbContext();
+        var depot = await SeedDepotAsync(db);
+        var storageZone = await SeedStorageZoneAsync(db, depot);
+        var firstAisle = await SeedStorageAisleAsync(db, storageZone, "Aisle A");
+        var secondAisle = await SeedStorageAisleAsync(db, storageZone, "Aisle B");
+        var deliveryZone = await SeedDeliveryZoneAsync(db, depot, "North Metro");
+        await SeedBinLocationAsync(db, firstAisle, "BIN-01", true, deliveryZone);
+        var handler = new CreateBinLocationCommandHandler(db);
+
+        var result = await handler.Handle(
+            new CreateBinLocationCommand(new CreateBinLocationDto
+            {
+                StorageAisleId = secondAisle.Id,
+                Name = "BIN-02",
+                IsActive = false,
+                DeliveryZoneId = deliveryZone.Id,
+            }),
+            CancellationToken.None);
+
+        result.IsActive.Should().BeFalse();
+        result.DeliveryZoneId.Should().Be(deliveryZone.Id);
+    }
+
+    [Fact]
     public async Task UpdateBinLocation_WithNullIsActive_KeepsCurrentStatus()
     {
         var db = MakeDbContext();
@@ -172,6 +318,50 @@ public class BinLocationCommandHandlerTests
         var persisted = await db.BinLocations.SingleAsync(x => x.Id == bin.Id);
         persisted.Name.Should().Be("BIN-02");
         persisted.IsActive.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task UpdateBinLocation_AssignsAndClearsDeliveryZone()
+    {
+        var db = MakeDbContext();
+        var depot = await SeedDepotAsync(db);
+        var aisle = await SeedStorageAisleAsync(db, await SeedStorageZoneAsync(db, depot));
+        var deliveryZone = await SeedDeliveryZoneAsync(db, depot, "North Metro");
+        var bin = await SeedBinLocationAsync(db, aisle, "BIN-01", true);
+        var handler = new UpdateBinLocationCommandHandler(db);
+
+        var assigned = await handler.Handle(
+            new UpdateBinLocationCommand(
+                bin.Id,
+                new UpdateBinLocationDto
+                {
+                    Name = "BIN-01",
+                    DeliveryZoneIdSpecified = true,
+                    DeliveryZoneId = deliveryZone.Id,
+                }),
+            CancellationToken.None);
+
+        assigned.Should().NotBeNull();
+        assigned!.DeliveryZoneId.Should().Be(deliveryZone.Id);
+        assigned.DeliveryZoneName.Should().Be("North Metro");
+
+        var cleared = await handler.Handle(
+            new UpdateBinLocationCommand(
+                bin.Id,
+                new UpdateBinLocationDto
+                {
+                    Name = "BIN-01",
+                    DeliveryZoneIdSpecified = true,
+                    DeliveryZoneId = null,
+                }),
+            CancellationToken.None);
+
+        cleared.Should().NotBeNull();
+        cleared!.DeliveryZoneId.Should().BeNull();
+        cleared.DeliveryZoneName.Should().BeNull();
+
+        var persisted = await db.BinLocations.SingleAsync(x => x.Id == bin.Id);
+        persisted.DeliveryZoneId.Should().BeNull();
     }
 
     [Fact]
@@ -207,6 +397,8 @@ public class BinLocationCommandHandlerTests
     {
         var db = MakeDbContext();
         var depot = await SeedDepotAsync(db, "South Depot");
+        var deliveryZoneB = await SeedDeliveryZoneAsync(db, depot, "Zone Delivery B");
+        var deliveryZoneA = await SeedDeliveryZoneAsync(db, depot, "Zone Delivery A");
 
         var zoneB = await SeedStorageZoneAsync(db, depot, "Zone B");
         var zoneA = await SeedStorageZoneAsync(db, depot, "Zone A");
@@ -214,8 +406,8 @@ public class BinLocationCommandHandlerTests
         var aisleB = await SeedStorageAisleAsync(db, zoneA, "Aisle B");
         var aisleA = await SeedStorageAisleAsync(db, zoneA, "Aisle A");
 
-        await SeedBinLocationAsync(db, aisleA, "BIN-02", false);
-        await SeedBinLocationAsync(db, aisleA, "BIN-01", true);
+        await SeedBinLocationAsync(db, aisleA, "BIN-02", false, deliveryZoneB);
+        await SeedBinLocationAsync(db, aisleA, "BIN-01", true, deliveryZoneA);
         await SeedStorageAisleAsync(db, zoneB, "Aisle C");
 
         db.ChangeTracker.Clear();
@@ -227,9 +419,12 @@ public class BinLocationCommandHandlerTests
         result.Should().NotBeNull();
         result!.DepotId.Should().Be(depot.Id);
         result.DepotName.Should().Be("South Depot");
+        result.AvailableDeliveryZones.Select(x => x.Name).Should().Equal("Zone Delivery A", "Zone Delivery B");
         result.StorageZones.Select(x => x.Name).Should().Equal("Zone A", "Zone B");
         result.StorageZones[0].StorageAisles.Select(x => x.Name).Should().Equal("Aisle A", "Aisle B");
         result.StorageZones[0].StorageAisles[0].BinLocations.Select(x => x.Name).Should().Equal("BIN-01", "BIN-02");
         result.StorageZones[0].StorageAisles[0].BinLocations.Select(x => x.IsActive).Should().Equal(true, false);
+        result.StorageZones[0].StorageAisles[0].BinLocations.Select(x => x.DeliveryZoneName).Should().Equal("Zone Delivery A", "Zone Delivery B");
+        result.StorageZones[0].StorageAisles[0].BinLocations.Select(x => x.DeliveryZoneId).Should().Equal(deliveryZoneA.Id, deliveryZoneB.Id);
     }
 }

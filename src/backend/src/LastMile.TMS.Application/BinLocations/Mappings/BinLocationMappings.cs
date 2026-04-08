@@ -29,6 +29,7 @@ public static partial class BinLocationMappings
 
     [MapperIgnoreTarget(nameof(BinLocation.NormalizedName))]
     [MapperIgnoreTarget(nameof(BinLocation.StorageAisle))]
+    [MapperIgnoreTarget(nameof(BinLocation.DeliveryZone))]
     [MapperIgnoreTarget(nameof(BinLocation.CreatedAt))]
     [MapperIgnoreTarget(nameof(BinLocation.CreatedBy))]
     [MapperIgnoreTarget(nameof(BinLocation.LastModifiedAt))]

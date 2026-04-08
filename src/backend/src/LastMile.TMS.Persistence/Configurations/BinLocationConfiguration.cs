@@ -28,7 +28,16 @@ public class BinLocationConfiguration : IEntityTypeConfiguration<BinLocation>
             .HasForeignKey(x => x.StorageAisleId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        builder.HasOne(x => x.DeliveryZone)
+            .WithMany(x => x.AssignedBinLocations)
+            .HasForeignKey(x => x.DeliveryZoneId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasIndex(x => new { x.StorageAisleId, x.NormalizedName })
             .IsUnique();
+
+        builder.HasIndex(x => x.DeliveryZoneId)
+            .IsUnique()
+            .HasFilter("\"DeliveryZoneId\" IS NOT NULL AND \"IsActive\" = TRUE");
     }
 }

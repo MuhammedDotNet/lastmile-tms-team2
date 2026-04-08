@@ -36,6 +36,7 @@ import { useDepots } from "@/queries/depots";
 import { cn } from "@/lib/utils";
 import type {
   BinLocation,
+  DeliveryZoneOption,
   StorageAisle,
   StorageZone,
 } from "@/types/bin-locations";
@@ -115,16 +116,24 @@ function NameForm({
 function BinForm({
   value,
   isActive,
+  deliveryZoneId,
+  deliveryZoneOptions,
+  disabledDeliveryZoneIds,
   onNameChange,
   onActiveChange,
+  onDeliveryZoneChange,
   onCancel,
   submitLabel,
   isPending,
 }: {
   value: string;
   isActive: boolean;
+  deliveryZoneId: string;
+  deliveryZoneOptions: DeliveryZoneOption[];
+  disabledDeliveryZoneIds: Set<string>;
   onNameChange: (value: string) => void;
   onActiveChange: (value: boolean) => void;
+  onDeliveryZoneChange: (value: string) => void;
   onCancel: () => void;
   submitLabel: string;
   isPending: boolean;
@@ -153,6 +162,29 @@ function BinForm({
             <option value="false">Inactive</option>
           </select>
         </div>
+        <div className="sm:col-span-2">
+          <Label htmlFor="bin-delivery-zone">Delivery zone</Label>
+          <select
+            id="bin-delivery-zone"
+            value={deliveryZoneId}
+            onChange={(event) => onDeliveryZoneChange(event.target.value)}
+            className="flex h-10 w-full items-center rounded-xl border border-input/90 bg-background px-3 py-2 text-sm"
+          >
+            <option value="">Unassigned</option>
+            {deliveryZoneOptions.map((zone) => (
+              <option
+                key={zone.id}
+                value={zone.id}
+                disabled={disabledDeliveryZoneIds.has(zone.id)}
+              >
+                {zone.name}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Assign a delivery zone when this bin should be the future sorting target for that route area.
+          </p>
+        </div>
       </div>
       <div className="mt-4 flex justify-end gap-3">
         <Button type="button" variant="outline" onClick={onCancel}>
@@ -177,6 +209,7 @@ export default function BinLocationsPage() {
   const [deleteState, setDeleteState] = useState<DeleteState>(null);
   const [draftName, setDraftName] = useState("");
   const [draftIsActive, setDraftIsActive] = useState(true);
+  const [draftDeliveryZoneId, setDraftDeliveryZoneId] = useState("");
   const [submitError, setSubmitError] = useState<string | undefined>();
 
   const activeDepotId = depots?.some((depot) => depot.id === selectedDepotId)
@@ -211,11 +244,31 @@ export default function BinLocationsPage() {
     }
   }
 
+  const deliveryZoneOptions = layout?.availableDeliveryZones ?? [];
+  const currentEditingBinId = editState?.kind === "bin" ? editState.bin.id : null;
+  const disabledDeliveryZoneIds = new Set<string>();
+  if (draftIsActive) {
+    for (const zone of layout?.storageZones ?? []) {
+      for (const aisle of zone.storageAisles) {
+        for (const bin of aisle.binLocations) {
+          if (
+            bin.isActive
+            && bin.deliveryZoneId
+            && bin.id !== currentEditingBinId
+          ) {
+            disabledDeliveryZoneIds.add(bin.deliveryZoneId);
+          }
+        }
+      }
+    }
+  }
+
   function resetDrafts() {
     setCreateState(null);
     setEditState(null);
     setDraftName("");
     setDraftIsActive(true);
+    setDraftDeliveryZoneId("");
     setSubmitError(undefined);
   }
 
@@ -236,6 +289,7 @@ export default function BinLocationsPage() {
     setEditState(null);
     setDraftName("");
     setDraftIsActive(true);
+    setDraftDeliveryZoneId("");
     setSubmitError(undefined);
   }
 
@@ -244,6 +298,7 @@ export default function BinLocationsPage() {
     setEditState(null);
     setDraftName("");
     setDraftIsActive(true);
+    setDraftDeliveryZoneId("");
     setSubmitError(undefined);
     setCollapsedZoneIds((current) => {
       const next = new Set(current);
@@ -257,6 +312,7 @@ export default function BinLocationsPage() {
     setEditState(null);
     setDraftName("");
     setDraftIsActive(true);
+    setDraftDeliveryZoneId("");
     setSubmitError(undefined);
   }
 
@@ -265,6 +321,7 @@ export default function BinLocationsPage() {
     setCreateState(null);
     setDraftName(zone.name);
     setDraftIsActive(true);
+    setDraftDeliveryZoneId("");
     setSubmitError(undefined);
   }
 
@@ -273,6 +330,7 @@ export default function BinLocationsPage() {
     setCreateState(null);
     setDraftName(aisle.name);
     setDraftIsActive(true);
+    setDraftDeliveryZoneId("");
     setSubmitError(undefined);
   }
 
@@ -281,6 +339,7 @@ export default function BinLocationsPage() {
     setCreateState(null);
     setDraftName(bin.name);
     setDraftIsActive(bin.isActive);
+    setDraftDeliveryZoneId(bin.deliveryZoneId ?? "");
     setSubmitError(undefined);
   }
 
@@ -309,6 +368,7 @@ export default function BinLocationsPage() {
           storageAisleId: createState.storageAisleId,
           name,
           isActive: draftIsActive,
+          deliveryZoneId: draftDeliveryZoneId || null,
         });
       }
 
@@ -348,6 +408,7 @@ export default function BinLocationsPage() {
           data: {
             name,
             isActive: draftIsActive,
+            deliveryZoneId: draftDeliveryZoneId || null,
           },
         });
       }
@@ -748,8 +809,12 @@ export default function BinLocationsPage() {
                               <BinForm
                                 value={draftName}
                                 isActive={draftIsActive}
+                                deliveryZoneId={draftDeliveryZoneId}
+                                deliveryZoneOptions={deliveryZoneOptions}
+                                disabledDeliveryZoneIds={disabledDeliveryZoneIds}
                                 onNameChange={setDraftName}
                                 onActiveChange={setDraftIsActive}
+                                onDeliveryZoneChange={setDraftDeliveryZoneId}
                                 onCancel={resetDrafts}
                                 submitLabel={isBusy ? "Creating..." : "Create bin location"}
                                 isPending={isBusy}
@@ -768,21 +833,27 @@ export default function BinLocationsPage() {
                                   className="rounded-xl border border-border/50 bg-card/70 p-3"
                                 >
                                   <div className="flex flex-wrap items-center justify-between gap-3">
-                                    <div className="flex items-center gap-3">
-                                      <span className="font-medium">{bin.name}</span>
-                                      <span
-                                        className={cn(
-                                          "inline-flex rounded-full px-2.5 py-1 text-xs font-medium",
-                                          bin.isActive
-                                            ? "bg-emerald-100 text-emerald-700"
-                                            : "bg-amber-100 text-amber-700",
-                                        )}
-                                      >
-                                        {bin.isActive ? "Active" : "Inactive"}
-                                      </span>
+                                    <div>
+                                      <div className="flex items-center gap-3">
+                                        <span className="font-medium">{bin.name}</span>
+                                        <span
+                                          className={cn(
+                                            "inline-flex rounded-full px-2.5 py-1 text-xs font-medium",
+                                            bin.isActive
+                                              ? "bg-emerald-100 text-emerald-700"
+                                              : "bg-amber-100 text-amber-700",
+                                          )}
+                                        >
+                                          {bin.isActive ? "Active" : "Inactive"}
+                                        </span>
+                                      </div>
+                                      <p className="mt-1 text-sm text-muted-foreground">
+                                        Delivery zone: {bin.deliveryZoneName ?? "Unassigned"}
+                                      </p>
                                     </div>
                                     <div className="flex flex-wrap justify-end gap-2">
                                       <Button type="button" variant="outline" size="sm" onClick={() => startEditBin(bin)}>
+                                        <span className="sr-only">Edit bin {bin.name}</span>
                                         <Pencil className="size-3.5" aria-hidden />
                                         Edit
                                       </Button>
@@ -795,6 +866,7 @@ export default function BinLocationsPage() {
                                           setDeleteState({ kind: "bin", id: bin.id, name: bin.name })
                                         }
                                       >
+                                        <span className="sr-only">Delete bin {bin.name}</span>
                                         <Trash2 className="size-3.5" aria-hidden />
                                         Delete
                                       </Button>
@@ -806,8 +878,12 @@ export default function BinLocationsPage() {
                                       <BinForm
                                         value={draftName}
                                         isActive={draftIsActive}
+                                        deliveryZoneId={draftDeliveryZoneId}
+                                        deliveryZoneOptions={deliveryZoneOptions}
+                                        disabledDeliveryZoneIds={disabledDeliveryZoneIds}
                                         onNameChange={setDraftName}
                                         onActiveChange={setDraftIsActive}
+                                        onDeliveryZoneChange={setDraftDeliveryZoneId}
                                         onCancel={resetDrafts}
                                         submitLabel={isBusy ? "Saving..." : "Save bin location"}
                                         isPending={isBusy}

@@ -2,6 +2,10 @@ query GetDepotStorageLayout($depotId: UUID!) {
   depotStorageLayout(depotId: $depotId) {
     depotId
     depotName
+    availableDeliveryZones {
+      id
+      name
+    }
     storageZones {
       id
       name
@@ -15,6 +19,8 @@ query GetDepotStorageLayout($depotId: UUID!) {
           name
           isActive
           storageAisleId
+          deliveryZoneId
+          deliveryZoneName
         }
       }
     }
@@ -35,6 +41,8 @@ mutation CreateStorageZone($input: CreateStorageZoneInput!) {
         name
         isActive
         storageAisleId
+        deliveryZoneId
+        deliveryZoneName
       }
     }
   }
@@ -54,6 +62,8 @@ mutation UpdateStorageZone($id: UUID!, $input: UpdateStorageZoneInput!) {
         name
         isActive
         storageAisleId
+        deliveryZoneId
+        deliveryZoneName
       }
     }
   }
@@ -73,6 +83,8 @@ mutation CreateStorageAisle($input: CreateStorageAisleInput!) {
       name
       isActive
       storageAisleId
+      deliveryZoneId
+      deliveryZoneName
     }
   }
 }
@@ -87,6 +99,8 @@ mutation UpdateStorageAisle($id: UUID!, $input: UpdateStorageAisleInput!) {
       name
       isActive
       storageAisleId
+      deliveryZoneId
+      deliveryZoneName
     }
   }
 }
@@ -101,6 +115,8 @@ mutation CreateBinLocation($input: CreateBinLocationInput!) {
     name
     isActive
     storageAisleId
+    deliveryZoneId
+    deliveryZoneName
   }
 }
 
@@ -110,6 +126,8 @@ mutation UpdateBinLocation($id: UUID!, $input: UpdateBinLocationInput!) {
     name
     isActive
     storageAisleId
+    deliveryZoneId
+    deliveryZoneName
   }
 }
 

@@ -25,6 +25,7 @@ import type {
   CreateBinLocationRequest,
   CreateStorageAisleRequest,
   CreateStorageZoneRequest,
+  DeliveryZoneOption,
   DepotStorageLayout,
   StorageAisle,
   StorageZone,
@@ -38,12 +39,26 @@ function toBinLocation(bin: {
   name: string;
   isActive: boolean;
   storageAisleId: string;
+  deliveryZoneId?: string | null;
+  deliveryZoneName?: string | null;
 }): BinLocation {
   return {
     id: bin.id,
     name: bin.name,
     isActive: bin.isActive,
     storageAisleId: bin.storageAisleId,
+    deliveryZoneId: bin.deliveryZoneId ?? null,
+    deliveryZoneName: bin.deliveryZoneName ?? null,
+  };
+}
+
+function toDeliveryZoneOption(option: {
+  id: string;
+  name: string;
+}): DeliveryZoneOption {
+  return {
+    id: option.id,
+    name: option.name,
   };
 }
 
@@ -56,6 +71,8 @@ function toStorageAisle(aisle: {
     name: string;
     isActive: boolean;
     storageAisleId: string;
+    deliveryZoneId?: string | null;
+    deliveryZoneName?: string | null;
   }> | null;
 }): StorageAisle {
   return {
@@ -79,6 +96,8 @@ function toStorageZone(zone: {
       name: string;
       isActive: boolean;
       storageAisleId: string;
+      deliveryZoneId?: string | null;
+      deliveryZoneName?: string | null;
     }> | null;
   }> | null;
 }): StorageZone {
@@ -94,6 +113,7 @@ function toDepotStorageLayout(layout: NonNullable<GetDepotStorageLayoutQuery["de
   return {
     depotId: layout.depotId,
     depotName: layout.depotName,
+    availableDeliveryZones: layout.availableDeliveryZones.map(toDeliveryZoneOption),
     storageZones: layout.storageZones.map(toStorageZone),
   };
 }
@@ -175,6 +195,7 @@ export const binLocationsService = {
         storageAisleId: req.storageAisleId,
         name: req.name,
         isActive: req.isActive,
+        ...(req.deliveryZoneId !== undefined ? { deliveryZoneId: req.deliveryZoneId } : {}),
       },
     });
 
@@ -187,6 +208,7 @@ export const binLocationsService = {
       input: {
         name: req.name,
         ...(req.isActive !== undefined ? { isActive: req.isActive } : {}),
+        ...(req.deliveryZoneId !== undefined ? { deliveryZoneId: req.deliveryZoneId } : {}),
       },
     });
 

@@ -27,10 +27,13 @@ public sealed record CreateBinLocationDto
     public string Name { get; init; } = string.Empty;
     public Guid StorageAisleId { get; init; }
     public bool IsActive { get; init; } = true;
+    public Guid? DeliveryZoneId { get; init; }
 }
 
 public sealed record UpdateBinLocationDto
 {
     public string Name { get; init; } = string.Empty;
     public bool? IsActive { get; init; }
+    public bool DeliveryZoneIdSpecified { get; init; }
+    public Guid? DeliveryZoneId { get; init; }
 }

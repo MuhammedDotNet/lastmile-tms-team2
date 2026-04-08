@@ -18,6 +18,10 @@ public sealed class UpdateBinLocationCommandValidator : AbstractValidator<Update
             RuleFor(x => x.Dto.Name)
                 .NotEmpty().WithMessage("Bin location name is required.")
                 .MaximumLength(200).WithMessage("Bin location name must not exceed 200 characters.");
+
+            RuleFor(x => x.Dto.DeliveryZoneId)
+                .NotEmpty().WithMessage("DeliveryZoneId must not be empty when provided.")
+                .When(x => x.Dto.DeliveryZoneIdSpecified && x.Dto.DeliveryZoneId.HasValue);
         });
     }
 }

@@ -12,5 +12,9 @@ public sealed class CreateBinLocationCommandValidator : AbstractValidator<Create
 
         RuleFor(x => x.Dto.StorageAisleId)
             .NotEmpty().WithMessage("StorageAisleId is required.");
+
+        RuleFor(x => x.Dto.DeliveryZoneId)
+            .NotEmpty().WithMessage("DeliveryZoneId must not be empty when provided.")
+            .When(x => x.Dto.DeliveryZoneId.HasValue);
     }
 }

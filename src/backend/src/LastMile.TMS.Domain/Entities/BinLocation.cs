@@ -10,7 +10,11 @@ public class BinLocation : BaseAuditableEntity
 
     public bool IsActive { get; set; } = true;
 
+    public Guid? DeliveryZoneId { get; set; }
+
     public Guid StorageAisleId { get; set; }
+
+    public Zone? DeliveryZone { get; set; }
 
     public StorageAisle StorageAisle { get; set; } = null!;
 }

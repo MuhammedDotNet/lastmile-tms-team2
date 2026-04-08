@@ -11,8 +11,21 @@ public sealed class DepotStorageLayoutType : ObjectType<DepotStorageLayoutDto>
         descriptor.BindFieldsExplicitly();
         descriptor.Field(x => x.DepotId);
         descriptor.Field(x => x.DepotName);
+        descriptor.Field(x => x.AvailableDeliveryZones)
+            .Type<NonNullType<ListType<NonNullType<DeliveryZoneOptionType>>>>();
         descriptor.Field(x => x.StorageZones)
             .Type<NonNullType<ListType<NonNullType<StorageZoneType>>>>();
+    }
+}
+
+public sealed class DeliveryZoneOptionType : ObjectType<DeliveryZoneOptionDto>
+{
+    protected override void Configure(IObjectTypeDescriptor<DeliveryZoneOptionDto> descriptor)
+    {
+        descriptor.Name("DeliveryZoneOption");
+        descriptor.BindFieldsExplicitly();
+        descriptor.Field(x => x.Id);
+        descriptor.Field(x => x.Name);
     }
 }
 
@@ -54,5 +67,7 @@ public sealed class BinLocationType : ObjectType<BinLocationResultDto>
         descriptor.Field(x => x.Name);
         descriptor.Field(x => x.IsActive);
         descriptor.Field(x => x.StorageAisleId);
+        descriptor.Field(x => x.DeliveryZoneId);
+        descriptor.Field(x => x.DeliveryZoneName);
     }
 }

@@ -28,6 +28,17 @@ public sealed class GetDepotStorageLayoutQueryHandler(IAppDbContext db)
             .Select(x => new { x.Id, x.Name, x.DepotId })
             .ToListAsync(cancellationToken);
 
+        var availableDeliveryZones = await db.Zones
+            .AsNoTracking()
+            .Where(x => x.DepotId == request.DepotId && x.IsActive)
+            .OrderBy(x => x.Name)
+            .Select(x => new DeliveryZoneOptionDto
+            {
+                Id = x.Id,
+                Name = x.Name,
+            })
+            .ToListAsync(cancellationToken);
+
         var storageZoneIds = storageZones.Select(x => x.Id).ToList();
 
         var storageAisles = await db.StorageAisles
@@ -43,7 +54,15 @@ public sealed class GetDepotStorageLayoutQueryHandler(IAppDbContext db)
             .AsNoTracking()
             .Where(x => storageAisleIds.Contains(x.StorageAisleId))
             .OrderBy(x => x.Name)
-            .Select(x => new { x.Id, x.Name, x.IsActive, x.StorageAisleId })
+            .Select(x => new
+            {
+                x.Id,
+                x.Name,
+                x.IsActive,
+                x.StorageAisleId,
+                x.DeliveryZoneId,
+                DeliveryZoneName = x.DeliveryZone != null ? x.DeliveryZone.Name : null,
+            })
             .ToListAsync(cancellationToken);
 
         var binsByAisleId = binLocations
@@ -57,6 +76,8 @@ public sealed class GetDepotStorageLayoutQueryHandler(IAppDbContext db)
                         Name = bin.Name,
                         IsActive = bin.IsActive,
                         StorageAisleId = bin.StorageAisleId,
+                        DeliveryZoneId = bin.DeliveryZoneId,
+                        DeliveryZoneName = bin.DeliveryZoneName,
                     })
                     .ToList());
 
@@ -78,6 +99,7 @@ public sealed class GetDepotStorageLayoutQueryHandler(IAppDbContext db)
         {
             DepotId = depot.Id,
             DepotName = depot.Name,
+            AvailableDeliveryZones = availableDeliveryZones,
             StorageZones = storageZones
                 .Select(zone => new StorageZoneResultDto
                 {

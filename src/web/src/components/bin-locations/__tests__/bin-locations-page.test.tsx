@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import BinLocationsPage from "@/components/bin-locations/bin-locations-page";
@@ -7,6 +7,8 @@ const mockUseSession = vi.fn();
 const mockUseDepots = vi.fn();
 const mockUseDepotStorageLayout = vi.fn();
 const createStorageZoneMutateAsync = vi.fn();
+const createBinLocationMutateAsync = vi.fn();
+const updateBinLocationMutateAsync = vi.fn();
 
 vi.mock("next-auth/react", () => ({
   useSession: () => mockUseSession(),
@@ -44,11 +46,11 @@ vi.mock("@/queries/bin-locations", () => ({
     isPending: false,
   }),
   useCreateBinLocation: () => ({
-    mutateAsync: vi.fn(),
+    mutateAsync: createBinLocationMutateAsync,
     isPending: false,
   }),
   useUpdateBinLocation: () => ({
-    mutateAsync: vi.fn(),
+    mutateAsync: updateBinLocationMutateAsync,
     isPending: false,
   }),
   useDeleteBinLocation: () => ({
@@ -93,6 +95,12 @@ describe("BinLocationsPage", () => {
           ? {
               depotId: "depot-2",
               depotName: "South Depot",
+              availableDeliveryZones: [
+                {
+                  id: "delivery-zone-3",
+                  name: "South Zone",
+                },
+              ],
               storageZones: [
                 {
                   id: "zone-2",
@@ -105,6 +113,16 @@ describe("BinLocationsPage", () => {
           : {
               depotId: "depot-1",
               depotName: "North Depot",
+              availableDeliveryZones: [
+                {
+                  id: "delivery-zone-1",
+                  name: "Metro North",
+                },
+                {
+                  id: "delivery-zone-2",
+                  name: "Metro South",
+                },
+              ],
               storageZones: [
                 {
                   id: "zone-1",
@@ -121,6 +139,16 @@ describe("BinLocationsPage", () => {
                           name: "BIN-01",
                           isActive: true,
                           storageAisleId: "aisle-1",
+                          deliveryZoneId: "delivery-zone-1",
+                          deliveryZoneName: "Metro North",
+                        },
+                        {
+                          id: "bin-2",
+                          name: "BIN-02",
+                          isActive: false,
+                          storageAisleId: "aisle-1",
+                          deliveryZoneId: null,
+                          deliveryZoneName: null,
                         },
                       ],
                     },
@@ -140,6 +168,7 @@ describe("BinLocationsPage", () => {
     expect(screen.getByText("North Zone")).toBeInTheDocument();
     expect(screen.getByText("Aisle A")).toBeInTheDocument();
     expect(screen.getByText("BIN-01")).toBeInTheDocument();
+    expect(screen.getByText("Delivery zone: Metro North")).toBeInTheDocument();
 
     const user = userEvent.setup();
     await user.selectOptions(screen.getByLabelText(/depot/i), "depot-2");
@@ -171,6 +200,65 @@ describe("BinLocationsPage", () => {
         name: "Overflow Zone",
       });
     });
+  });
+
+  it("disables taken delivery zones for active bins and allows reuse for inactive bins", async () => {
+    createBinLocationMutateAsync.mockResolvedValue({
+      id: "bin-3",
+      name: "BIN-03",
+      isActive: false,
+      storageAisleId: "aisle-1",
+      deliveryZoneId: "delivery-zone-1",
+      deliveryZoneName: "Metro North",
+    });
+
+    render(<BinLocationsPage />);
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: /add bin/i }));
+
+    let deliveryZoneSelect = screen.getByLabelText(/delivery zone/i);
+    expect(
+      within(deliveryZoneSelect).getByRole("option", { name: "Metro North" }),
+    ).toBeDisabled();
+    expect(
+      within(deliveryZoneSelect).getByRole("option", { name: "Metro South" }),
+    ).not.toBeDisabled();
+
+    await user.selectOptions(screen.getByLabelText(/status/i), "false");
+
+    await waitFor(() => {
+      deliveryZoneSelect = screen.getByLabelText(/delivery zone/i);
+      expect(
+        within(deliveryZoneSelect).getByRole("option", { name: "Metro North" }),
+      ).not.toBeDisabled();
+    });
+
+    await user.type(screen.getByLabelText(/bin name/i), "BIN-03");
+    await user.selectOptions(deliveryZoneSelect, "delivery-zone-1");
+    await user.click(screen.getByRole("button", { name: /create bin location/i }));
+
+    await waitFor(() => {
+      expect(createBinLocationMutateAsync).toHaveBeenCalledWith({
+        storageAisleId: "aisle-1",
+        name: "BIN-03",
+        isActive: false,
+        deliveryZoneId: "delivery-zone-1",
+      });
+    });
+  });
+
+  it("keeps the current bin delivery zone selectable while editing", async () => {
+    render(<BinLocationsPage />);
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: /edit bin bin-01/i }));
+
+    const deliveryZoneSelect = screen.getByLabelText(/delivery zone/i);
+    expect(deliveryZoneSelect).toHaveValue("delivery-zone-1");
+    expect(
+      within(deliveryZoneSelect).getByRole("option", { name: "Metro North" }),
+    ).not.toBeDisabled();
   });
 
   it("renders an accessible delete dialog and closes it on Escape", async () => {

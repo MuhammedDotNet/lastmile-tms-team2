@@ -3,7 +3,13 @@
 export interface DepotStorageLayout {
   depotId: string;
   depotName: string;
+  availableDeliveryZones: DeliveryZoneOption[];
   storageZones: StorageZone[];
+}
+
+export interface DeliveryZoneOption {
+  id: string;
+  name: string;
 }
 
 export interface StorageZone {
@@ -25,6 +31,8 @@ export interface BinLocation {
   name: string;
   isActive: boolean;
   storageAisleId: string;
+  deliveryZoneId: string | null;
+  deliveryZoneName: string | null;
 }
 
 export interface CreateStorageZoneRequest {
@@ -49,9 +57,11 @@ export interface CreateBinLocationRequest {
   storageAisleId: string;
   name: string;
   isActive: boolean;
+  deliveryZoneId?: string | null;
 }
 
 export interface UpdateBinLocationRequest {
   name: string;
   isActive?: boolean;
+  deliveryZoneId?: string | null;
 }

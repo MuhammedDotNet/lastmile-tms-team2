@@ -15,13 +15,6 @@ public sealed class CreateBinLocationCommandHandler(IAppDbContext db)
         var name = BinLocationNameNormalizer.Normalize(request.Dto.Name);
         var normalizedName = BinLocationNameNormalizer.NormalizeForUniqueness(name);
 
-        var storageAisleExists = await db.StorageAisles
-            .AnyAsync(x => x.Id == request.Dto.StorageAisleId, cancellationToken);
-        if (!storageAisleExists)
-        {
-            throw new InvalidOperationException($"Storage aisle '{request.Dto.StorageAisleId}' was not found.");
-        }
-
         var duplicateExists = await db.BinLocations
             .AnyAsync(
                 x => x.StorageAisleId == request.Dto.StorageAisleId
@@ -32,9 +25,18 @@ public sealed class CreateBinLocationCommandHandler(IAppDbContext db)
             throw new InvalidOperationException($"A bin location named '{name}' already exists for this storage aisle.");
         }
 
+        var deliveryZoneAssignment = await BinLocationDeliveryZoneAssignmentSupport.EnsureValidAssignmentAsync(
+            db,
+            request.Dto.StorageAisleId,
+            request.Dto.DeliveryZoneId,
+            request.Dto.IsActive,
+            excludingBinId: null,
+            cancellationToken);
+
         var entity = request.Dto.ToEntity();
         entity.Name = name;
         entity.NormalizedName = normalizedName;
+        entity.DeliveryZoneId = deliveryZoneAssignment.DeliveryZoneId;
 
         try
         {
@@ -59,6 +61,18 @@ public sealed class CreateBinLocationCommandHandler(IAppDbContext db)
             throw;
         }
 
-        return entity.ToResultDto();
+        return await db.BinLocations
+            .AsNoTracking()
+            .Where(x => x.Id == entity.Id)
+            .Select(x => new BinLocationResultDto
+            {
+                Id = x.Id,
+                Name = x.Name,
+                IsActive = x.IsActive,
+                StorageAisleId = x.StorageAisleId,
+                DeliveryZoneId = x.DeliveryZoneId,
+                DeliveryZoneName = x.DeliveryZone != null ? x.DeliveryZone.Name : null,
+            })
+            .SingleAsync(cancellationToken);
     }
 }

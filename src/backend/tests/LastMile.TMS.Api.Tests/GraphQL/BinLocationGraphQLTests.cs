@@ -4,12 +4,17 @@ using LastMile.TMS.Domain.Entities;
 using LastMile.TMS.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
+using NetTopologySuite;
+using NetTopologySuite.Geometries;
 
 namespace LastMile.TMS.Api.Tests.GraphQL;
 
 [Collection(ApiTestCollection.Name)]
 public class BinLocationGraphQLTests : GraphQLTestBase, IAsyncLifetime
 {
+    private static readonly GeometryFactory GeometryFactory =
+        NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
+
     private static string Normalize(string name) => name.Trim().ToUpperInvariant();
 
     public BinLocationGraphQLTests(CustomWebApplicationFactory factory) : base(factory)
@@ -28,6 +33,10 @@ public class BinLocationGraphQLTests : GraphQLTestBase, IAsyncLifetime
               depotStorageLayout(depotId: $depotId) {
                 depotId
                 depotName
+                availableDeliveryZones {
+                  id
+                  name
+                }
                 storageZones {
                   id
                   name
@@ -41,6 +50,8 @@ public class BinLocationGraphQLTests : GraphQLTestBase, IAsyncLifetime
                       name
                       isActive
                       storageAisleId
+                      deliveryZoneId
+                      deliveryZoneName
                     }
                   }
                 }
@@ -58,6 +69,8 @@ public class BinLocationGraphQLTests : GraphQLTestBase, IAsyncLifetime
 
         layout.GetProperty("depotId").GetString().Should().Be(depotId.ToString());
         layout.GetProperty("depotName").GetString().Should().Be("GraphQL Depot");
+        layout.GetProperty("availableDeliveryZones").EnumerateArray().Single()
+            .GetProperty("name").GetString().Should().Be("Metro North");
 
         var storageZones = layout.GetProperty("storageZones").EnumerateArray().ToList();
         storageZones.Should().HaveCount(1);
@@ -71,12 +84,14 @@ public class BinLocationGraphQLTests : GraphQLTestBase, IAsyncLifetime
         bins.Should().HaveCount(1);
         bins[0].GetProperty("name").GetString().Should().Be("BIN-01");
         bins[0].GetProperty("isActive").GetBoolean().Should().BeTrue();
+        bins[0].GetProperty("deliveryZoneName").GetString().Should().Be("Metro North");
     }
 
     [Fact]
     public async Task StorageHierarchyMutations_WithAdminToken_CreateUpdateAndDeleteResources()
     {
         var depotId = await SeedDepotOnlyAsync();
+        var deliveryZoneId = await SeedDeliveryZoneAsync(depotId, "Metro North");
         var token = await GetAdminAccessTokenAsync();
 
         using var createZoneDocument = await PostGraphQLAsync(
@@ -197,6 +212,8 @@ public class BinLocationGraphQLTests : GraphQLTestBase, IAsyncLifetime
                 name
                 isActive
                 storageAisleId
+                deliveryZoneId
+                deliveryZoneName
               }
             }
             """,
@@ -206,17 +223,19 @@ public class BinLocationGraphQLTests : GraphQLTestBase, IAsyncLifetime
                 {
                     storageAisleId,
                     name = "BIN-01",
-                    isActive = true
+                    isActive = true,
+                    deliveryZoneId
                 }
             },
             token);
 
         createBinDocument.RootElement.TryGetProperty("errors", out _).Should().BeFalse(createBinDocument.RootElement.GetRawText());
-        var binLocationId = createBinDocument.RootElement
+        var createdBin = createBinDocument.RootElement
             .GetProperty("data")
-            .GetProperty("createBinLocation")
-            .GetProperty("id")
-            .GetGuid();
+            .GetProperty("createBinLocation");
+        var binLocationId = createdBin.GetProperty("id").GetGuid();
+        createdBin.GetProperty("deliveryZoneId").GetGuid().Should().Be(deliveryZoneId);
+        createdBin.GetProperty("deliveryZoneName").GetString().Should().Be("Metro North");
 
         using var updateBinDocument = await PostGraphQLAsync(
             """
@@ -225,6 +244,8 @@ public class BinLocationGraphQLTests : GraphQLTestBase, IAsyncLifetime
                 id
                 name
                 isActive
+                deliveryZoneId
+                deliveryZoneName
               }
             }
             """,
@@ -233,7 +254,8 @@ public class BinLocationGraphQLTests : GraphQLTestBase, IAsyncLifetime
                 id = binLocationId,
                 input = new
                 {
-                    name = "BIN-02"
+                    name = "BIN-02",
+                    deliveryZoneId = (Guid?)null
                 }
             },
             token);
@@ -244,6 +266,8 @@ public class BinLocationGraphQLTests : GraphQLTestBase, IAsyncLifetime
             .GetProperty("updateBinLocation");
         updatedBin.GetProperty("name").GetString().Should().Be("BIN-02");
         updatedBin.GetProperty("isActive").GetBoolean().Should().BeTrue();
+        updatedBin.GetProperty("deliveryZoneId").ValueKind.Should().Be(JsonValueKind.Null);
+        updatedBin.GetProperty("deliveryZoneName").ValueKind.Should().Be(JsonValueKind.Null);
 
         using var deleteBinDocument = await PostGraphQLAsync(
             """
@@ -362,6 +386,16 @@ public class BinLocationGraphQLTests : GraphQLTestBase, IAsyncLifetime
             CreatedBy = "tests"
         };
 
+        var deliveryZone = new Zone
+        {
+            Name = "Metro North",
+            Boundary = CreateBoundary(),
+            IsActive = true,
+            Depot = depot,
+            CreatedAt = DateTimeOffset.UtcNow,
+            CreatedBy = "tests"
+        };
+
         var aisle = new StorageAisle
         {
             Name = "Aisle A",
@@ -377,17 +411,53 @@ public class BinLocationGraphQLTests : GraphQLTestBase, IAsyncLifetime
             NormalizedName = Normalize("BIN-01"),
             StorageAisle = aisle,
             IsActive = true,
+            DeliveryZone = deliveryZone,
             CreatedAt = DateTimeOffset.UtcNow,
             CreatedBy = "tests"
         };
 
         dbContext.Depots.Add(depot);
+        dbContext.Zones.Add(deliveryZone);
         dbContext.StorageZones.Add(storageZone);
         dbContext.StorageAisles.Add(aisle);
         dbContext.BinLocations.Add(bin);
         await dbContext.SaveChangesAsync();
 
         return depot.Id;
+    }
+
+    private async Task<Guid> SeedDeliveryZoneAsync(Guid depotId, string name)
+    {
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var zone = new Zone
+        {
+            Name = name,
+            Boundary = CreateBoundary(),
+            IsActive = true,
+            DepotId = depotId,
+            CreatedAt = DateTimeOffset.UtcNow,
+            CreatedBy = "tests"
+        };
+
+        dbContext.Zones.Add(zone);
+        await dbContext.SaveChangesAsync();
+        return zone.Id;
+    }
+
+    private static Polygon CreateBoundary()
+    {
+        var polygon = GeometryFactory.CreatePolygon(
+            [
+                new Coordinate(144.95, -37.82),
+                new Coordinate(144.98, -37.82),
+                new Coordinate(144.98, -37.79),
+                new Coordinate(144.95, -37.79),
+                new Coordinate(144.95, -37.82),
+            ]);
+        polygon.SRID = 4326;
+        return polygon;
     }
 
     private async Task<string> CreateUserTokenAsync(string email, string password, string roleName)

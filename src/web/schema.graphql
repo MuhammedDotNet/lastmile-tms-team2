@@ -23,6 +23,13 @@ type BinLocation {
   name: String!
   isActive: Boolean!
   storageAisleId: UUID!
+  deliveryZoneId: UUID
+  deliveryZoneName: String
+}
+
+type DeliveryZoneOption {
+  id: UUID!
+  name: String!
 }
 
 type Depot {
@@ -39,6 +46,7 @@ type Depot {
 type DepotStorageLayout {
   depotId: UUID!
   depotName: String!
+  availableDeliveryZones: [DeliveryZoneOption!]!
   storageZones: [StorageZone!]!
 }
 
@@ -622,6 +630,7 @@ input CreateBinLocationInput {
   name: String!
   storageAisleId: UUID!
   isActive: Boolean!
+  deliveryZoneId: UUID
 }
 
 input CreateDepotInput {
@@ -1008,6 +1017,7 @@ input TransitionParcelStatusInput {
 input UpdateBinLocationInput {
   name: String!
   isActive: Boolean
+  deliveryZoneId: UUID
 }
 
 input UpdateDepotInput {
