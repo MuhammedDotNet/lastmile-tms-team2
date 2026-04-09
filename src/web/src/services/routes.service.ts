@@ -7,23 +7,20 @@ import {
   CANCEL_ROUTE,
 } from "@/graphql/routes";
 import type {
+  CancelRouteMutation,
+  CreateRouteMutation,
   GetRouteQuery,
   GetRouteAssignmentCandidatesQuery,
   GetRoutesQuery,
-  CreateRouteMutation,
   UpdateRouteAssignmentMutation,
-  CancelRouteMutation,
 } from "@/graphql/routes";
 import type { RouteFilterInput } from "@/graphql/generated";
 import { graphqlRequest } from "@/lib/network/graphql-client";
 import type {
-  AssignableDriver,
-  AssignableVehicle,
   CancelRouteRequest,
-  Route,
-  RouteAssignmentAuditEntry,
-  RouteAssignmentCandidates,
   CreateRouteRequest,
+  Route,
+  RouteAssignmentCandidates,
   UpdateRouteAssignmentRequest,
 } from "@/types/routes";
 import {
@@ -34,29 +31,6 @@ import { mockDrivers } from "@/mocks/drivers.mock";
 import { mockVehicles } from "@/mocks/vehicles.mock";
 
 const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK_DATA === "true";
-
-function mapAssignmentAuditEntry(
-  raw:
-    | NonNullable<
-        NonNullable<GetRouteQuery["route"]>["assignmentAuditTrail"]
-      >[number]
-    | RouteAssignmentAuditEntry,
-): RouteAssignmentAuditEntry {
-  return {
-    id: raw.id,
-    action: raw.action,
-    previousDriverId: raw.previousDriverId ?? null,
-    previousDriverName: raw.previousDriverName ?? null,
-    newDriverId: raw.newDriverId,
-    newDriverName: raw.newDriverName,
-    previousVehicleId: raw.previousVehicleId ?? null,
-    previousVehiclePlate: raw.previousVehiclePlate ?? null,
-    newVehicleId: raw.newVehicleId,
-    newVehiclePlate: raw.newVehiclePlate,
-    changedAt: raw.changedAt,
-    changedBy: raw.changedBy ?? null,
-  };
-}
 
 function mapRouteSummary(
   raw:
@@ -91,48 +65,7 @@ function mapRouteSummary(
 function mapRouteDetail(raw: NonNullable<GetRouteQuery["route"]>): Route {
   return {
     ...mapRouteSummary(raw),
-    assignmentAuditTrail: (raw.assignmentAuditTrail ?? []).map(
-      mapAssignmentAuditEntry,
-    ),
-  };
-}
-
-function mapAssignableVehicle(
-  raw: NonNullable<
-    NonNullable<GetRouteAssignmentCandidatesQuery["routeAssignmentCandidates"]>["vehicles"]
-  >[number],
-): AssignableVehicle {
-  return {
-    id: raw.id,
-    registrationPlate: raw.registrationPlate,
-    depotId: raw.depotId,
-    depotName: raw.depotName ?? null,
-    parcelCapacity: raw.parcelCapacity,
-    weightCapacity: raw.weightCapacity,
-    status: raw.status,
-    isCurrentAssignment: raw.isCurrentAssignment,
-  };
-}
-
-function mapAssignableDriver(
-  raw: NonNullable<
-    NonNullable<GetRouteAssignmentCandidatesQuery["routeAssignmentCandidates"]>["drivers"]
-  >[number],
-): AssignableDriver {
-  return {
-    id: raw.id,
-    displayName: raw.displayName,
-    depotId: raw.depotId,
-    zoneId: raw.zoneId,
-    status: raw.status,
-    isCurrentAssignment: raw.isCurrentAssignment,
-    workloadRoutes: (raw.workloadRoutes ?? []).map((route) => ({
-      routeId: route.routeId,
-      vehicleId: route.vehicleId,
-      vehiclePlate: route.vehiclePlate,
-      startDate: route.startDate,
-      status: route.status,
-    })),
+    assignmentAuditTrail: raw.assignmentAuditTrail ?? [],
   };
 }
 
@@ -258,8 +191,8 @@ export const routesService = {
 
     const payload = data.routeAssignmentCandidates;
     return {
-      vehicles: (payload?.vehicles ?? []).map(mapAssignableVehicle),
-      drivers: (payload?.drivers ?? []).map(mapAssignableDriver),
+      vehicles: payload?.vehicles ?? [],
+      drivers: payload?.drivers ?? [],
     };
   },
 
