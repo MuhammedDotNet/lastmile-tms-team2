@@ -24,6 +24,9 @@ public class RouteConfiguration : IEntityTypeConfiguration<Route>
         builder.Property(x => x.StartMileage)
             .IsRequired();
 
+        builder.Property(x => x.CancellationReason)
+            .HasMaxLength(1000);
+
         builder.HasOne(x => x.Vehicle)
             .WithMany()
             .HasForeignKey(x => x.VehicleId)

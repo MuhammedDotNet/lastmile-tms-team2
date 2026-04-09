@@ -645,6 +645,118 @@ public class RouteGraphQLTests : GraphQLTestBase, IAsyncLifetime
             .Contain("Only planned routes can be reassigned before dispatch");
     }
 
+    [Fact]
+    public async Task CancelRoute_OnPlannedRoute_ReturnsCancelledRouteAndReleasesVehicle()
+    {
+        var token = await GetAdminAccessTokenAsync();
+        var stagedParcelId = await SeedParcelAsync(
+            DbSeeder.TestZoneId,
+            $"LMCAN{Guid.NewGuid():N}"[..14].ToUpperInvariant(),
+            ParcelStatus.Staged);
+        var routeId = await SeedRouteAsync(
+            DbSeeder.TestVehicleId,
+            DbSeeder.TestDriverId,
+            RouteStatus.Planned,
+            StagingArea.A,
+            startMileage: 100,
+            startDate: DateTimeOffset.UtcNow.AddHours(3),
+            parcelIds: [stagedParcelId]);
+        await SetVehicleStatusAsync(DbSeeder.TestVehicleId, VehicleStatus.InUse);
+
+        using var document = await PostGraphQLAsync(
+            """
+            mutation CancelRoute($id: UUID!, $input: CancelRouteInput!) {
+              cancelRoute(id: $id, input: $input) {
+                id
+                status
+                updatedAt
+                cancellationReason
+              }
+            }
+            """,
+            new
+            {
+                id = routeId,
+                input = new
+                {
+                    reason = "Depot closed because of weather",
+                }
+            },
+            token);
+
+        document.RootElement.TryGetProperty("errors", out _)
+            .Should()
+            .BeFalse(document.RootElement.GetRawText());
+
+        var route = document.RootElement
+            .GetProperty("data")
+            .GetProperty("cancelRoute");
+
+        route.GetProperty("id").GetString().Should().Be(routeId.ToString());
+        route.GetProperty("status").GetString().Should().Be("CANCELLED");
+        route.GetProperty("updatedAt").GetString().Should().NotBeNullOrWhiteSpace();
+        route.GetProperty("cancellationReason").GetString().Should().Be("Depot closed because of weather");
+
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var persistedRoute = await dbContext.Routes.SingleAsync(candidate => candidate.Id == routeId);
+        var vehicle = await dbContext.Vehicles.FindAsync(DbSeeder.TestVehicleId);
+        var parcel = await dbContext.Parcels
+            .Include(candidate => candidate.ChangeHistory)
+            .Include(candidate => candidate.TrackingEvents)
+            .SingleAsync(candidate => candidate.Id == stagedParcelId);
+
+        persistedRoute.Status.Should().Be(RouteStatus.Cancelled);
+        persistedRoute.CancellationReason.Should().Be("Depot closed because of weather");
+        vehicle.Should().NotBeNull();
+        vehicle!.Status.Should().Be(VehicleStatus.Available);
+        parcel.Status.Should().Be(ParcelStatus.Sorted);
+        parcel.ChangeHistory.Should().Contain(entry =>
+            entry.FieldName == "Status"
+            && entry.BeforeValue == "Staged"
+            && entry.AfterValue == "Sorted");
+        parcel.TrackingEvents.Should().Contain(entry =>
+            entry.Description.Contains("Depot closed because of weather"));
+    }
+
+    [Fact]
+    public async Task CancelRoute_OnNonPlannedRoute_ReturnsError()
+    {
+        var token = await GetAdminAccessTokenAsync();
+        var routeId = await SeedRouteAsync(
+            DbSeeder.TestVehicleId,
+            DbSeeder.TestDriverId,
+            RouteStatus.Completed,
+            StagingArea.A,
+            startMileage: 100,
+            endMileage: 130,
+            startDate: DateTimeOffset.UtcNow.AddHours(-4));
+
+        using var document = await PostGraphQLAsync(
+            """
+            mutation CancelRoute($id: UUID!, $input: CancelRouteInput!) {
+              cancelRoute(id: $id, input: $input) {
+                id
+              }
+            }
+            """,
+            new
+            {
+                id = routeId,
+                input = new
+                {
+                    reason = "Completed manually",
+                }
+            },
+            token);
+
+        document.RootElement.TryGetProperty("errors", out var errors).Should().BeTrue();
+        errors[0].GetProperty("message").GetString()
+            .Should()
+            .Contain("Only planned routes can be cancelled before dispatch");
+    }
+
     public Task InitializeAsync() => Factory.ResetDatabaseAsync();
 
     public Task DisposeAsync() => Task.CompletedTask;
@@ -695,7 +807,10 @@ public class RouteGraphQLTests : GraphQLTestBase, IAsyncLifetime
         return zone.Id;
     }
 
-    private async Task<Guid> SeedParcelAsync(Guid zoneId, string trackingNumber)
+    private async Task<Guid> SeedParcelAsync(
+        Guid zoneId,
+        string trackingNumber,
+        ParcelStatus status = ParcelStatus.Sorted)
     {
         await using var scope = Factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -705,7 +820,7 @@ public class RouteGraphQLTests : GraphQLTestBase, IAsyncLifetime
             TrackingNumber = trackingNumber,
             Description = "Seeded route validation parcel",
             ServiceType = ServiceType.Standard,
-            Status = ParcelStatus.Sorted,
+            Status = status,
             ShipperAddressId = DbSeeder.TestParcelShipperAddressId,
             RecipientAddressId = DbSeeder.TestParcelRecipientAddressId,
             Weight = 2.5m,

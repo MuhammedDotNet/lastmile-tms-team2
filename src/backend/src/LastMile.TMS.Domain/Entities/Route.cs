@@ -18,6 +18,7 @@ public class Route : BaseAuditableEntity
     public int EndMileage { get; set; }
 
     public StagingArea StagingArea { get; set; }
+    public string? CancellationReason { get; set; }
 
     public RouteStatus Status { get; set; }
 

@@ -33,6 +33,7 @@ public sealed class RouteType : EntityObjectType<RouteEntity>
         descriptor.Field(r => r.StartMileage);
         descriptor.Field(r => r.EndMileage);
         descriptor.Field(r => r.StagingArea);
+        descriptor.Field(r => r.CancellationReason);
         descriptor.Field("totalMileage")
             .Type<NonNullType<IntType>>()
             .Resolve(ctx =>

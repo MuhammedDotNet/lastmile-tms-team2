@@ -23,4 +23,12 @@ public sealed class RouteMutations
         [Service] ISender mediator = null!,
         CancellationToken cancellationToken = default) =>
         mediator.Send(new UpdateRouteAssignmentCommand(id, input.ToDto()), cancellationToken);
+
+    [Authorize(Roles = new[] { "OperationsManager", "Admin", "Dispatcher" })]
+    public Task<RouteEntity?> CancelRoute(
+        Guid id,
+        CancelRouteInput input,
+        [Service] ISender mediator = null!,
+        CancellationToken cancellationToken = default) =>
+        mediator.Send(new CancelRouteCommand(id, input.ToDto()), cancellationToken);
 }
