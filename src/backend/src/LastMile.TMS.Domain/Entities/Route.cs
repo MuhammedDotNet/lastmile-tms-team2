@@ -18,10 +18,13 @@ public class Route : BaseAuditableEntity
     public int EndMileage { get; set; }
 
     public StagingArea StagingArea { get; set; }
+    public string? CancellationReason { get; set; }
 
     public RouteStatus Status { get; set; }
 
     public ICollection<Parcel> Parcels { get; set; } = new List<Parcel>();
+    public ICollection<RouteAssignmentAuditEntry> AssignmentAuditTrail { get; set; } =
+        new List<RouteAssignmentAuditEntry>();
 
     /// <summary>
     /// Calculated total mileage for this route

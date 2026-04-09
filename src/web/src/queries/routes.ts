@@ -2,7 +2,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import type { MutationToastMeta } from "@/lib/query/mutation-toast-meta";
 import { routesService } from "@/services/routes.service";
-import { CreateRouteRequest, RouteStatus } from "@/types/routes";
+import {
+  CancelRouteRequest,
+  CreateRouteRequest,
+  RouteStatus,
+  UpdateRouteAssignmentRequest,
+} from "@/types/routes";
 import { vehicleKeys } from "./vehicles";
 import { parcelKeys } from "./parcels";
 import type { RouteFilterInput } from "@/graphql/generated";
@@ -14,6 +19,8 @@ export const routeKeys = {
     [...routeKeys.lists(), where] as const,
   details: () => [...routeKeys.all, "detail"] as const,
   detail: (id: string) => [...routeKeys.details(), id] as const,
+  assignmentCandidates: (serviceDate?: string | null, routeId?: string | null) =>
+    [...routeKeys.all, "assignmentCandidates", serviceDate ?? "", routeId ?? ""] as const,
 };
 
 export function useRoutes(params: {
@@ -50,6 +57,18 @@ export function useRoute(id: string) {
   });
 }
 
+export function useRouteAssignmentCandidates(
+  serviceDate?: string | null,
+  routeId?: string | null,
+) {
+  const { status } = useSession();
+  return useQuery({
+    queryKey: routeKeys.assignmentCandidates(serviceDate, routeId),
+    queryFn: () => routesService.getAssignmentCandidates(serviceDate!, routeId ?? undefined),
+    enabled: status === "authenticated" && !!serviceDate,
+  });
+}
+
 export function useCreateRoute() {
   const queryClient = useQueryClient();
 
@@ -65,6 +84,63 @@ export function useCreateRoute() {
       queryClient.invalidateQueries({ queryKey: routeKeys.all });
       queryClient.invalidateQueries({ queryKey: vehicleKeys.all });
       queryClient.invalidateQueries({ queryKey: parcelKeys.all });
+    },
+  });
+}
+
+export function useUpdateRouteAssignment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: UpdateRouteAssignmentRequest;
+    }) => routesService.updateAssignment(id, data),
+    meta: {
+      successToast: {
+        title: "Assignment updated",
+        description: "The route assignment was updated before dispatch.",
+      },
+    } satisfies MutationToastMeta,
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: routeKeys.all });
+      queryClient.invalidateQueries({ queryKey: routeKeys.detail(id) });
+      queryClient.invalidateQueries({
+        queryKey: routeKeys.assignmentCandidates(undefined, undefined).slice(0, 2),
+      });
+      queryClient.invalidateQueries({ queryKey: vehicleKeys.all });
+      queryClient.invalidateQueries({ queryKey: parcelKeys.all });
+      queryClient.invalidateQueries({ queryKey: parcelKeys.details() });
+    },
+  });
+}
+
+export function useCancelRoute() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: CancelRouteRequest;
+    }) => routesService.cancel(id, data),
+    meta: {
+      successToast: {
+        title: "Route cancelled",
+        description: "The route was cancelled, removed from dispatch, and staged parcels were returned to sorted.",
+      },
+    } satisfies MutationToastMeta,
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: routeKeys.all });
+      queryClient.invalidateQueries({ queryKey: routeKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: vehicleKeys.all });
+      queryClient.invalidateQueries({ queryKey: parcelKeys.all });
+      queryClient.invalidateQueries({ queryKey: parcelKeys.details() });
     },
   });
 }

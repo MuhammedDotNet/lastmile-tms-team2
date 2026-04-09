@@ -87,6 +87,17 @@ public class Parcel : BaseAuditableEntity
         Status = newStatus;
     }
 
+    public void ReturnToSortedFromCancelledRoute()
+    {
+        if (Status != ParcelStatus.Staged)
+        {
+            throw new InvalidOperationException(
+                $"Only staged parcels can be returned to sorted from a cancelled route. Current status: {Status}.");
+        }
+
+        Status = ParcelStatus.Sorted;
+    }
+
     public bool CanEditBeforeLoad() =>
         Status == ParcelStatus.Registered
         || Status == ParcelStatus.ReceivedAtDepot

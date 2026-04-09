@@ -24,6 +24,9 @@ public class RouteConfiguration : IEntityTypeConfiguration<Route>
         builder.Property(x => x.StartMileage)
             .IsRequired();
 
+        builder.Property(x => x.CancellationReason)
+            .HasMaxLength(1000);
+
         builder.HasOne(x => x.Vehicle)
             .WithMany()
             .HasForeignKey(x => x.VehicleId)
@@ -37,5 +40,10 @@ public class RouteConfiguration : IEntityTypeConfiguration<Route>
         builder.HasMany(x => x.Parcels)
             .WithMany()
             .UsingEntity("RouteParcels");
+
+        builder.HasMany(x => x.AssignmentAuditTrail)
+            .WithOne(x => x.Route)
+            .HasForeignKey(x => x.RouteId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

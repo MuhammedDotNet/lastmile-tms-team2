@@ -11,3 +11,14 @@ public sealed class CreateRouteInput
     public int StartMileage { get; set; }
     public List<Guid> ParcelIds { get; set; } = [];
 }
+
+public sealed class UpdateRouteAssignmentInput
+{
+    public Guid VehicleId { get; set; }
+    public Guid DriverId { get; set; }
+}
+
+public sealed class CancelRouteInput
+{
+    public string Reason { get; set; } = string.Empty;
+}

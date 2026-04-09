@@ -1,0 +1,136 @@
+import { Suspense } from "react";
+import { act, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
+
+import RouteDetailPage from "@/components/routes/route-detail-page";
+
+const { mockCancelRoute } = vi.hoisted(() => ({
+  mockCancelRoute: vi.fn(),
+}));
+
+vi.mock("next-auth/react", () => ({
+  useSession: () => ({
+    status: "authenticated",
+    data: { user: { name: "Dispatch User" } },
+  }),
+}));
+
+vi.mock("@/queries/routes", () => ({
+  useRoute: () => ({
+    data: {
+      id: "route-1",
+      vehicleId: "vehicle-1",
+      vehiclePlate: "TRUCK-101",
+      driverId: "driver-1",
+      driverName: "Jamie Parker",
+      stagingArea: "A",
+      startDate: "2026-04-09T08:00:00Z",
+      endDate: null,
+      startMileage: 120,
+      endMileage: 0,
+      totalMileage: 0,
+      status: "PLANNED",
+      parcelCount: 3,
+      parcelsDelivered: 0,
+      createdAt: "2026-04-08T08:00:00Z",
+      updatedAt: "2026-04-09T07:30:00Z",
+      cancellationReason: null,
+      assignmentAuditTrail: [
+        {
+          id: "audit-1",
+          action: "ASSIGNED",
+          previousDriverId: null,
+          previousDriverName: null,
+          newDriverId: "driver-1",
+          newDriverName: "Jamie Parker",
+          previousVehicleId: null,
+          previousVehiclePlate: null,
+          newVehicleId: "vehicle-1",
+          newVehiclePlate: "TRUCK-101",
+          changedAt: "2026-04-08T08:00:00Z",
+          changedBy: "Dispatch User",
+        },
+        {
+          id: "audit-2",
+          action: "REASSIGNED",
+          previousDriverId: "driver-1",
+          previousDriverName: "Jamie Parker",
+          newDriverId: "driver-2",
+          newDriverName: "Alex Nguyen",
+          previousVehicleId: "vehicle-1",
+          previousVehiclePlate: "TRUCK-101",
+          newVehicleId: "vehicle-2",
+          newVehiclePlate: "TRUCK-202",
+          changedAt: "2026-04-09T07:30:00Z",
+          changedBy: "Dispatch User",
+        },
+      ],
+    },
+    isLoading: false,
+    error: null,
+  }),
+  useCancelRoute: () => ({
+    mutateAsync: mockCancelRoute,
+    isPending: false,
+  }),
+}));
+
+describe("route-detail-page", () => {
+  it("renders the assignment audit panel and planned edit action", async () => {
+    mockCancelRoute.mockResolvedValue(undefined);
+
+    await act(async () => {
+      render(
+        <Suspense fallback={null}>
+          <RouteDetailPage params={Promise.resolve({ id: "route-1" })} />
+        </Suspense>,
+      );
+    });
+
+    expect(
+      await screen.findByRole("link", { name: /edit assignment/i }),
+    ).toHaveAttribute("href", "/routes/route-1/edit");
+    expect(
+      screen.getByRole("button", { name: /cancel route/i }),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: /assignment audit/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/initial assignment/i)).toBeInTheDocument();
+    expect(screen.getByText(/reassignment/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/unassigned/i)).toHaveLength(2);
+    expect(screen.getByText(/alex nguyen/i)).toBeInTheDocument();
+    expect(screen.getByText(/truck-202/i)).toBeInTheDocument();
+  });
+
+  it("opens the cancel dialog and submits route cancellation", async () => {
+    mockCancelRoute.mockResolvedValue(undefined);
+    const user = userEvent.setup();
+
+    await act(async () => {
+      render(
+        <Suspense fallback={null}>
+          <RouteDetailPage params={Promise.resolve({ id: "route-1" })} />
+        </Suspense>,
+      );
+    });
+
+    await user.click(screen.getByRole("button", { name: /cancel route/i }));
+
+    expect(
+      await screen.findByRole("heading", { name: /cancel this route/i }),
+    ).toBeInTheDocument();
+
+    await user.type(
+      screen.getByLabelText(/cancellation reason/i),
+      "Weather closure",
+    );
+    await user.click(screen.getByRole("button", { name: /confirm cancellation/i }));
+
+    expect(mockCancelRoute).toHaveBeenCalledWith({
+      id: "route-1",
+      data: { reason: "Weather closure" },
+    });
+  });
+});
