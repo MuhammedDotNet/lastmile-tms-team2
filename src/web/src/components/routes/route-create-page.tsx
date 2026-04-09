@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, CalendarDays, Route } from "lucide-react";
@@ -79,79 +79,65 @@ export default function NewRoutePage() {
     error: assignmentError,
   } = useRouteAssignmentCandidates(serviceDate);
 
-  const vehicles = assignmentCandidates?.vehicles ?? [];
+  const vehicles = useMemo(
+    () => assignmentCandidates?.vehicles ?? [],
+    [assignmentCandidates?.vehicles],
+  );
+  const driverCandidates = useMemo(
+    () => assignmentCandidates?.drivers ?? [],
+    [assignmentCandidates?.drivers],
+  );
+  const effectiveVehicleId = useMemo(() => {
+    if (!serviceDate || !formData.vehicleId) {
+      return "";
+    }
+
+    if (assignmentLoading || vehicles.some((vehicle) => vehicle.id === formData.vehicleId)) {
+      return formData.vehicleId;
+    }
+
+    return "";
+  }, [assignmentLoading, formData.vehicleId, serviceDate, vehicles]);
   const selectedVehicle = useMemo(
-    () => vehicles.find((vehicle) => vehicle.id === formData.vehicleId) ?? null,
-    [vehicles, formData.vehicleId],
+    () => vehicles.find((vehicle) => vehicle.id === effectiveVehicleId) ?? null,
+    [effectiveVehicleId, vehicles],
   );
 
   const availableDrivers = useMemo(() => {
-    const drivers = assignmentCandidates?.drivers ?? [];
     if (!selectedVehicle) {
-      return drivers;
+      return driverCandidates;
     }
 
-    return drivers.filter((driver) => driver.depotId === selectedVehicle.depotId);
-  }, [assignmentCandidates?.drivers, selectedVehicle]);
+    return driverCandidates.filter(
+      (driver) => driver.depotId === selectedVehicle.depotId,
+    );
+  }, [driverCandidates, selectedVehicle]);
+  const effectiveDriverId = useMemo(() => {
+    if (!effectiveVehicleId || !formData.driverId) {
+      return "";
+    }
+
+    if (
+      assignmentLoading
+      || availableDrivers.some((driver) => driver.id === formData.driverId)
+    ) {
+      return formData.driverId;
+    }
+
+    return "";
+  }, [assignmentLoading, availableDrivers, effectiveVehicleId, formData.driverId]);
 
   const selectedDriver = useMemo(
-    () => availableDrivers.find((driver) => driver.id === formData.driverId) ?? null,
-    [availableDrivers, formData.driverId],
+    () => availableDrivers.find((driver) => driver.id === effectiveDriverId) ?? null,
+    [availableDrivers, effectiveDriverId],
   );
-
-  useEffect(() => {
-    if (!serviceDate) {
-      setFormData((prev) =>
-        prev.vehicleId || prev.driverId || prev.parcelIds.length > 0
-          ? { ...prev, vehicleId: "", driverId: "", parcelIds: [] }
-          : prev,
-      );
-      return;
+  const effectiveParcelIds = useMemo(() => {
+    if (!effectiveVehicleId || !effectiveDriverId) {
+      return [];
     }
 
-    if (assignmentLoading) {
-      return;
-    }
-
-    setFormData((prev) => {
-      if (!prev.vehicleId) {
-        return prev;
-      }
-
-      if (vehicles.some((vehicle) => vehicle.id === prev.vehicleId)) {
-        return prev;
-      }
-
-      return {
-        ...prev,
-        vehicleId: "",
-        driverId: "",
-        parcelIds: [],
-      };
-    });
-  }, [assignmentLoading, serviceDate, vehicles]);
-
-  useEffect(() => {
-    if (assignmentLoading) {
-      return;
-    }
-
-    setFormData((prev) => {
-      if (!prev.driverId) {
-        return prev;
-      }
-
-      if (availableDrivers.some((driver) => driver.id === prev.driverId)) {
-        return prev;
-      }
-
-      return {
-        ...prev,
-        driverId: "",
-        parcelIds: [],
-      };
-    });
-  }, [assignmentLoading, availableDrivers]);
+    return formData.parcelIds;
+  }, [effectiveDriverId, effectiveVehicleId, formData.parcelIds]);
 
   const {
     data: parcels = [],
@@ -169,8 +155,8 @@ export default function NewRoutePage() {
   );
 
   const selectedParcels = useMemo(
-    () => parcels.filter((p) => formData.parcelIds.includes(p.id)),
-    [parcels, formData.parcelIds],
+    () => parcels.filter((p) => effectiveParcelIds.includes(p.id)),
+    [effectiveParcelIds, parcels],
   );
 
   const totalWeightKg = useMemo(
@@ -199,7 +185,12 @@ export default function NewRoutePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const parsed = routeCreateFormSchema.safeParse(formData);
+    const parsed = routeCreateFormSchema.safeParse({
+      ...formData,
+      vehicleId: effectiveVehicleId,
+      driverId: effectiveDriverId,
+      parcelIds: effectiveParcelIds,
+    });
     if (!parsed.success) {
       setErrors(zodErrorToFieldMap(parsed.error));
       return;
@@ -279,6 +270,9 @@ export default function NewRoutePage() {
                       setFormData((prev) => ({
                         ...prev,
                         startDate: value,
+                        vehicleId: "",
+                        driverId: "",
+                        parcelIds: [],
                       }));
                     }}
                   />
@@ -310,7 +304,7 @@ export default function NewRoutePage() {
                 <SelectDropdown
                   id="vehicle"
                   options={vehicleOptions}
-                  value={formData.vehicleId}
+                  value={effectiveVehicleId}
                   invalid={!!errors.vehicleId}
                   onChange={(value) => {
                     clearError("vehicleId");
@@ -355,7 +349,7 @@ export default function NewRoutePage() {
                 <SelectDropdown
                   id="driver"
                   options={driverOptions}
-                  value={formData.driverId}
+                  value={effectiveDriverId}
                   invalid={!!errors.driverId}
                   onChange={(value) => {
                     clearError("driverId");
@@ -471,12 +465,12 @@ export default function NewRoutePage() {
                     Choose a route start date to load eligible assignments.
                   </p>
                 )}
-                {serviceDate && !formData.vehicleId && (
+                {serviceDate && !effectiveVehicleId && (
                   <p className="text-sm text-muted-foreground">
                     Select a vehicle first, then choose a driver to load matching parcels.
                   </p>
                 )}
-                {formData.vehicleId && !formData.driverId && (
+                {effectiveVehicleId && !effectiveDriverId && (
                   <p className="text-sm text-muted-foreground">
                     Choose a driver to load parcels from that driver&apos;s zone.
                   </p>
@@ -491,8 +485,8 @@ export default function NewRoutePage() {
                 )}
                 {!parcelsLoading &&
                   !parcelsError &&
-                  formData.vehicleId &&
-                  formData.driverId &&
+                  effectiveVehicleId &&
+                  effectiveDriverId &&
                   parcels.length === 0 && (
                     <p className="text-sm text-muted-foreground">
                       No parcels ready for this driver&apos;s zone (status Sorted or Staged).
@@ -507,7 +501,7 @@ export default function NewRoutePage() {
                     >
                       <input
                         type="checkbox"
-                        checked={formData.parcelIds.includes(parcel.id)}
+                        checked={effectiveParcelIds.includes(parcel.id)}
                         onChange={() => toggleParcel(parcel.id)}
                         className="size-4 rounded border-input"
                       />

@@ -66,22 +66,28 @@ function RouteEditForm({
     error: assignmentError,
   } = useRouteAssignmentCandidates(route.startDate, routeId);
 
-  const vehicles = assignmentCandidates?.vehicles ?? [];
+  const vehicles = useMemo(
+    () => assignmentCandidates?.vehicles ?? [],
+    [assignmentCandidates?.vehicles],
+  );
+  const driverCandidates = useMemo(
+    () => assignmentCandidates?.drivers ?? [],
+    [assignmentCandidates?.drivers],
+  );
   const selectedVehicle = useMemo(
     () => vehicles.find((vehicle) => vehicle.id === formData.vehicleId) ?? null,
     [vehicles, formData.vehicleId],
   );
   const availableDrivers = useMemo(() => {
-    const drivers = assignmentCandidates?.drivers ?? [];
     if (!selectedVehicle) {
-      return drivers;
+      return driverCandidates;
     }
 
-    return drivers.filter(
+    return driverCandidates.filter(
       (driver) =>
         driver.depotId === selectedVehicle.depotId || driver.isCurrentAssignment,
     );
-  }, [assignmentCandidates?.drivers, selectedVehicle]);
+  }, [driverCandidates, selectedVehicle]);
   const selectedDriver = useMemo(
     () => availableDrivers.find((driver) => driver.id === formData.driverId) ?? null,
     [availableDrivers, formData.driverId],

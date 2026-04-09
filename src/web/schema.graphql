@@ -496,13 +496,13 @@ type Route {
   startMileage: Int!
   endMileage: Int!
   stagingArea: StagingArea!
+  cancellationReason: String
   totalMileage: Int! @cost(weight: "10")
   status: RouteStatus!
   parcelCount: Int! @cost(weight: "10")
   parcelsDelivered: Int! @cost(weight: "10")
   createdAt: DateTime!
   updatedAt: DateTime
-  cancellationReason: String
   assignmentAuditTrail: [RouteAssignmentAuditEntry!]! @cost(weight: "10")
 }
 
@@ -725,6 +725,10 @@ input CancelParcelInput {
   reason: String!
 }
 
+input CancelRouteInput {
+  reason: String!
+}
+
 input CompletePasswordResetInput {
   email: String!
   token: String!
@@ -778,10 +782,6 @@ input CreateRouteInput {
   startDate: DateTime!
   startMileage: Int!
   parcelIds: [UUID!]!
-}
-
-input CancelRouteInput {
-  reason: String!
 }
 
 input CreateStorageAisleInput {
