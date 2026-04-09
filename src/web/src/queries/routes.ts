@@ -3,6 +3,7 @@ import { useSession } from "next-auth/react";
 import type { MutationToastMeta } from "@/lib/query/mutation-toast-meta";
 import { routesService } from "@/services/routes.service";
 import {
+  CancelRouteRequest,
   CreateRouteRequest,
   RouteStatus,
   UpdateRouteAssignmentRequest,
@@ -110,6 +111,33 @@ export function useUpdateRouteAssignment() {
       queryClient.invalidateQueries({
         queryKey: routeKeys.assignmentCandidates(undefined, undefined).slice(0, 2),
       });
+      queryClient.invalidateQueries({ queryKey: vehicleKeys.all });
+      queryClient.invalidateQueries({ queryKey: parcelKeys.all });
+      queryClient.invalidateQueries({ queryKey: parcelKeys.details() });
+    },
+  });
+}
+
+export function useCancelRoute() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: CancelRouteRequest;
+    }) => routesService.cancel(id, data),
+    meta: {
+      successToast: {
+        title: "Route cancelled",
+        description: "The route was cancelled, removed from dispatch, and staged parcels were returned to sorted.",
+      },
+    } satisfies MutationToastMeta,
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: routeKeys.all });
+      queryClient.invalidateQueries({ queryKey: routeKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: vehicleKeys.all });
       queryClient.invalidateQueries({ queryKey: parcelKeys.all });
       queryClient.invalidateQueries({ queryKey: parcelKeys.details() });

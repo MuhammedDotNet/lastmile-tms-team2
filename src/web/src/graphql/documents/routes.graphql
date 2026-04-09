@@ -16,6 +16,7 @@ query GetRoutes($where: RouteFilterInput, $order: [RouteSortInput!]) {
     parcelsDelivered
     createdAt
     updatedAt
+    cancellationReason
   }
 }
 
@@ -37,6 +38,7 @@ query GetRoute($id: UUID!) {
     parcelsDelivered
     createdAt
     updatedAt
+    cancellationReason
     assignmentAuditTrail {
       id
       action
@@ -102,6 +104,7 @@ mutation CreateRoute($input: CreateRouteInput!) {
     parcelsDelivered
     createdAt
     updatedAt
+    cancellationReason
   }
 }
 
@@ -123,5 +126,28 @@ mutation UpdateRouteAssignment($id: UUID!, $input: UpdateRouteAssignmentInput!) 
     parcelsDelivered
     createdAt
     updatedAt
+    cancellationReason
+  }
+}
+
+mutation CancelRoute($id: UUID!, $input: CancelRouteInput!) {
+  cancelRoute(id: $id, input: $input) {
+    id
+    vehicleId
+    vehiclePlate
+    driverId
+    driverName
+    stagingArea
+    startDate
+    endDate
+    startMileage
+    endMileage
+    totalMileage
+    status
+    parcelCount
+    parcelsDelivered
+    createdAt
+    updatedAt
+    cancellationReason
   }
 }

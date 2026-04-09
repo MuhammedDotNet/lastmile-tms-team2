@@ -23,6 +23,7 @@ export type Route = {
   parcelsDelivered: number;
   createdAt: string;
   updatedAt: string | null;
+  cancellationReason: string | null;
   assignmentAuditTrail: RouteAssignmentAuditEntry[];
 };
 
@@ -38,6 +39,10 @@ export type CreateRouteRequest = {
 export type UpdateRouteAssignmentRequest = {
   vehicleId: string;
   driverId: string;
+};
+
+export type CancelRouteRequest = {
+  reason: string;
 };
 
 export type RouteAssignmentAuditEntry = {

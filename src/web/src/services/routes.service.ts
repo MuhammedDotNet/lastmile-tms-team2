@@ -4,6 +4,7 @@ import {
   CREATE_ROUTE,
   PAGINATED_ROUTES,
   UPDATE_ROUTE_ASSIGNMENT,
+  CANCEL_ROUTE,
 } from "@/graphql/routes";
 import type {
   GetRouteQuery,
@@ -11,12 +12,14 @@ import type {
   GetRoutesQuery,
   CreateRouteMutation,
   UpdateRouteAssignmentMutation,
+  CancelRouteMutation,
 } from "@/graphql/routes";
 import type { RouteFilterInput } from "@/graphql/generated";
 import { graphqlRequest } from "@/lib/network/graphql-client";
 import type {
   AssignableDriver,
   AssignableVehicle,
+  CancelRouteRequest,
   Route,
   RouteAssignmentAuditEntry,
   RouteAssignmentCandidates,
@@ -59,7 +62,8 @@ function mapRouteSummary(
   raw:
     | NonNullable<GetRoutesQuery["routes"]>[number]
     | NonNullable<CreateRouteMutation["createRoute"]>
-    | NonNullable<UpdateRouteAssignmentMutation["updateRouteAssignment"]>,
+    | NonNullable<UpdateRouteAssignmentMutation["updateRouteAssignment"]>
+    | NonNullable<CancelRouteMutation["cancelRoute"]>,
 ): Route {
   return {
     id: raw.id,
@@ -78,6 +82,8 @@ function mapRouteSummary(
     parcelsDelivered: raw.parcelsDelivered,
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt ?? null,
+    cancellationReason:
+      "cancellationReason" in raw ? raw.cancellationReason ?? null : null,
     assignmentAuditTrail: [],
   };
 }
@@ -188,6 +194,7 @@ export const routesService = {
         parcelsDelivered: 0,
         createdAt: new Date().toISOString(),
         updatedAt: null,
+        cancellationReason: null,
         assignmentAuditTrail: [],
       };
       return Promise.resolve(newRoute);
@@ -295,5 +302,35 @@ export const routesService = {
     }
 
     return mapRouteSummary(result.updateRouteAssignment);
+  },
+
+  cancel: async (
+    id: string,
+    data: CancelRouteRequest,
+  ): Promise<Route> => {
+    if (USE_MOCK) {
+      const route = getMockRouteById(id);
+      if (!route) {
+        throw new Error("Route not found");
+      }
+
+      route.status = "CANCELLED";
+      route.updatedAt = new Date().toISOString();
+      route.cancellationReason = data.reason;
+      return Promise.resolve({ ...route });
+    }
+
+    const result = await graphqlRequest<CancelRouteMutation>(CANCEL_ROUTE, {
+      id,
+      input: {
+        reason: data.reason,
+      },
+    });
+
+    if (!result.cancelRoute) {
+      throw new Error("Route not found");
+    }
+
+    return mapRouteSummary(result.cancelRoute);
   },
 };

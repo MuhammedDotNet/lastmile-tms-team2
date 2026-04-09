@@ -21,6 +21,7 @@ export const mockRoutes: Route[] = [
     parcelsDelivered: 15,
     createdAt: "2024-03-15T07:45:00Z",
     updatedAt: null,
+    cancellationReason: null,
     assignmentAuditTrail: [],
   },
   {
@@ -40,6 +41,7 @@ export const mockRoutes: Route[] = [
     parcelsDelivered: 3,
     createdAt: "2024-03-18T08:50:00Z",
     updatedAt: null,
+    cancellationReason: null,
     assignmentAuditTrail: [],
   },
   {
@@ -59,6 +61,7 @@ export const mockRoutes: Route[] = [
     parcelsDelivered: 8,
     createdAt: "2024-03-14T09:30:00Z",
     updatedAt: null,
+    cancellationReason: null,
     assignmentAuditTrail: [],
   },
 ];

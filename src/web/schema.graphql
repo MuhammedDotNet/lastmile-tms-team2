@@ -212,6 +212,7 @@ type Mutation {
   stageParcelForRoute(input: StageParcelForRouteInput!): StageParcelForRouteResult! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
   createRoute(input: CreateRouteInput!): Route! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
   updateRouteAssignment(id: UUID! input: UpdateRouteAssignmentInput!): Route @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
+  cancelRoute(id: UUID! input: CancelRouteInput!): Route @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
   createUser(input: CreateUserInput!): UserManagementUser! @authorize(roles: [ "Admin" ]) @cost(weight: "10")
   updateUser(input: UpdateUserInput!): UserManagementUser! @authorize(roles: [ "Admin" ]) @cost(weight: "10")
   deactivateUser(userId: UUID!): UserManagementUser! @authorize(roles: [ "Admin" ]) @cost(weight: "10")
@@ -501,6 +502,7 @@ type Route {
   parcelsDelivered: Int! @cost(weight: "10")
   createdAt: DateTime!
   updatedAt: DateTime
+  cancellationReason: String
   assignmentAuditTrail: [RouteAssignmentAuditEntry!]! @cost(weight: "10")
 }
 
@@ -776,6 +778,10 @@ input CreateRouteInput {
   startDate: DateTime!
   startMileage: Int!
   parcelIds: [UUID!]!
+}
+
+input CancelRouteInput {
+  reason: String!
 }
 
 input CreateStorageAisleInput {

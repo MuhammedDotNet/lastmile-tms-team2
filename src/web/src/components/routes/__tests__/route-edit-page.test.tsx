@@ -42,6 +42,7 @@ vi.mock("@/queries/routes", () => ({
       parcelsDelivered: 0,
       createdAt: "2026-04-08T08:00:00Z",
       updatedAt: null,
+      cancellationReason: null,
       assignmentAuditTrail: [],
     },
     isLoading: false,

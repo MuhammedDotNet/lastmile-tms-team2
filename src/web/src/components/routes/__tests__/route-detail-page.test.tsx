@@ -1,8 +1,13 @@
 import { Suspense } from "react";
 import { act, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import RouteDetailPage from "@/components/routes/route-detail-page";
+
+const { mockCancelRoute } = vi.hoisted(() => ({
+  mockCancelRoute: vi.fn(),
+}));
 
 vi.mock("next-auth/react", () => ({
   useSession: () => ({
@@ -30,6 +35,7 @@ vi.mock("@/queries/routes", () => ({
       parcelsDelivered: 0,
       createdAt: "2026-04-08T08:00:00Z",
       updatedAt: "2026-04-09T07:30:00Z",
+      cancellationReason: null,
       assignmentAuditTrail: [
         {
           id: "audit-1",
@@ -64,10 +70,16 @@ vi.mock("@/queries/routes", () => ({
     isLoading: false,
     error: null,
   }),
+  useCancelRoute: () => ({
+    mutateAsync: mockCancelRoute,
+    isPending: false,
+  }),
 }));
 
 describe("route-detail-page", () => {
   it("renders the assignment audit panel and planned edit action", async () => {
+    mockCancelRoute.mockResolvedValue(undefined);
+
     await act(async () => {
       render(
         <Suspense fallback={null}>
@@ -80,6 +92,9 @@ describe("route-detail-page", () => {
       await screen.findByRole("link", { name: /edit assignment/i }),
     ).toHaveAttribute("href", "/routes/route-1/edit");
     expect(
+      screen.getByRole("button", { name: /cancel route/i }),
+    ).toBeInTheDocument();
+    expect(
       await screen.findByRole("heading", { name: /assignment audit/i }),
     ).toBeInTheDocument();
     expect(screen.getByText(/initial assignment/i)).toBeInTheDocument();
@@ -87,5 +102,35 @@ describe("route-detail-page", () => {
     expect(screen.getAllByText(/unassigned/i)).toHaveLength(2);
     expect(screen.getByText(/alex nguyen/i)).toBeInTheDocument();
     expect(screen.getByText(/truck-202/i)).toBeInTheDocument();
+  });
+
+  it("opens the cancel dialog and submits route cancellation", async () => {
+    mockCancelRoute.mockResolvedValue(undefined);
+    const user = userEvent.setup();
+
+    await act(async () => {
+      render(
+        <Suspense fallback={null}>
+          <RouteDetailPage params={Promise.resolve({ id: "route-1" })} />
+        </Suspense>,
+      );
+    });
+
+    await user.click(screen.getByRole("button", { name: /cancel route/i }));
+
+    expect(
+      await screen.findByRole("heading", { name: /cancel this route/i }),
+    ).toBeInTheDocument();
+
+    await user.type(
+      screen.getByLabelText(/cancellation reason/i),
+      "Weather closure",
+    );
+    await user.click(screen.getByRole("button", { name: /confirm cancellation/i }));
+
+    expect(mockCancelRoute).toHaveBeenCalledWith({
+      id: "route-1",
+      data: { reason: "Weather closure" },
+    });
   });
 });

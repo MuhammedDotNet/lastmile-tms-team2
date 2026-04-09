@@ -1,6 +1,6 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -28,7 +28,8 @@ import {
   DetailShell,
   DETAIL_PAGE_CONTENT_PADDING,
 } from "@/components/detail";
-import { buttonVariants } from "@/components/ui/button";
+import { CancelRouteDialog } from "@/components/routes/cancel-route-dialog";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { QueryErrorAlert } from "@/components/feedback/query-error-alert";
 import { getErrorMessage } from "@/lib/network/error-message";
 import { cn } from "@/lib/utils";
@@ -37,7 +38,7 @@ import {
   STAGING_AREA_LABELS,
   routeStatusBadgeClass,
 } from "@/lib/labels/routes";
-import { useRoute } from "@/queries/routes";
+import { useCancelRoute, useRoute } from "@/queries/routes";
 
 function formatCreatedAt(iso: string): string {
   const date = new Date(iso);
@@ -58,6 +59,8 @@ export default function RouteDetailPage({
 }) {
   const { id } = use(params);
   const { status: sessionStatus } = useSession();
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const cancelRoute = useCancelRoute();
   const { data: route, isLoading, error } = useRoute(id);
 
   if (sessionStatus === "loading" || isLoading) {
@@ -100,6 +103,14 @@ export default function RouteDetailPage({
       new Date(right.changedAt).getTime() - new Date(left.changedAt).getTime(),
   );
 
+  const handleCancelRoute = async (reason: string) => {
+    await cancelRoute.mutateAsync({
+      id,
+      data: { reason },
+    });
+    setCancelDialogOpen(false);
+  };
+
   return (
     <DetailShell variant="route">
       <DetailContainer className={DETAIL_PAGE_CONTENT_PADDING}>
@@ -132,13 +143,23 @@ export default function RouteDetailPage({
             actions={
               <>
                 {route.status === "PLANNED" && (
-                  <Link
-                    href={`/routes/${id}/edit`}
-                    className={cn(buttonVariants({ variant: "default", size: "sm" }))}
-                  >
-                    <PencilLine className="mr-2 size-4" aria-hidden />
-                    Edit assignment
-                  </Link>
+                  <>
+                    <Link
+                      href={`/routes/${id}/edit`}
+                      className={cn(buttonVariants({ variant: "default", size: "sm" }))}
+                    >
+                      <PencilLine className="mr-2 size-4" aria-hidden />
+                      Edit assignment
+                    </Link>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      disabled={cancelRoute.isPending}
+                      onClick={() => setCancelDialogOpen(true)}
+                    >
+                      Cancel route
+                    </Button>
+                  </>
                 )}
                 <Link
                   href={`/vehicles/${route.vehicleId}`}
@@ -237,6 +258,11 @@ export default function RouteDetailPage({
               <DetailField label="Last modified">
                 {route.updatedAt ? new Date(route.updatedAt).toLocaleString() : ""}
               </DetailField>
+              {route.cancellationReason && (
+                <DetailField label="Cancellation reason">
+                  {route.cancellationReason}
+                </DetailField>
+              )}
             </DetailFieldGrid>
           </DetailPanel>
 
@@ -299,6 +325,13 @@ export default function RouteDetailPage({
               </div>
             )}
           </DetailPanel>
+          <CancelRouteDialog
+            open={cancelDialogOpen}
+            onOpenChange={setCancelDialogOpen}
+            routeLabel={id}
+            onConfirm={handleCancelRoute}
+            isPending={cancelRoute.isPending}
+          />
         </DetailPageSectionProvider>
       </DetailContainer>
     </DetailShell>
