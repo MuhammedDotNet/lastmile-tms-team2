@@ -219,8 +219,8 @@ function scoreDepotFeature(
 
   if (queryIncludesHouseNumber(query)) {
     const candidateNumber =
-      feature.properties.context.address?.address_number?.trim()
-      ?? feature.properties.context.address_number?.name?.trim()
+      feature.properties.context.address_number?.name?.trim()
+      ?? feature.properties.address?.match(/\d+/)?.[0]
       ?? "";
 
     score += candidateNumber ? 80 : -60;

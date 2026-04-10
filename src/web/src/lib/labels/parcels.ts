@@ -66,6 +66,15 @@ export function normalizeParcelStatusForFilter(status: string): string {
     .toUpperCase();
 }
 
+export function canManageParcelBeforeLoad(status: string): boolean {
+  const normalizedStatus = normalizeParcelStatusForFilter(status);
+
+  return normalizedStatus === "REGISTERED"
+    || normalizedStatus === "RECEIVED_AT_DEPOT"
+    || normalizedStatus === "SORTED"
+    || normalizedStatus === "STAGED";
+}
+
 export function formatParcelStatus(status: string): string {
   if (!status) return "-";
 

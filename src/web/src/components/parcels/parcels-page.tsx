@@ -28,6 +28,7 @@ import { buttonVariants, Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  canManageParcelBeforeLoad,
   formatParcelServiceType,
   formatParcelStatus,
   parcelStatusBadgeClass,
@@ -308,8 +309,8 @@ export default function ParcelsPage() {
   return (
     <>
       <ListPageHeader
-        title="Warehouse Pre-load Queue"
-        description="Parcels still eligible for edits or cancellation before they are loaded for delivery. Manage imports, register shipments, print labels, and correct mistakes from one queue."
+        title="Parcels"
+        description="Track parcels from registration through delivery from one list. Imports, staging, and label printing stay here, while edit and cancellation remain available only before load-out."
         icon={<Package strokeWidth={1.75} aria-hidden />}
         action={
           <>
@@ -418,12 +419,12 @@ export default function ParcelsPage() {
             <p className="font-medium">
               {hasActiveFilters || debouncedSearch
                 ? "No parcels match your filters"
-                : "No parcels are waiting before load"}
+                : "No parcels found"}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
               {hasActiveFilters || debouncedSearch
                 ? "Try adjusting your search or filters."
-                : "Registered, received, sorted, or staged parcels will appear here until they are loaded for delivery."}
+                : "Registered, staged, loaded, out-for-delivery, delivered, and exception parcels will appear here."}
             </p>
           </div>
         ) : (
@@ -497,132 +498,137 @@ export default function ParcelsPage() {
                 </tr>
               </thead>
               <tbody>
-                {parcels.map((parcel) => (
-                  <tr key={parcel.id} className={listDataTableBodyRowClass}>
-                    <td className={cn(listDataTableTdClass, "w-14 align-middle")}>
-                      <input
-                        type="checkbox"
-                        checked={selectedParcelIds.includes(parcel.id)}
-                        onChange={() => toggleParcelSelection(parcel.id)}
-                        aria-label={`Select parcel ${parcel.trackingNumber}`}
-                        className="h-4 w-4 rounded border-input"
-                      />
-                    </td>
-                    <td
-                      className={cn(
-                        listDataTableTdClass,
-                        "font-mono text-xs font-medium",
-                      )}
-                    >
-                      <Link
-                        href={getParcelDetailPath(parcel.trackingNumber)}
-                        className="rounded-sm text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                {parcels.map((parcel) => {
+                  const canManageBeforeLoad = canManageParcelBeforeLoad(parcel.status ?? "");
+
+                  return (
+                    <tr key={parcel.id} className={listDataTableBodyRowClass}>
+                      <td className={cn(listDataTableTdClass, "w-14 align-middle")}>
+                        <input
+                          type="checkbox"
+                          checked={selectedParcelIds.includes(parcel.id)}
+                          onChange={() => toggleParcelSelection(parcel.id)}
+                          aria-label={`Select parcel ${parcel.trackingNumber}`}
+                          className="h-4 w-4 rounded border-input"
+                        />
+                      </td>
+                      <td
+                        className={cn(
+                          listDataTableTdClass,
+                          "font-mono text-xs font-medium",
+                        )}
                       >
-                        {parcel.trackingNumber}
-                      </Link>
-                    </td>
-                    <td className={cn(listDataTableTdClass, "max-w-[220px]")}>
-                      <OverflowTooltipCell
-                        fullText={[
-                          parcel.recipientContactName,
-                          parcel.recipientCompanyName,
-                          parcel.recipientStreet1,
-                          parcel.recipientCity,
-                          parcel.recipientPostalCode,
-                        ]
-                          .filter(Boolean)
-                          .join("\n")}
-                      >
-                        <div className="space-y-0.5">
-                          {parcel.recipientContactName ? (
-                            <span className="block font-medium">
-                              {parcel.recipientContactName}
-                            </span>
-                          ) : null}
-                          {parcel.recipientCompanyName ? (
+                        <Link
+                          href={getParcelDetailPath(parcel.trackingNumber)}
+                          className="rounded-sm text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          {parcel.trackingNumber}
+                        </Link>
+                      </td>
+                      <td className={cn(listDataTableTdClass, "max-w-[220px]")}>
+                        <OverflowTooltipCell
+                          fullText={[
+                            parcel.recipientContactName,
+                            parcel.recipientCompanyName,
+                            parcel.recipientStreet1,
+                            parcel.recipientCity,
+                            parcel.recipientPostalCode,
+                          ]
+                            .filter(Boolean)
+                            .join("\n")}
+                        >
+                          <div className="space-y-0.5">
+                            {parcel.recipientContactName ? (
+                              <span className="block font-medium">
+                                {parcel.recipientContactName}
+                              </span>
+                            ) : null}
+                            {parcel.recipientCompanyName ? (
+                              <span className="block text-xs text-muted-foreground">
+                                {parcel.recipientCompanyName}
+                              </span>
+                            ) : null}
                             <span className="block text-xs text-muted-foreground">
-                              {parcel.recipientCompanyName}
+                              {[
+                                parcel.recipientStreet1,
+                                parcel.recipientCity,
+                                parcel.recipientPostalCode,
+                              ]
+                                .filter(Boolean)
+                                .join(", ")}
                             </span>
-                          ) : null}
-                          <span className="block text-xs text-muted-foreground">
-                            {[
-                              parcel.recipientStreet1,
-                              parcel.recipientCity,
-                              parcel.recipientPostalCode,
-                            ]
-                              .filter(Boolean)
-                              .join(", ")}
-                          </span>
-                        </div>
-                      </OverflowTooltipCell>
-                    </td>
-                    <td className={cn(listDataTableTdClass, "tabular-nums")}>
-                      {parcel.weight} {parcel.weightUnit}
-                    </td>
-                    <td className={cn(listDataTableTdClass, "text-muted-foreground")}>
-                      <OverflowTooltipCell
-                        fullText={
-                          parcel.parcelType
+                          </div>
+                        </OverflowTooltipCell>
+                      </td>
+                      <td className={cn(listDataTableTdClass, "tabular-nums")}>
+                        {parcel.weight} {parcel.weightUnit}
+                      </td>
+                      <td className={cn(listDataTableTdClass, "text-muted-foreground")}>
+                        <OverflowTooltipCell
+                          fullText={
+                            parcel.parcelType
+                              ? `${parcel.parcelType} | ${formatParcelServiceType(parcel.serviceType ?? "")}`
+                              : formatParcelServiceType(parcel.serviceType ?? "")
+                          }
+                        >
+                          {parcel.parcelType
                             ? `${parcel.parcelType} | ${formatParcelServiceType(parcel.serviceType ?? "")}`
-                            : formatParcelServiceType(parcel.serviceType ?? "")
-                        }
+                            : formatParcelServiceType(parcel.serviceType ?? "")}
+                        </OverflowTooltipCell>
+                      </td>
+                      <td className={cn(listDataTableTdClass, "text-muted-foreground")}>
+                        {parcel.zoneName ?? "-"}
+                      </td>
+                      <td
+                        className={cn(
+                          listDataTableTdClass,
+                          "tabular-nums text-muted-foreground",
+                        )}
                       >
-                        {parcel.parcelType
-                          ? `${parcel.parcelType} | ${formatParcelServiceType(parcel.serviceType ?? "")}`
-                          : formatParcelServiceType(parcel.serviceType ?? "")}
-                      </OverflowTooltipCell>
-                    </td>
-                    <td className={cn(listDataTableTdClass, "text-muted-foreground")}>
-                      {parcel.zoneName ?? "-"}
-                    </td>
-                    <td
-                      className={cn(
-                        listDataTableTdClass,
-                        "tabular-nums text-muted-foreground",
-                      )}
-                    >
-                      {new Date(parcel.createdAt).toLocaleDateString()}
-                    </td>
-                    <td
-                      className={cn(
-                        listDataTableTdClass,
-                        "tabular-nums text-muted-foreground",
-                      )}
-                    >
-                      {parcel.estimatedDeliveryDate
-                        ? new Date(parcel.estimatedDeliveryDate).toLocaleDateString()
-                        : "-"}
-                    </td>
-                    <td
-                      className={cn(
-                        listDataTableTdClass,
-                        "max-w-[160px] align-middle",
-                      )}
-                    >
-                      <OverflowTooltipCell
-                        shrinkToContent
-                        fullText={formatParcelStatus(parcel.status ?? "")}
-                        className={parcelStatusBadgeClass(parcel.status ?? "")}
+                        {new Date(parcel.createdAt).toLocaleDateString()}
+                      </td>
+                      <td
+                        className={cn(
+                          listDataTableTdClass,
+                          "tabular-nums text-muted-foreground",
+                        )}
                       >
-                        <span className={parcelStatusBadgeClass(parcel.status ?? "")}>
-                          {formatParcelStatus(parcel.status ?? "")}
-                        </span>
-                      </OverflowTooltipCell>
-                    </td>
-                    <td className={cn(listDataTableTdClass, "text-right")}>
-                      <ParcelRowActions
-                        trackingNumber={parcel.trackingNumber}
-                        onCancel={() =>
-                          setPendingCancellation({
-                            id: parcel.id,
-                            trackingNumber: parcel.trackingNumber,
-                          })
-                        }
-                        cancelDisabled={cancelParcel.isPending}
-                      />
-                    </td>
-                  </tr>
-                ))}
+                        {parcel.estimatedDeliveryDate
+                          ? new Date(parcel.estimatedDeliveryDate).toLocaleDateString()
+                          : "-"}
+                      </td>
+                      <td
+                        className={cn(
+                          listDataTableTdClass,
+                          "max-w-[160px] align-middle",
+                        )}
+                      >
+                        <OverflowTooltipCell
+                          shrinkToContent
+                          fullText={formatParcelStatus(parcel.status ?? "")}
+                          className={parcelStatusBadgeClass(parcel.status ?? "")}
+                        >
+                          <span className={parcelStatusBadgeClass(parcel.status ?? "")}>
+                            {formatParcelStatus(parcel.status ?? "")}
+                          </span>
+                        </OverflowTooltipCell>
+                      </td>
+                      <td className={cn(listDataTableTdClass, "text-right")}>
+                        <ParcelRowActions
+                          trackingNumber={parcel.trackingNumber}
+                          onCancel={() =>
+                            setPendingCancellation({
+                              id: parcel.id,
+                              trackingNumber: parcel.trackingNumber,
+                            })
+                          }
+                          editDisabled={!canManageBeforeLoad}
+                          cancelDisabled={cancelParcel.isPending || !canManageBeforeLoad}
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </ListDataTable>
 
