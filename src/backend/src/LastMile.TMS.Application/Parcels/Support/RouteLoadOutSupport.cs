@@ -20,7 +20,8 @@ internal static class RouteLoadOutSupport
         db.Routes
             .Where(route =>
                 route.Status == RouteStatus.Planned
-                && route.Vehicle.DepotId == depotId);
+                && route.Vehicle.DepotId == depotId
+                && route.Parcels.Any(p => p.Status == ParcelStatus.Staged || p.Status == ParcelStatus.Loaded));
 
     public static Task<RouteLoadOutBoardDto?> LoadBoardAsync(
         IAppDbContext db,

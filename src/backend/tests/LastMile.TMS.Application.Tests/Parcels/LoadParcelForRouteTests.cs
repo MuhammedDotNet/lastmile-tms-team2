@@ -128,6 +128,23 @@ public class LoadParcelForRouteTests
     }
 
     [Fact]
+    public async Task Handle_RouteWithNoStagedOrLoadedParcels_ReturnsNotExpected()
+    {
+        await using var db = MakeDbContext();
+        var fixture = await SeedNoEligibleParcelsFixtureAsync(db);
+        var currentUser = CreateCurrentUser(fixture.Operator);
+        var notifier = Substitute.For<IParcelUpdateNotifier>();
+        var handler = new LoadParcelForRouteCommandHandler(db, currentUser, notifier);
+
+        var result = await handler.Handle(
+            new LoadParcelForRouteCommand(fixture.Route.Id, fixture.Parcel.TrackingNumber),
+            CancellationToken.None);
+
+        result.Outcome.Should().Be(RouteLoadOutScanOutcome.NotExpected);
+        result.Message.Should().Contain("Route was not found");
+    }
+
+    [Fact]
     public async Task Handle_BoardIsRefreshedAfterScan()
     {
         await using var db = MakeDbContext();
@@ -291,6 +308,124 @@ public class LoadParcelForRouteTests
             stagedParcel, sortedParcel, otherRouteParcel);
     }
 
+    private static async Task<NoEligibleParcelsFixture> SeedNoEligibleParcelsFixtureAsync(AppDbContext db)
+    {
+        var depotAddress = new Address
+        {
+            Id = Guid.NewGuid(),
+            Street1 = "1 Depot Street",
+            City = "Sydney",
+            State = "NSW",
+            PostalCode = "2000",
+            CountryCode = "AU",
+        };
+
+        var depot = new Depot
+        {
+            Id = Guid.NewGuid(),
+            Name = "Sydney No-Eligible Depot",
+            AddressId = depotAddress.Id,
+            Address = depotAddress,
+            IsActive = true,
+        };
+
+        var zone = new Zone
+        {
+            Id = Guid.NewGuid(),
+            Name = "Sydney Zone",
+            Boundary = TestsPolygonFactory.CreateDefault(),
+            DepotId = depot.Id,
+            Depot = depot,
+            IsActive = true,
+        };
+
+        var vehicle = new Vehicle
+        {
+            Id = Guid.NewGuid(),
+            RegistrationPlate = "NOELIG-001",
+            DepotId = depot.Id,
+            Depot = depot,
+            Status = VehicleStatus.InUse,
+            ParcelCapacity = 100,
+            WeightCapacity = 1000,
+        };
+
+        var driver = new Driver
+        {
+            Id = Guid.NewGuid(),
+            FirstName = "John",
+            LastName = "Driver",
+            DepotId = depot.Id,
+            Depot = depot,
+            ZoneId = zone.Id,
+            Zone = zone,
+            Status = DriverStatus.Active,
+            LicenseNumber = "LIC-001",
+            LicenseExpiryDate = DateTimeOffset.UtcNow.AddYears(1),
+            UserId = Guid.NewGuid(),
+        };
+
+        var operatorUser = new ApplicationUser
+        {
+            Id = Guid.NewGuid(),
+            UserName = "warehouse.operator@example.com",
+            Email = "warehouse.operator@example.com",
+            FirstName = "Warehouse",
+            LastName = "Operator",
+            IsActive = true,
+            DepotId = depot.Id,
+            ZoneId = zone.Id,
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
+
+        var shipper = new Address
+        {
+            Id = Guid.NewGuid(),
+            Street1 = "10 Shipper Lane",
+            City = "Sydney",
+            State = "NSW",
+            PostalCode = "2001",
+            CountryCode = "AU",
+        };
+
+        var recipient = new Address
+        {
+            Id = Guid.NewGuid(),
+            Street1 = "20 Recipient Road",
+            City = "Sydney",
+            State = "NSW",
+            PostalCode = "2002",
+            CountryCode = "AU",
+            ContactName = "Recipient",
+        };
+
+        // Parcel is in Sorted status — not Staged or Loaded, so route is ineligible for load-out
+        var parcel = CreateParcel("LM-NOELIG-001", ParcelStatus.Sorted, shipper, recipient, zone);
+
+        var route = new Route
+        {
+            Id = Guid.NewGuid(),
+            VehicleId = vehicle.Id,
+            Vehicle = vehicle,
+            DriverId = driver.Id,
+            Driver = driver,
+            StartDate = DateTimeOffset.UtcNow,
+            StagingArea = StagingArea.A,
+            Status = RouteStatus.Planned,
+            Parcels = [parcel],
+        };
+
+        db.AddRange(
+            depotAddress, depot, zone,
+            vehicle, driver, operatorUser,
+            shipper, recipient,
+            parcel, route);
+
+        await db.SaveChangesAsync();
+
+        return new NoEligibleParcelsFixture(depot, operatorUser, route, parcel);
+    }
+
     private static Parcel CreateParcel(
         string trackingNumber,
         ParcelStatus status,
@@ -331,4 +466,10 @@ public class LoadParcelForRouteTests
         Parcel StagedParcel,
         Parcel SortedParcel,
         Parcel OtherRouteParcel);
+
+    private sealed record NoEligibleParcelsFixture(
+        Depot Depot,
+        ApplicationUser Operator,
+        Route Route,
+        Parcel Parcel);
 }
