@@ -493,6 +493,11 @@ type Route {
   id: UUID!
   zoneId: UUID!
   zoneName: String @cost(weight: "10")
+  depotId: UUID! @cost(weight: "10")
+  depotName: String @cost(weight: "10")
+  depotAddressLine: String @cost(weight: "10")
+  depotLongitude: Float @cost(weight: "10")
+  depotLatitude: Float @cost(weight: "10")
   vehicleId: UUID!
   driverId: UUID!
   vehiclePlate: String @cost(weight: "10")
@@ -563,6 +568,9 @@ type RoutePlanPreviewDto {
   zoneName: String!
   depotId: UUID!
   depotName: String!
+  depotAddressLine: String!
+  depotLongitude: Float
+  depotLatitude: Float
   candidateParcels: [RoutePlanParcelCandidateDto!]!
   stops: [RouteStop!]!
   path: [RoutePathPoint!]!

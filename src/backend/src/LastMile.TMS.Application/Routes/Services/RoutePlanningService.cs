@@ -17,7 +17,7 @@ public sealed class RoutePlanningService(
     IRouteRoutingService routeRoutingService)
     : IRoutePlanningService
 {
-    private static readonly ParcelStatus[] EligibleParcelStatuses = [ParcelStatus.Sorted, ParcelStatus.Staged];
+    private static readonly ParcelStatus[] EligibleParcelStatuses = [ParcelStatus.Sorted];
     private static readonly GeometryFactory GeometryFactory =
         NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
 
@@ -99,14 +99,24 @@ public sealed class RoutePlanningService(
             .Select(parcel => ToCandidateDto(parcel, selectedParcels.Any(selected => selected.Id == parcel.Id)))
             .ToList();
 
+        await EnsureDepotGeocodedAsync(zone.Depot.Address, cancellationToken);
+
         if (selectedParcels.Count == 0)
         {
+            if (zone.Depot.Address.GeoLocation is null)
+            {
+                warnings.Add("Depot coordinates are unavailable, so the route preview starts without a mapped depot.");
+            }
+
             return new RoutePlanComputationResult
             {
                 ZoneId = zone.Id,
                 ZoneName = zone.Name,
                 DepotId = zone.DepotId,
                 DepotName = zone.Depot.Name,
+                DepotAddressLine = BuildAddressLine(zone.Depot.Address),
+                DepotLongitude = zone.Depot.Address.GeoLocation?.X,
+                DepotLatitude = zone.Depot.Address.GeoLocation?.Y,
                 CandidateParcels = candidateDtos,
                 Warnings = warnings,
             };
@@ -122,6 +132,9 @@ public sealed class RoutePlanningService(
             ZoneName = zone.Name,
             DepotId = zone.DepotId,
             DepotName = zone.Depot.Name,
+            DepotAddressLine = BuildAddressLine(zone.Depot.Address),
+            DepotLongitude = zone.Depot.Address.GeoLocation?.X,
+            DepotLatitude = zone.Depot.Address.GeoLocation?.Y,
             CandidateParcels = candidateDtos,
             Stops = plannedStops,
             Path = routeMetrics.Path,
@@ -197,6 +210,24 @@ public sealed class RoutePlanningService(
             address.GeoLocation = point;
         }
 
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task EnsureDepotGeocodedAsync(Address depotAddress, CancellationToken cancellationToken)
+    {
+        if (depotAddress.GeoLocation is not null)
+        {
+            return;
+        }
+
+        var addressString = BuildAddressString(depotAddress);
+        var point = await geocodingService.GeocodeAsync(addressString, cancellationToken);
+        if (point is null)
+        {
+            return;
+        }
+
+        depotAddress.GeoLocation = point;
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 

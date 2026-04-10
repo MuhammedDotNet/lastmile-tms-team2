@@ -22,6 +22,9 @@ public sealed record RoutePlanPreviewDto
     public string ZoneName { get; init; } = string.Empty;
     public Guid DepotId { get; init; }
     public string DepotName { get; init; } = string.Empty;
+    public string DepotAddressLine { get; init; } = string.Empty;
+    public double? DepotLongitude { get; init; }
+    public double? DepotLatitude { get; init; }
     public IReadOnlyList<RoutePlanParcelCandidateDto> CandidateParcels { get; init; } = [];
     public IReadOnlyList<RouteStopDto> Stops { get; init; } = [];
     public IReadOnlyList<RoutePathPointDto> Path { get; init; } = [];

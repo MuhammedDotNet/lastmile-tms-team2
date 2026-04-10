@@ -23,6 +23,26 @@ public sealed class RouteType : EntityObjectType<RouteEntity>
             .Type<StringType>()
             .Resolve(async ctx =>
                 (await LoadRouteZoneLabelAsync(ctx, ctx.Parent<RouteEntity>().Id)).ZoneName);
+        descriptor.Field("depotId")
+            .Type<NonNullType<UuidType>>()
+            .Resolve(async ctx =>
+                (await LoadRouteDepotSnapshotAsync(ctx, ctx.Parent<RouteEntity>().Id)).DepotId);
+        descriptor.Field("depotName")
+            .Type<StringType>()
+            .Resolve(async ctx =>
+                (await LoadRouteDepotSnapshotAsync(ctx, ctx.Parent<RouteEntity>().Id)).DepotName);
+        descriptor.Field("depotAddressLine")
+            .Type<StringType>()
+            .Resolve(async ctx =>
+                (await LoadRouteDepotSnapshotAsync(ctx, ctx.Parent<RouteEntity>().Id)).AddressLine);
+        descriptor.Field("depotLongitude")
+            .Type<FloatType>()
+            .Resolve(async ctx =>
+                (await LoadRouteDepotSnapshotAsync(ctx, ctx.Parent<RouteEntity>().Id)).Longitude);
+        descriptor.Field("depotLatitude")
+            .Type<FloatType>()
+            .Resolve(async ctx =>
+                (await LoadRouteDepotSnapshotAsync(ctx, ctx.Parent<RouteEntity>().Id)).Latitude);
         descriptor.Field(r => r.VehicleId).IsProjected(true);
         descriptor.Field(r => r.DriverId).IsProjected(true);
         descriptor.Field("vehiclePlate")
@@ -146,6 +166,65 @@ public sealed class RouteType : EntityObjectType<RouteEntity>
     private sealed record RouteZoneLabel(string ZoneName)
     {
         public static RouteZoneLabel Empty { get; } = new(string.Empty);
+    }
+
+    private static async Task<RouteDepotSnapshot> LoadRouteDepotSnapshotAsync(IResolverContext ctx, Guid routeId)
+    {
+        var depot = await ctx.BatchDataLoader<Guid, RouteDepotSnapshot>(
+                async (routeIds, ct) =>
+                {
+                    var dbContext = ctx.Service<IAppDbContext>();
+                    var rows = await dbContext.Routes
+                        .AsNoTracking()
+                        .Where(route => routeIds.Contains(route.Id))
+                        .Select(route => new
+                        {
+                            route.Id,
+                            route.Zone.DepotId,
+                            DepotName = route.Zone.Depot.Name,
+                            route.Zone.Depot.Address.Street1,
+                            route.Zone.Depot.Address.Street2,
+                            route.Zone.Depot.Address.City,
+                            route.Zone.Depot.Address.State,
+                            route.Zone.Depot.Address.PostalCode,
+                            DepotPoint = route.Zone.Depot.Address.GeoLocation,
+                        })
+                        .ToListAsync(ct);
+
+                    return routeIds.ToDictionary(
+                        id => id,
+                        id =>
+                        {
+                            var row = rows.FirstOrDefault(candidate => candidate.Id == id);
+                            return row is null
+                                ? RouteDepotSnapshot.Empty
+                                : new RouteDepotSnapshot(
+                                    row.DepotId,
+                                    row.DepotName,
+                                    BuildAddressLine(
+                                        row.Street1,
+                                        row.Street2,
+                                        row.City,
+                                        row.State,
+                                        row.PostalCode),
+                                    row.DepotPoint?.X,
+                                    row.DepotPoint?.Y);
+                        });
+                },
+                "RouteDepotSnapshotByRouteId")
+            .LoadAsync(routeId);
+
+        return depot ?? RouteDepotSnapshot.Empty;
+    }
+
+    private sealed record RouteDepotSnapshot(
+        Guid DepotId,
+        string DepotName,
+        string AddressLine,
+        double? Longitude,
+        double? Latitude)
+    {
+        public static RouteDepotSnapshot Empty { get; } = new(Guid.Empty, string.Empty, string.Empty, null, null);
     }
 
     private static Task<RouteParcelStats?> LoadParcelStatsAsync(IResolverContext ctx)

@@ -31,6 +31,9 @@ public sealed record RoutePlanComputationResult
     public string ZoneName { get; init; } = string.Empty;
     public Guid DepotId { get; init; }
     public string DepotName { get; init; } = string.Empty;
+    public string DepotAddressLine { get; init; } = string.Empty;
+    public double? DepotLongitude { get; init; }
+    public double? DepotLatitude { get; init; }
     public IReadOnlyList<RoutePlanParcelCandidateDto> CandidateParcels { get; init; } = [];
     public IReadOnlyList<RoutePlannedStop> Stops { get; init; } = [];
     public IReadOnlyList<RoutePathPointDto> Path { get; init; } = [];
@@ -46,6 +49,9 @@ public sealed record RoutePlanComputationResult
             ZoneName = ZoneName,
             DepotId = DepotId,
             DepotName = DepotName,
+            DepotAddressLine = DepotAddressLine,
+            DepotLongitude = DepotLongitude,
+            DepotLatitude = DepotLatitude,
             CandidateParcels = CandidateParcels,
             Stops = Stops.Select(stop => stop.ToDto()).ToList(),
             Path = Path,
