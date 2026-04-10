@@ -21,6 +21,7 @@ public static class DependencyInjection
             "InMemory",
             StringComparison.OrdinalIgnoreCase);
         var enableTestSupport = configuration.GetValue("Testing:EnableTestSupport", false);
+        var hasMapboxAccessToken = !string.IsNullOrWhiteSpace(configuration["Mapbox:AccessToken"]);
 
         QuestPDF.Settings.License = LicenseType.Community;
 
@@ -76,15 +77,27 @@ public static class DependencyInjection
             services.AddScoped<IGeocodingService, TestSupportGeocodingService>();
             services.AddScoped<IRouteRoutingService, DeterministicRouteRoutingService>();
         }
-        else if (isInMemoryDatabase)
-        {
-            services.AddScoped<IGeocodingService, DeterministicGeocodingService>();
-            services.AddScoped<IRouteRoutingService, DeterministicRouteRoutingService>();
-        }
         else
         {
-            services.AddHttpClient<IGeocodingService, NominatimGeocodingService>();
-            services.AddHttpClient<IRouteRoutingService, MapboxRouteRoutingService>();
+            if (isInMemoryDatabase)
+            {
+                services.AddScoped<IGeocodingService, DeterministicGeocodingService>();
+            }
+            else
+            {
+                services.AddHttpClient<IGeocodingService, NominatimGeocodingService>();
+            }
+
+            if (!disableExternalInfrastructure && hasMapboxAccessToken)
+            {
+                // Keep local in-memory development visually faithful by using real road routing
+                // whenever a Mapbox token is configured.
+                services.AddHttpClient<IRouteRoutingService, MapboxRouteRoutingService>();
+            }
+            else
+            {
+                services.AddScoped<IRouteRoutingService, DeterministicRouteRoutingService>();
+            }
         }
 
         services.AddScoped<IZoneMatchingService, ZoneMatchingService>();
