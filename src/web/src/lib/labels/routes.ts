@@ -2,18 +2,30 @@ import { cn } from "@/lib/utils";
 import type { RouteStatus, StagingArea } from "@/types/routes";
 
 export const ROUTE_STATUS_LABELS: Record<RouteStatus, string> = {
-  PLANNED: "Planned",
-  IN_PROGRESS: "In Progress",
-  COMPLETED: "Completed",
   CANCELLED: "Cancelled",
+  COMPLETED: "Completed",
+  DISPATCHED: "Dispatched",
+  DRAFT: "Draft",
+  IN_PROGRESS: "In Progress",
 };
 
 export const ROUTE_STATUS_ORDER: RouteStatus[] = [
-  "PLANNED",
+  "DRAFT",
+  "DISPATCHED",
   "IN_PROGRESS",
   "COMPLETED",
   "CANCELLED",
 ];
+
+export const ROUTE_ASSIGNMENT_MODE_LABELS = {
+  MANUAL_PARCELS: "Manual parcels",
+  AUTO_BY_ZONE: "Auto by zone",
+} as const;
+
+export const ROUTE_STOP_MODE_LABELS = {
+  AUTO: "Auto curbside stops",
+  MANUAL: "Manual stop editing",
+} as const;
 
 export const STAGING_AREA_LABELS: Record<StagingArea, string> = {
   A: "Area A",
@@ -25,8 +37,13 @@ const routeStatusBadgeBase =
 
 export function routeStatusBadgeClass(status: string): string {
   switch (status) {
-    case "PLANNED":
+    case "DRAFT":
       return cn(routeStatusBadgeBase, "bg-muted text-muted-foreground");
+    case "DISPATCHED":
+      return cn(
+        routeStatusBadgeBase,
+        "bg-amber-100 text-amber-900 dark:bg-amber-950/50 dark:text-amber-200",
+      );
     case "IN_PROGRESS":
       return cn(
         routeStatusBadgeBase,

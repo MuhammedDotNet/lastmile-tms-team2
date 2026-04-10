@@ -1,12 +1,15 @@
 import type {
   GetRouteAssignmentCandidatesQuery,
+  GetRoutePlanPreviewQuery,
   GetRouteQuery,
 } from "@/graphql/routes";
 
 export type {
   DriverStatus,
   RouteAssignmentAuditAction,
+  RouteAssignmentMode,
   RouteStatus,
+  RouteStopMode,
   StagingArea,
   VehicleStatus,
 } from "@/graphql/generated";
@@ -26,8 +29,29 @@ export type AssignableVehicle =
 export type RouteAssignmentCandidates =
   GetRouteAssignmentCandidatesQuery["routeAssignmentCandidates"];
 
+export type RouteStopParcel =
+  NonNullable<NonNullable<GetRouteQuery["route"]>["stops"]>[number]["parcels"][number];
+
+export type RouteStop =
+  NonNullable<NonNullable<GetRouteQuery["route"]>["stops"]>[number];
+
+export type RoutePathPoint =
+  NonNullable<NonNullable<GetRouteQuery["route"]>["path"]>[number];
+
+export type RoutePlanCandidateParcel =
+  GetRoutePlanPreviewQuery["routePlanPreview"]["candidateParcels"][number];
+
+export type RoutePlanPreview = GetRoutePlanPreviewQuery["routePlanPreview"];
+
+export type RouteStopDraft = {
+  sequence: number;
+  parcelIds: string[];
+};
+
 export type Route = {
   id: string;
+  zoneId: string;
+  zoneName: string;
   vehicleId: string;
   vehiclePlate: string;
   driverId: string;
@@ -41,19 +65,39 @@ export type Route = {
   status: import("@/graphql/generated").RouteStatus;
   parcelCount: number;
   parcelsDelivered: number;
+  estimatedStopCount: number;
+  plannedDistanceMeters: number;
+  plannedDurationSeconds: number;
   createdAt: string;
   updatedAt: string | null;
   cancellationReason: string | null;
+  path: RoutePathPoint[];
+  stops: RouteStop[];
   assignmentAuditTrail: RouteAssignmentAuditEntry[];
 };
 
 export type CreateRouteRequest = {
+  zoneId: string;
   vehicleId: string;
   driverId: string;
   stagingArea: import("@/graphql/generated").StagingArea;
   startDate: string;
   startMileage: number;
+  assignmentMode: import("@/graphql/generated").RouteAssignmentMode;
+  stopMode: import("@/graphql/generated").RouteStopMode;
   parcelIds: string[];
+  stops: RouteStopDraft[];
+};
+
+export type RoutePlanPreviewRequest = {
+  zoneId: string;
+  vehicleId?: string | null;
+  driverId?: string | null;
+  startDate: string;
+  assignmentMode: import("@/graphql/generated").RouteAssignmentMode;
+  stopMode: import("@/graphql/generated").RouteStopMode;
+  parcelIds: string[];
+  stops: RouteStopDraft[];
 };
 
 export type UpdateRouteAssignmentRequest = {
@@ -63,4 +107,8 @@ export type UpdateRouteAssignmentRequest = {
 
 export type CancelRouteRequest = {
   reason: string;
+};
+
+export type CompleteRouteRequest = {
+  endMileage: number;
 };

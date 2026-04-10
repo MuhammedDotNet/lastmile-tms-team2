@@ -68,7 +68,7 @@ export default function RoutesPage() {
         variant="route"
         eyebrow="Dispatch"
         title="Routes"
-        description="Planned and active delivery runs: vehicle, driver, mileage, and parcel progress. Open a route for full detail."
+        description="Draft, dispatched, and active delivery runs with zone coverage, stop counts, and parcel progress."
         icon={<RouteIcon strokeWidth={1.75} aria-hidden />}
         action={
           <Link
@@ -115,6 +115,7 @@ export default function RoutesPage() {
       <ListDataTable minWidthClassName="min-w-[980px]">
         <thead>
           <tr className={listDataTableHeadRowClass}>
+            <th className={listDataTableThClass}>Zone</th>
             <th className={listDataTableThClass}>Vehicle</th>
             <th className={listDataTableThClass}>Driver</th>
             <th className={listDataTableThClass}>Staging Area</th>
@@ -125,6 +126,12 @@ export default function RoutesPage() {
               )}
             >
               Start Date
+            </th>
+            <th className={cn(listDataTableThClass, "whitespace-nowrap")}>
+              Stops
+            </th>
+            <th className={cn(listDataTableThClass, "whitespace-nowrap")}>
+              Planned distance
             </th>
             <th className={cn(listDataTableThClass, "whitespace-nowrap")}>
               Mileage
@@ -139,6 +146,9 @@ export default function RoutesPage() {
         <tbody>
           {pagedItems.map((route) => (
             <tr key={route.id} className={listDataTableBodyRowClass}>
+              <td className={cn(listDataTableTdClass, "max-w-[180px]")}>
+                <OverflowTooltipCell fullText={route.zoneName} />
+              </td>
               <td className={cn(listDataTableTdClass, "max-w-[180px]")}>
                 <OverflowTooltipCell
                   fullText={route.vehiclePlate}
@@ -160,6 +170,12 @@ export default function RoutesPage() {
               </td>
               <td className={cn(listDataTableTdClass, "tabular-nums text-muted-foreground")}>
                 {new Date(route.startDate).toLocaleString()}
+              </td>
+              <td className={cn(listDataTableTdClass, "tabular-nums")}>
+                {route.estimatedStopCount}
+              </td>
+              <td className={cn(listDataTableTdClass, "tabular-nums")}>
+                {(route.plannedDistanceMeters / 1000).toFixed(1)} km
               </td>
               <td className={cn(listDataTableTdClass, "tabular-nums")}>
                 {route.totalMileage > 0
