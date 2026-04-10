@@ -9,9 +9,18 @@ namespace LastMile.TMS.Application.Parcels.Reads;
 
 public sealed class ParcelReadService(IAppDbContext dbContext) : IParcelReadService
 {
-    private static readonly ParcelStatus[] RouteCreationStatuses = [ParcelStatus.Sorted, ParcelStatus.Staged];
+    private static readonly ParcelStatus[] RouteCreationStatuses = [ParcelStatus.Sorted];
     private static readonly ParcelStatus[] PreLoadStatuses =
-        [ParcelStatus.Registered, ParcelStatus.ReceivedAtDepot, ParcelStatus.Sorted, ParcelStatus.Staged];
+        [
+            ParcelStatus.Registered,
+            ParcelStatus.ReceivedAtDepot,
+            ParcelStatus.Sorted,
+            ParcelStatus.Staged,
+            ParcelStatus.Loaded,
+            ParcelStatus.OutForDelivery,
+            ParcelStatus.Delivered,
+            ParcelStatus.Exception
+        ];
 
     public IQueryable<Parcel> GetParcelsForRouteCreation(Guid vehicleId, Guid driverId) =>
         from parcel in dbContext.Parcels.AsNoTracking()

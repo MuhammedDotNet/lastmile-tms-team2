@@ -89,10 +89,15 @@ public class Parcel : BaseAuditableEntity
 
     public void ReturnToSortedFromCancelledRoute()
     {
-        if (Status != ParcelStatus.Staged)
+        if (Status == ParcelStatus.Sorted)
+        {
+            return;
+        }
+
+        if (Status != ParcelStatus.Staged && Status != ParcelStatus.Loaded)
         {
             throw new InvalidOperationException(
-                $"Only staged parcels can be returned to sorted from a cancelled route. Current status: {Status}.");
+                $"Only staged or loaded parcels can be returned to sorted from a cancelled route. Current status: {Status}.");
         }
 
         Status = ParcelStatus.Sorted;

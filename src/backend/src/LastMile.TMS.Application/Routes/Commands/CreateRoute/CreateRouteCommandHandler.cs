@@ -1,4 +1,6 @@
 using LastMile.TMS.Application.Common.Interfaces;
+using LastMile.TMS.Application.Parcels.Services;
+using LastMile.TMS.Application.Parcels.Support;
 using LastMile.TMS.Application.Routes.Mappings;
 using LastMile.TMS.Application.Routes.Services;
 using LastMile.TMS.Application.Routes.Support;
@@ -12,9 +14,10 @@ namespace LastMile.TMS.Application.Routes.Commands;
 public sealed class CreateRouteCommandHandler(
     IAppDbContext dbContext,
     ICurrentUserService currentUser,
+    IParcelUpdateNotifier parcelUpdateNotifier,
     IRoutePlanningService routePlanningService) : IRequestHandler<CreateRouteCommand, Route>
 {
-    private static readonly ParcelStatus[] EligibleParcelStatuses = [ParcelStatus.Sorted, ParcelStatus.Staged];
+    private static readonly ParcelStatus[] EligibleParcelStatuses = [ParcelStatus.Sorted];
 
     public async Task<Route> Handle(CreateRouteCommand request, CancellationToken cancellationToken)
     {
@@ -206,6 +209,7 @@ public sealed class CreateRouteCommandHandler(
                 "Vehicle is already assigned to another planned or in-progress route on that service date.");
 
         var now = DateTimeOffset.UtcNow;
+        var actor = currentUser.UserName ?? currentUser.UserId ?? "System";
         var route = request.Dto.ToEntity();
         if (route.Id == Guid.Empty)
         {
@@ -218,13 +222,26 @@ public sealed class CreateRouteCommandHandler(
         route.PlannedDurationSeconds = plan.PlannedDurationSeconds;
         route.PlannedPath = plan.PlannedPath;
         route.CreatedAt = now;
-        route.CreatedBy = currentUser.UserName ?? currentUser.UserId;
+        route.CreatedBy = actor;
 
         dbContext.Routes.Add(route);
 
+        var updatedParcels = new List<Parcel>(parcels.Count);
         foreach (var parcel in parcels)
         {
             route.Parcels.Add(parcel);
+
+            if (RouteParcelLifecycleSupport.TransitionStatus(
+                dbContext,
+                parcel,
+                ParcelStatus.Staged,
+                now,
+                actor,
+                RouteParcelLifecycleSupport.GetStagingAreaLocation(route.StagingArea),
+                $"Assigned to route {route.Id} and staged in area {route.StagingArea}."))
+            {
+                updatedParcels.Add(parcel);
+            }
         }
 
         var parcelById = parcels.ToDictionary(parcel => parcel.Id);
@@ -273,11 +290,18 @@ public sealed class CreateRouteCommandHandler(
                 RouteAssignmentAuditAction.Assigned,
                 driver,
                 vehicle,
-                route.CreatedBy));
+                actor));
 
         vehicle.Status = VehicleStatus.InUse;
 
         await dbContext.SaveChangesAsync(cancellationToken);
+
+        foreach (var parcel in updatedParcels)
+        {
+            await parcelUpdateNotifier.NotifyParcelUpdatedAsync(
+                new ParcelUpdateNotification(parcel.TrackingNumber, parcel.Status.ToString(), parcel.LastModifiedAt),
+                cancellationToken);
+        }
 
         route.Vehicle = vehicle;
         route.Driver = driver;

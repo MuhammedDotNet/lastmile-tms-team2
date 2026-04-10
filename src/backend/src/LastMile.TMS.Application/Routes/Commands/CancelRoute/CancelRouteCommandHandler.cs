@@ -55,11 +55,12 @@ public sealed class CancelRouteCommandHandler(
         route.LastModifiedBy = actor;
 
         var revertedParcels = route.Parcels
-            .Where(parcel => parcel.Status == ParcelStatus.Staged)
+            .Where(parcel => parcel.Status is ParcelStatus.Staged or ParcelStatus.Loaded)
             .ToList();
 
         foreach (var parcel in revertedParcels)
         {
+            var previousStatus = parcel.Status;
             parcel.ReturnToSortedFromCancelledRoute();
             parcel.LastModifiedAt = now;
             parcel.LastModifiedBy = actor;
@@ -69,7 +70,7 @@ public sealed class CancelRouteCommandHandler(
                 ParcelId = parcel.Id,
                 Action = ParcelChangeAction.Updated,
                 FieldName = "Status",
-                BeforeValue = ParcelChangeSupport.FormatEnum(ParcelStatus.Staged),
+                BeforeValue = ParcelChangeSupport.FormatEnum(previousStatus),
                 AfterValue = ParcelChangeSupport.FormatEnum(ParcelStatus.Sorted),
                 ChangedAt = now,
                 ChangedBy = actor,
