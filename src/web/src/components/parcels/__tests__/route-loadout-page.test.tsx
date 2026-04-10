@@ -4,13 +4,14 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { RouteLoadOutPage } from "@/components/parcels/route-loadout-page";
+import type { LoadOutRoute } from "@/graphql/generated";
 
 const { mockLoadParcelForRoute, mockCompleteLoadOut } = vi.hoisted(() => ({
   mockLoadParcelForRoute: vi.fn(),
   mockCompleteLoadOut: vi.fn(),
 }));
 
-let mockLoadOutRoutes: unknown[] = [];
+let mockLoadOutRoutes: LoadOutRoute[] = [];
 let mockRouteLoadOutBoard: unknown = null;
 
 vi.mock("next-auth/react", () => ({

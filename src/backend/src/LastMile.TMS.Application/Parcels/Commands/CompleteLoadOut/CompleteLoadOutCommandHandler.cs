@@ -1,6 +1,7 @@
 using LastMile.TMS.Application.Common.Interfaces;
 using LastMile.TMS.Application.Parcels.DTOs;
 using LastMile.TMS.Application.Parcels.Support;
+using LastMile.TMS.Domain.Entities;
 using LastMile.TMS.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -64,6 +65,26 @@ public sealed class CompleteLoadOutCommandHandler(
         route.Status = RouteStatus.InProgress;
         route.LastModifiedAt = DateTimeOffset.UtcNow;
         route.LastModifiedBy = InboundReceivingSupport.GetActor(currentUser);
+
+        var actor = InboundReceivingSupport.GetActor(currentUser);
+        var now = DateTimeOffset.UtcNow;
+
+        foreach (var parcel in route.Parcels.Where(p => p.Status == ParcelStatus.Staged))
+        {
+            parcel.TransitionTo(ParcelStatus.Exception);
+            parcel.LastModifiedAt = now;
+            parcel.LastModifiedBy = actor;
+
+            var trackingEvent = ParcelTrackingEventFactory.CreateForParcelStatus(
+                parcel.Id,
+                ParcelStatus.Exception,
+                now,
+                $"Staging Area {route.StagingArea}",
+                $"Force completed load-out: parcel was not loaded onto vehicle.",
+                actor);
+
+            parcel.TrackingEvents.Add(trackingEvent);
+        }
 
         await db.SaveChangesAsync(cancellationToken);
 

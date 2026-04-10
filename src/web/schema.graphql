@@ -48,6 +48,15 @@ type BinLocation {
   deliveryZoneName: String
 }
 
+type CompleteLoadOutResult {
+  success: Boolean!
+  message: String!
+  loadedCount: Int!
+  skippedCount: Int!
+  totalCount: Int!
+  board: RouteLoadOutBoard!
+}
+
 type DeliveryZoneOption {
   id: UUID!
   name: String!
@@ -184,6 +193,30 @@ type InboundScannedParcel {
   status: String!
   scannedAt: DateTime!
   scannedBy: String
+}
+
+type LoadOutRoute {
+  id: UUID!
+  vehicleId: UUID!
+  vehiclePlate: String!
+  driverId: UUID!
+  driverName: String!
+  status: RouteStatus!
+  stagingArea: StagingArea!
+  startDate: DateTime!
+  expectedParcelCount: Int!
+  loadedParcelCount: Int!
+  remainingParcelCount: Int!
+}
+
+type LoadParcelForRouteResult {
+  outcome: RouteLoadOutScanOutcome!
+  message: String!
+  trackingNumber: String
+  parcelId: UUID
+  conflictingRouteId: UUID
+  conflictingStagingArea: StagingArea
+  board: RouteLoadOutBoard!
 }
 
 type Mutation {
@@ -532,6 +565,29 @@ type RouteAssignmentCandidates {
   drivers: [AssignableDriver!]!
 }
 
+type RouteLoadOutBoard {
+  id: UUID!
+  vehicleId: UUID!
+  vehiclePlate: String!
+  driverId: UUID!
+  driverName: String!
+  status: RouteStatus!
+  stagingArea: StagingArea!
+  startDate: DateTime!
+  expectedParcelCount: Int!
+  loadedParcelCount: Int!
+  remainingParcelCount: Int!
+  expectedParcels: [RouteLoadOutExpectedParcel!]!
+}
+
+type RouteLoadOutExpectedParcel {
+  parcelId: UUID!
+  trackingNumber: String!
+  barcode: String!
+  status: String!
+  isLoaded: Boolean!
+}
+
 type RouteStagingBoard {
   id: UUID!
   vehicleId: UUID!
@@ -577,62 +633,6 @@ type StagingRoute {
   expectedParcelCount: Int!
   stagedParcelCount: Int!
   remainingParcelCount: Int!
-}
-
-type LoadOutRoute {
-  id: UUID!
-  vehicleId: UUID!
-  vehiclePlate: String!
-  driverId: UUID!
-  driverName: String!
-  status: RouteStatus!
-  stagingArea: StagingArea!
-  startDate: DateTime!
-  expectedParcelCount: Int!
-  loadedParcelCount: Int!
-  remainingParcelCount: Int!
-}
-
-type RouteLoadOutBoard {
-  id: UUID!
-  vehicleId: UUID!
-  vehiclePlate: String!
-  driverId: UUID!
-  driverName: String!
-  status: RouteStatus!
-  stagingArea: StagingArea!
-  startDate: DateTime!
-  expectedParcelCount: Int!
-  loadedParcelCount: Int!
-  remainingParcelCount: Int!
-  expectedParcels: [RouteLoadOutExpectedParcel!]!
-}
-
-type RouteLoadOutExpectedParcel {
-  parcelId: UUID!
-  trackingNumber: String!
-  barcode: String!
-  status: String!
-  isLoaded: Boolean!
-}
-
-type LoadParcelForRouteResult {
-  outcome: RouteLoadOutScanOutcome!
-  message: String!
-  trackingNumber: String
-  parcelId: UUID
-  conflictingRouteId: UUID
-  conflictingStagingArea: StagingArea
-  board: RouteLoadOutBoard!
-}
-
-type CompleteLoadOutResult {
-  success: Boolean!
-  message: String!
-  loadedCount: Int!
-  skippedCount: Int!
-  totalCount: Int!
-  board: RouteLoadOutBoard!
 }
 
 type StorageAisle {
@@ -787,6 +787,11 @@ input CancelParcelInput {
 
 input CancelRouteInput {
   reason: String!
+}
+
+input CompleteLoadOutInput {
+  routeId: UUID!
+  force: Boolean!
 }
 
 input CompletePasswordResetInput {
@@ -1003,6 +1008,11 @@ input IntOperationFilterInput {
   nlte: Int @cost(weight: "10")
 }
 
+input LoadParcelForRouteInput {
+  routeId: UUID!
+  barcode: String!
+}
+
 input OperatingHoursFilterInput {
   and: [OperatingHoursFilterInput!]
   or: [OperatingHoursFilterInput!]
@@ -1154,16 +1164,6 @@ input ServiceTypeOperationFilterInput {
 input StageParcelForRouteInput {
   routeId: UUID!
   barcode: String!
-}
-
-input LoadParcelForRouteInput {
-  routeId: UUID!
-  barcode: String!
-}
-
-input CompleteLoadOutInput {
-  routeId: UUID!
-  force: Boolean!
 }
 
 input StagingAreaOperationFilterInput {
@@ -1472,17 +1472,17 @@ enum RouteAssignmentAuditAction {
   REASSIGNED
 }
 
-enum RouteStagingScanOutcome {
-  STAGED
-  ALREADY_STAGED
+enum RouteLoadOutScanOutcome {
+  LOADED
+  ALREADY_LOADED
   WRONG_ROUTE
   NOT_EXPECTED
   INVALID_STATUS
 }
 
-enum RouteLoadOutScanOutcome {
-  LOADED
-  ALREADY_LOADED
+enum RouteStagingScanOutcome {
+  STAGED
+  ALREADY_STAGED
   WRONG_ROUTE
   NOT_EXPECTED
   INVALID_STATUS

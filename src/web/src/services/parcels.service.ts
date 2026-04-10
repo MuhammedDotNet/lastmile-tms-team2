@@ -86,13 +86,15 @@ import type {
   StageParcelForRouteResult,
   StagingRouteSummary,
   StartInboundReceivingSessionRequest,
-  LoadOutRouteSummary,
-  RouteLoadOutBoard,
   LoadParcelForRouteRequest,
-  LoadParcelForRouteResult,
   CompleteLoadOutRequest,
-  CompleteLoadOutResult,
 } from "@/types/parcels";
+import type {
+  LoadOutRoute,
+  RouteLoadOutBoard,
+  LoadParcelForRouteResult,
+  CompleteLoadOutResult,
+} from "@/graphql/generated";
 
 const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK_DATA === "true";
 
@@ -198,7 +200,7 @@ function mapStageParcelForRouteResult(
 
 function mapLoadOutRoute(
   raw: GetLoadOutRoutesQuery["loadOutRoutes"][number],
-): LoadOutRouteSummary {
+): LoadOutRoute {
   return {
     id: raw.id,
     vehicleId: raw.vehicleId,
@@ -493,7 +495,7 @@ export const parcelsService = {
     return mapStageParcelForRouteResult(data.stageParcelForRoute);
   },
 
-  getLoadOutRoutes: async (): Promise<LoadOutRouteSummary[]> => {
+  getLoadOutRoutes: async (): Promise<LoadOutRoute[]> => {
     if (USE_MOCK) {
       return [];
     }

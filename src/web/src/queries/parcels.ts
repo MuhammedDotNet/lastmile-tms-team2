@@ -40,13 +40,15 @@ import type {
   StageParcelForRouteResult,
   StagingRouteSummary,
   StartInboundReceivingSessionRequest,
-  LoadOutRouteSummary,
-  RouteLoadOutBoard,
   LoadParcelForRouteRequest,
-  LoadParcelForRouteResult,
   CompleteLoadOutRequest,
-  CompleteLoadOutResult,
 } from "@/types/parcels";
+import type {
+  LoadOutRoute,
+  RouteLoadOutBoard,
+  LoadParcelForRouteResult,
+  CompleteLoadOutResult,
+} from "@/graphql/generated";
 
 const parcelImportPollingStatuses = new Set(["Queued", "Processing"]);
 const parcelStatusLiveUpdateStatus = "OUT_FOR_DELIVERY";
@@ -145,7 +147,7 @@ export function useStageParcelForRoute() {
 
 export function useLoadOutRoutes() {
   const { status } = useSession();
-  return useQuery<LoadOutRouteSummary[]>({
+  return useQuery<LoadOutRoute[]>({
     queryKey: parcelKeys.loadOutRoutes(),
     queryFn: () => parcelsService.getLoadOutRoutes(),
     enabled: status === "authenticated",

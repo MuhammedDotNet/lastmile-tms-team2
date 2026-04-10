@@ -80,6 +80,33 @@ public class CompleteLoadOutTests
     }
 
     [Fact]
+    public async Task Handle_UnloadedParcels_Force_TransitionsStagedParcelsToException()
+    {
+        await using var db = MakeDbContext();
+        var fixture = await SeedFixtureAsync(db, allLoaded: false);
+        var currentUser = CreateCurrentUser(fixture.Operator);
+        var handler = new CompleteLoadOutCommandHandler(db, currentUser);
+
+        var stagedParcelsBefore = fixture.Route.Parcels.Where(p => p.Status == ParcelStatus.Staged).ToList();
+        stagedParcelsBefore.Should().NotBeEmpty();
+
+        var result = await handler.Handle(
+            new CompleteLoadOutCommand(fixture.Route.Id, Force: true),
+            CancellationToken.None);
+
+        result.Success.Should().BeTrue();
+
+        foreach (var parcel in stagedParcelsBefore)
+        {
+            var updatedParcel = await db.Parcels
+                .Include(p => p.TrackingEvents)
+                .FirstAsync(p => p.Id == parcel.Id);
+            updatedParcel.Status.Should().Be(ParcelStatus.Exception);
+            updatedParcel.TrackingEvents.Should().ContainSingle(e => e.EventType == Domain.Enums.EventType.Exception);
+        }
+    }
+
+    [Fact]
     public async Task Handle_RouteNotFound_ReturnsFailure()
     {
         await using var db = MakeDbContext();

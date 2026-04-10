@@ -11,6 +11,7 @@ import {
   Truck,
   User,
   AlertTriangle,
+  XCircle,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 
@@ -34,9 +35,9 @@ import {
 } from "@/queries/parcels";
 import type {
   RouteLoadOutBoard,
-  LoadParcelForRouteResult,
   CompleteLoadOutResult,
-} from "@/types/parcels";
+  LoadParcelForRouteResult,
+} from "@/graphql/generated";
 
 function CountCard({ label, value }: { label: string; value: number }) {
   return (
@@ -370,6 +371,7 @@ function RouteLoadOutBoardPanel({ routeId }: { routeId: string }) {
   const [boardSnapshot, setBoardSnapshot] = useState<RouteLoadOutBoard | null>(null);
   const [lastScanResult, setLastScanResult] = useState<LoadParcelForRouteResult | null>(null);
   const [completionResult, setCompletionResult] = useState<CompleteLoadOutResult | null>(null);
+  const [completionError, setCompletionError] = useState<string | null>(null);
   const [shortLoadDialogOpen, setShortLoadDialogOpen] = useState(false);
 
   const { data: queriedBoard, isLoading, error } = useRouteLoadOutBoard(routeId);
@@ -391,6 +393,7 @@ function RouteLoadOutBoardPanel({ routeId }: { routeId: string }) {
 
   async function handleComplete() {
     if (!board) return;
+    setCompletionError(null);
 
     if (board.remainingParcelCount > 0) {
       setShortLoadDialogOpen(true);
@@ -400,19 +403,24 @@ function RouteLoadOutBoardPanel({ routeId }: { routeId: string }) {
     const result = await completeLoadOut.mutateAsync({ routeId, force: false });
     if (result.success) {
       setCompletionResult(result);
+    } else {
+      setCompletionError(result.message);
     }
   }
 
   async function handleForceComplete() {
+    setCompletionError(null);
     const result = await completeLoadOut.mutateAsync({ routeId, force: true });
     setShortLoadDialogOpen(false);
     if (result.success) {
       setCompletionResult(result);
+    } else {
+      setCompletionError(result.message);
     }
   }
 
   if (completionResult && board) {
-    return <CompletionSummary result={completionResult} board={board} />;
+    return <CompletionSummary result={completionResult} board={completionResult.board} />;
   }
 
   if (error) {
@@ -445,6 +453,15 @@ function RouteLoadOutBoardPanel({ routeId }: { routeId: string }) {
           onCancel={() => setShortLoadDialogOpen(false)}
           isPending={completeLoadOut.isPending}
         />
+      ) : null}
+
+      {completionError ? (
+        <div className="rounded-2xl border border-red-300/60 bg-red-50/70 p-4 text-sm text-red-950">
+          <div className="flex items-center gap-2">
+            <XCircle className="size-5 text-red-600" />
+            <p className="font-medium">{completionError}</p>
+          </div>
+        </div>
       ) : null}
 
       <div className="rounded-2xl border border-border/60 bg-card/80 p-5 shadow-sm">
