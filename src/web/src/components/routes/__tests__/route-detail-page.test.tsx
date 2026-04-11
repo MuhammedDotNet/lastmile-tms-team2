@@ -5,8 +5,16 @@ import { describe, expect, it, vi } from "vitest";
 
 import RouteDetailPage from "@/components/routes/route-detail-page";
 
-const { mockCancelRoute } = vi.hoisted(() => ({
+const {
+  mockCancelRoute,
+  mockDispatchRoute,
+  mockStartRoute,
+  mockCompleteRoute,
+} = vi.hoisted(() => ({
   mockCancelRoute: vi.fn(),
+  mockDispatchRoute: vi.fn(),
+  mockStartRoute: vi.fn(),
+  mockCompleteRoute: vi.fn(),
 }));
 
 vi.mock("next-auth/react", () => ({
@@ -16,10 +24,16 @@ vi.mock("next-auth/react", () => ({
   }),
 }));
 
+vi.mock("@/components/routes/route-map", () => ({
+  RouteMap: () => <div data-testid="route-map" />,
+}));
+
 vi.mock("@/queries/routes", () => ({
   useRoute: () => ({
     data: {
       id: "route-1",
+      zoneId: "zone-1",
+      zoneName: "Zone A",
       vehicleId: "vehicle-1",
       vehiclePlate: "TRUCK-101",
       driverId: "driver-1",
@@ -30,9 +44,38 @@ vi.mock("@/queries/routes", () => ({
       startMileage: 120,
       endMileage: 0,
       totalMileage: 0,
-      status: "PLANNED",
+      status: "DRAFT",
       parcelCount: 3,
       parcelsDelivered: 0,
+      estimatedStopCount: 2,
+      plannedDistanceMeters: 14000,
+      plannedDurationSeconds: 2400,
+      depotName: "Test Depot",
+      depotAddressLine: "1 Depot Street",
+      depotLongitude: 151.2093,
+      depotLatitude: -33.8688,
+      path: [
+        { longitude: 151.2093, latitude: -33.8688 },
+        { longitude: 151.215, latitude: -33.872 },
+      ],
+      stops: [
+        {
+          id: "stop-1",
+          sequence: 1,
+          recipientLabel: "Recipient One",
+          addressLine: "20 Recipient Road",
+          longitude: 151.215,
+          latitude: -33.872,
+          parcels: [
+            {
+              parcelId: "parcel-1",
+              trackingNumber: "LMSTAGEWEB0001",
+              recipientLabel: "Recipient One",
+              addressLine: "20 Recipient Road",
+            },
+          ],
+        },
+      ],
       createdAt: "2026-04-08T08:00:00Z",
       updatedAt: "2026-04-09T07:30:00Z",
       cancellationReason: null,
@@ -74,10 +117,22 @@ vi.mock("@/queries/routes", () => ({
     mutateAsync: mockCancelRoute,
     isPending: false,
   }),
+  useDispatchRoute: () => ({
+    mutate: mockDispatchRoute,
+    isPending: false,
+  }),
+  useStartRoute: () => ({
+    mutate: mockStartRoute,
+    isPending: false,
+  }),
+  useCompleteRoute: () => ({
+    mutateAsync: mockCompleteRoute,
+    isPending: false,
+  }),
 }));
 
 describe("route-detail-page", () => {
-  it("renders the assignment audit panel and planned edit action", async () => {
+  it("renders the assignment audit panel and draft edit action", async () => {
     mockCancelRoute.mockResolvedValue(undefined);
 
     await act(async () => {

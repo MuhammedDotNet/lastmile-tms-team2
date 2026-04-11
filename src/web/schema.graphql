@@ -581,6 +581,29 @@ type RouteAssignmentCandidates {
   drivers: [AssignableDriver!]!
 }
 
+type RouteLoadOutBoard {
+  id: UUID!
+  vehicleId: UUID!
+  vehiclePlate: String!
+  driverId: UUID!
+  driverName: String!
+  status: RouteStatus!
+  stagingArea: StagingArea!
+  startDate: DateTime!
+  expectedParcelCount: Int!
+  loadedParcelCount: Int!
+  remainingParcelCount: Int!
+  expectedParcels: [RouteLoadOutExpectedParcel!]!
+}
+
+type RouteLoadOutExpectedParcel {
+  parcelId: UUID!
+  trackingNumber: String!
+  barcode: String!
+  status: String!
+  isLoaded: Boolean!
+}
+
 type RoutePathPoint {
   longitude: Float!
   latitude: Float!
@@ -615,29 +638,6 @@ type RoutePlanPreviewDto {
   plannedDistanceMeters: Int!
   plannedDurationSeconds: Int!
   warnings: [String!]!
-}
-
-type RouteLoadOutBoard {
-  id: UUID!
-  vehicleId: UUID!
-  vehiclePlate: String!
-  driverId: UUID!
-  driverName: String!
-  status: RouteStatus!
-  stagingArea: StagingArea!
-  startDate: DateTime!
-  expectedParcelCount: Int!
-  loadedParcelCount: Int!
-  remainingParcelCount: Int!
-  expectedParcels: [RouteLoadOutExpectedParcel!]!
-}
-
-type RouteLoadOutExpectedParcel {
-  parcelId: UUID!
-  trackingNumber: String!
-  barcode: String!
-  status: String!
-  isLoaded: Boolean!
 }
 
 type RouteStagingBoard {

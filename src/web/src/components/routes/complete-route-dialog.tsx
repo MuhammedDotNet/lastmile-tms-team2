@@ -6,39 +6,30 @@ import { NaturalNumberInput } from "@/components/form/natural-number-input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-export function CompleteRouteDialog({
-  open,
-  onOpenChange,
-  routeLabel,
-  startMileage,
-  isPending = false,
-  onConfirm,
-}: {
+type CompleteRouteDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   routeLabel: string;
   startMileage: number;
   isPending?: boolean;
   onConfirm: (endMileage: number) => void | Promise<void>;
-}) {
+};
+
+function CompleteRouteDialogContent({
+  onOpenChange,
+  routeLabel,
+  startMileage,
+  isPending = false,
+  onConfirm,
+}: Omit<CompleteRouteDialogProps, "open">) {
   const [endMileage, setEndMileage] = useState(startMileage);
   const [error, setError] = useState<string | null>(null);
 
-  const resetForm = useCallback(() => {
-    setEndMileage(startMileage);
-    setError(null);
-  }, [startMileage]);
-
   const closeDialog = useCallback(() => {
-    resetForm();
     onOpenChange(false);
-  }, [onOpenChange, resetForm]);
+  }, [onOpenChange]);
 
   useEffect(() => {
-    if (!open) {
-      return;
-    }
-
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape" && !isPending) {
         closeDialog();
@@ -47,31 +38,16 @@ export function CompleteRouteDialog({
 
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [closeDialog, isPending, open]);
+  }, [closeDialog, isPending]);
 
   useEffect(() => {
-    if (!open) {
-      return;
-    }
-
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
     return () => {
       document.body.style.overflow = previousOverflow;
     };
-  }, [open]);
-
-  useEffect(() => {
-    if (open) {
-      setEndMileage(startMileage);
-      setError(null);
-    }
-  }, [open, startMileage]);
-
-  if (!open) {
-    return null;
-  }
+  }, []);
 
   async function handleConfirm() {
     if (endMileage < startMileage) {
@@ -81,7 +57,6 @@ export function CompleteRouteDialog({
 
     setError(null);
     await onConfirm(endMileage);
-    resetForm();
   }
 
   return (
@@ -197,6 +172,30 @@ export function CompleteRouteDialog({
         </div>
       </div>
     </div>
+  );
+}
+
+export function CompleteRouteDialog({
+  open,
+  onOpenChange,
+  routeLabel,
+  startMileage,
+  isPending = false,
+  onConfirm,
+}: CompleteRouteDialogProps) {
+  if (!open) {
+    return null;
+  }
+
+  return (
+    <CompleteRouteDialogContent
+      key={`${routeLabel}:${startMileage}`}
+      onOpenChange={onOpenChange}
+      routeLabel={routeLabel}
+      startMileage={startMileage}
+      isPending={isPending}
+      onConfirm={onConfirm}
+    />
   );
 }
 

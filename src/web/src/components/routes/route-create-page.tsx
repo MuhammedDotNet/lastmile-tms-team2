@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CalendarDays, Route, Sparkles } from "lucide-react";
@@ -38,7 +38,6 @@ import {
   type ManualStopState,
   reconcileManualStops,
   RouteManualStopEditor,
-  sameManualStops,
 } from "./route-manual-stop-editor";
 
 const stagingAreaOptions = [
@@ -82,7 +81,6 @@ export default function NewRoutePage() {
   const createRoute = useCreateRoute();
   const { data: zones = [], isLoading: zonesLoading } = useZones();
   const [manualStops, setManualStops] = useState<ManualStopState[]>([]);
-  const [autoSelectedParcelIds, setAutoSelectedParcelIds] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState({
     zoneId: "",
@@ -114,12 +112,13 @@ export default function NewRoutePage() {
   const effectiveDriverId =
     assignmentLoading || availableDrivers.some((driver) => driver.id === formData.driverId) ? formData.driverId : "";
   const selectedDriver = availableDrivers.find((driver) => driver.id === effectiveDriverId) ?? null;
-
-  const selectedIdsForManualStops =
-    formData.assignmentMode === "MANUAL_PARCELS" ? formData.parcelIds : autoSelectedParcelIds;
   const manualStopsForRequest =
     formData.stopMode === "MANUAL"
-      ? toManualStopDrafts(reconcileManualStops(manualStops, selectedIdsForManualStops))
+      ? toManualStopDrafts(
+          formData.assignmentMode === "MANUAL_PARCELS"
+            ? reconcileManualStops(manualStops, formData.parcelIds)
+            : manualStops,
+        )
       : [];
 
   const previewRequest =
@@ -142,26 +141,12 @@ export default function NewRoutePage() {
   );
   const selectedParcelIds = selectedParcels.map((parcel) => parcel.id);
   const parcelsById = useMemo(() => new Map(selectedParcels.map((parcel) => [parcel.id, parcel])), [selectedParcels]);
-
-  useEffect(() => {
-    if (formData.assignmentMode === "AUTO_BY_ZONE") {
-      setAutoSelectedParcelIds((current) =>
-        JSON.stringify(current) === JSON.stringify(selectedParcelIds)
-          ? current
-          : selectedParcelIds,
-      );
-      return;
-    }
-    setAutoSelectedParcelIds((current) => (current.length === 0 ? current : []));
-  }, [formData.assignmentMode, selectedParcelIds]);
-
-  useEffect(() => {
-    if (formData.stopMode !== "MANUAL") return;
-    setManualStops((current) => {
-      const next = reconcileManualStops(current, selectedIdsForManualStops);
-      return sameManualStops(current, next) ? current : next;
-    });
-  }, [formData.stopMode, selectedIdsForManualStops]);
+  const selectedIdsForManualStops =
+    formData.assignmentMode === "MANUAL_PARCELS" ? formData.parcelIds : selectedParcelIds;
+  const reconciledManualStops = useMemo(
+    () => reconcileManualStops(manualStops, selectedIdsForManualStops),
+    [manualStops, selectedIdsForManualStops],
+  );
 
   const totalWeightKg = selectedParcels.reduce(
     (sum, parcel) => sum + (parcel.weightUnit === "LB" ? parcel.weight * 0.453592 : parcel.weight),
@@ -287,7 +272,7 @@ export default function NewRoutePage() {
 
           {formData.stopMode === "MANUAL" && selectedParcels.length > 0 ? (
             <DetailPanel className="form-page-panel-animate-delay" section="route" title="Manual stops" description="Reorder stop groups and merge or split parcel drops.">
-              <RouteManualStopEditor stops={reconcileManualStops(manualStops, selectedIdsForManualStops)} parcelsById={parcelsById} onChange={setManualStops} />
+              <RouteManualStopEditor stops={reconciledManualStops} parcelsById={parcelsById} onChange={setManualStops} />
             </DetailPanel>
           ) : null}
 
