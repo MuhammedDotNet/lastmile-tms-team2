@@ -40,6 +40,7 @@ public sealed class CompleteLoadOutCommandHandler(
         }
 
         if (route.Status != RouteStatus.Dispatched)
+        if (route.Status != RouteStatus.Dispatched)
         {
             return new CompleteLoadOutResultDto
             {
@@ -70,7 +71,27 @@ public sealed class CompleteLoadOutCommandHandler(
 
         var now = DateTimeOffset.UtcNow;
         var actor = InboundReceivingSupport.GetActor(currentUser);
+        var stagingLocation = RouteParcelLifecycleSupport.GetStagingAreaLocation(route.StagingArea);
+        var vehicleLocation = RouteParcelLifecycleSupport.GetVehicleLocation(route.Vehicle?.RegistrationPlate);
         var updatedParcels = new List<Parcel>();
+
+        if (request.Force)
+        {
+            foreach (var parcel in route.Parcels.Where(candidate => candidate.Status == ParcelStatus.Staged))
+            {
+                if (RouteParcelLifecycleSupport.TransitionStatus(
+                    db,
+                    parcel,
+                    ParcelStatus.Exception,
+                    now,
+                    actor,
+                    stagingLocation,
+                    "Force completed load-out: parcel was not loaded onto vehicle."))
+                {
+                    updatedParcels.Add(parcel);
+                }
+            }
+        }
 
         foreach (var parcel in route.Parcels.Where(candidate => candidate.Status == ParcelStatus.Loaded))
         {
@@ -80,13 +101,12 @@ public sealed class CompleteLoadOutCommandHandler(
                 ParcelStatus.OutForDelivery,
                 now,
                 actor,
-                RouteParcelLifecycleSupport.GetVehicleLocation(route.Vehicle?.RegistrationPlate),
+                vehicleLocation,
                 $"Out for delivery on route {route.Id}."))
             {
                 updatedParcels.Add(parcel);
             }
         }
-
         route.Status = RouteStatus.InProgress;
         route.LastModifiedAt = now;
         route.LastModifiedBy = actor;
