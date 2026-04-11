@@ -481,7 +481,7 @@ public sealed class DbSeeder(
     private async Task SeedTestDepotAsync(AppDbContext dbContext, CancellationToken ct)
     {
         var now = DateTimeOffset.UtcNow;
-        if (false && await dbContext.Depots.AnyAsync(d => d.Id == TestDepotId, ct))
+        if (await dbContext.Depots.AnyAsync(d => d.Id == TestDepotId, ct))
         {
             logger.LogDebug("Test depot already exists — skipping seed");
             return;
@@ -547,7 +547,7 @@ public sealed class DbSeeder(
 
     private async Task SeedTestZoneAsync(AppDbContext dbContext, CancellationToken ct)
     {
-        if (false && await dbContext.Zones.AnyAsync(z => z.Id == TestZoneId, ct))
+        if (await dbContext.Zones.AnyAsync(z => z.Id == TestZoneId, ct))
         {
             logger.LogDebug("Test zone already exists — skipping seed");
             return;
@@ -984,74 +984,6 @@ public sealed class DbSeeder(
         }
 
         await UpsertParcelSeedsAsync(dbContext, TestParcelSeeds, ct);
-        return;
-
-        // Seed each parcel with its own individual recipient address.
-        var now = DateTimeOffset.UtcNow;
-        var added = 0;
-        foreach (var seed in TestParcelSeeds)
-        {
-            if (await dbContext.Parcels.AnyAsync(p => p.Id == seed.Id, ct))
-                continue;
-
-            var ra = seed.RecipientAddress;
-            if (!await dbContext.Addresses.AnyAsync(a => a.Id == ra.Id, ct))
-            {
-                dbContext.Addresses.Add(new Address
-                {
-                    Id = ra.Id,
-                    Street1 = ra.Street1,
-                    Street2 = ra.Street2,
-                    City = ra.City,
-                    State = ra.State,
-                    PostalCode = ra.PostalCode,
-                    CountryCode = ra.CountryCode,
-                    IsResidential = ra.IsResidential,
-                    ContactName = ra.ContactName,
-                    CompanyName = ra.CompanyName,
-                    Phone = ra.Phone,
-                    Email = ra.Email,
-                    GeoLocation = GeometryFactory.CreatePoint(new Coordinate(ra.Longitude, ra.Latitude)),
-                    CreatedAt = now,
-                    CreatedBy = "Seeder",
-                });
-            }
-
-            dbContext.Parcels.Add(new Parcel
-            {
-                Id = seed.Id,
-                TrackingNumber = seed.TrackingNumber,
-                Description = "Seeded test parcel for development",
-                ServiceType = ServiceType.Standard,
-                Status = ParcelStatus.Sorted,
-                ShipperAddressId = TestParcelShipperAddressId,
-                RecipientAddressId = ra.Id,
-                Weight = seed.WeightKg,
-                WeightUnit = WeightUnit.Kg,
-                Length = 30,
-                Width = 20,
-                Height = 10,
-                DimensionUnit = DimensionUnit.Cm,
-                DeclaredValue = 100m,
-                Currency = "USD",
-                EstimatedDeliveryDate = now.AddDays(7),
-                DeliveryAttempts = 0,
-                ZoneId = TestZoneId,
-                CreatedAt = now,
-                CreatedBy = "Seeder",
-            });
-            added++;
-        }
-
-        if (added > 0)
-        {
-            await dbContext.SaveChangesAsync(ct);
-            logger.LogInformation("Seeded {Count} test parcel(s)", added);
-        }
-        else
-        {
-            logger.LogDebug("All test parcels already exist — skipping parcel seed");
-        }
     }
 
     // ── Test drivers (Identity + Driver row; same password for local dev) ───
@@ -1198,7 +1130,7 @@ public sealed class DbSeeder(
 
     private async Task SeedTestVehicleAsync(AppDbContext dbContext, CancellationToken ct)
     {
-        if (false && await dbContext.Vehicles.AnyAsync(v => v.Id == TestVehicleId, ct))
+        if (await dbContext.Vehicles.AnyAsync(v => v.Id == TestVehicleId, ct))
         {
             logger.LogDebug("Test vehicle already exists — skipping seed");
             return;
@@ -1211,25 +1143,9 @@ public sealed class DbSeeder(
         }
 
         await UpsertVehicleSeedsAsync(dbContext, VehicleSeeds, ct);
-        return;
 
-        var vehicle = new Vehicle
-        {
-            Id = TestVehicleId,
-            RegistrationPlate = "TEST-SEED-V001",
-            Type = VehicleType.Van,
-            ParcelCapacity = 50,
-            WeightCapacity = 500m,
-            Status = VehicleStatus.Available,
-            DepotId = TestDepotId,
-            CreatedAt = DateTimeOffset.UtcNow,
-            CreatedBy = "Seeder",
-        };
-
-        dbContext.Vehicles.Add(vehicle);
-        await dbContext.SaveChangesAsync(ct);
-        logger.LogInformation("Seeded test vehicle: {VehicleId} ({Plate})", TestVehicleId, vehicle.RegistrationPlate);
     }
+
     private async Task UpsertVehicleSeedsAsync(
         AppDbContext dbContext,
         IReadOnlyCollection<VehicleSeed> seeds,

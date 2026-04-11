@@ -40,7 +40,6 @@ public sealed class CompleteLoadOutCommandHandler(
         }
 
         if (route.Status != RouteStatus.Dispatched)
-        if (route.Status != RouteStatus.Dispatched)
         {
             return new CompleteLoadOutResultDto
             {
