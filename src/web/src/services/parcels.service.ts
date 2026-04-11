@@ -270,7 +270,7 @@ function mapCompleteLoadOutResult(
       vehiclePlate: "",
       driverId: "",
       driverName: "",
-      status: "PLANNED" as const,
+      status: "DRAFT" as const,
       stagingArea: "A" as const,
       startDate: "",
       expectedParcelCount: 0,
