@@ -6,6 +6,7 @@ public sealed class CompleteLoadOutCommandValidator : AbstractValidator<Complete
 {
     public CompleteLoadOutCommandValidator()
     {
-        RuleFor(x => x.RouteId).NotEmpty();
+        RuleFor(x => x.RouteId)
+            .NotEmpty();
     }
 }

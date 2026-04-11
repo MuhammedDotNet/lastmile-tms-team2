@@ -25,7 +25,8 @@ public class CompleteLoadOutTests
         await using var db = MakeDbContext();
         var fixture = await SeedFixtureAsync(db, allLoaded: true);
         var currentUser = CreateCurrentUser(fixture.Operator);
-        var handler = new CompleteLoadOutCommandHandler(db, currentUser);
+        var notifier = Substitute.For<IParcelUpdateNotifier>();
+        var handler = new CompleteLoadOutCommandHandler(db, currentUser, notifier);
 
         var result = await handler.Handle(
             new CompleteLoadOutCommand(fixture.Route.Id, Force: false),
@@ -46,7 +47,8 @@ public class CompleteLoadOutTests
         await using var db = MakeDbContext();
         var fixture = await SeedFixtureAsync(db, allLoaded: false);
         var currentUser = CreateCurrentUser(fixture.Operator);
-        var handler = new CompleteLoadOutCommandHandler(db, currentUser);
+        var notifier = Substitute.For<IParcelUpdateNotifier>();
+        var handler = new CompleteLoadOutCommandHandler(db, currentUser, notifier);
 
         var result = await handler.Handle(
             new CompleteLoadOutCommand(fixture.Route.Id, Force: false),
@@ -57,7 +59,7 @@ public class CompleteLoadOutTests
         result.Message.Should().Contain("not been loaded");
 
         var route = await db.Routes.FirstAsync(r => r.Id == fixture.Route.Id);
-        route.Status.Should().Be(RouteStatus.Planned);
+        route.Status.Should().Be(RouteStatus.Dispatched);
     }
 
     [Fact]
@@ -66,7 +68,8 @@ public class CompleteLoadOutTests
         await using var db = MakeDbContext();
         var fixture = await SeedFixtureAsync(db, allLoaded: false);
         var currentUser = CreateCurrentUser(fixture.Operator);
-        var handler = new CompleteLoadOutCommandHandler(db, currentUser);
+        var notifier = Substitute.For<IParcelUpdateNotifier>();
+        var handler = new CompleteLoadOutCommandHandler(db, currentUser, notifier);
 
         var result = await handler.Handle(
             new CompleteLoadOutCommand(fixture.Route.Id, Force: true),
@@ -85,7 +88,8 @@ public class CompleteLoadOutTests
         await using var db = MakeDbContext();
         var fixture = await SeedFixtureAsync(db, allLoaded: false);
         var currentUser = CreateCurrentUser(fixture.Operator);
-        var handler = new CompleteLoadOutCommandHandler(db, currentUser);
+        var notifier = Substitute.For<IParcelUpdateNotifier>();
+        var handler = new CompleteLoadOutCommandHandler(db, currentUser, notifier);
 
         var stagedParcelsBefore = fixture.Route.Parcels.Where(p => p.Status == ParcelStatus.Staged).ToList();
         stagedParcelsBefore.Should().NotBeEmpty();
@@ -112,7 +116,8 @@ public class CompleteLoadOutTests
         await using var db = MakeDbContext();
         var fixture = await SeedFixtureAsync(db, allLoaded: true);
         var currentUser = CreateCurrentUser(fixture.Operator);
-        var handler = new CompleteLoadOutCommandHandler(db, currentUser);
+        var notifier = Substitute.For<IParcelUpdateNotifier>();
+        var handler = new CompleteLoadOutCommandHandler(db, currentUser, notifier);
 
         var result = await handler.Handle(
             new CompleteLoadOutCommand(Guid.NewGuid(), Force: false),
@@ -131,14 +136,15 @@ public class CompleteLoadOutTests
         await db.SaveChangesAsync();
 
         var currentUser = CreateCurrentUser(fixture.Operator);
-        var handler = new CompleteLoadOutCommandHandler(db, currentUser);
+        var notifier = Substitute.For<IParcelUpdateNotifier>();
+        var handler = new CompleteLoadOutCommandHandler(db, currentUser, notifier);
 
         var result = await handler.Handle(
             new CompleteLoadOutCommand(fixture.Route.Id, Force: false),
             CancellationToken.None);
 
         result.Success.Should().BeFalse();
-        result.Message.Should().Contain("Planned");
+        result.Message.Should().Contain("Dispatched");
     }
 
     private static ICurrentUserService CreateCurrentUser(ApplicationUser user)
@@ -256,7 +262,7 @@ public class CompleteLoadOutTests
             Driver = driver,
             StartDate = DateTimeOffset.UtcNow,
             StagingArea = StagingArea.A,
-            Status = RouteStatus.Planned,
+            Status = RouteStatus.Dispatched,
             Parcels = [parcel1, parcel2],
         };
 

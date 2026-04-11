@@ -27,6 +27,8 @@ vi.mock("@/queries/routes", () => ({
   useRoute: () => ({
     data: {
       id: "route-1",
+      zoneId: "zone-1",
+      zoneName: "Zone A",
       vehicleId: "vehicle-1",
       vehiclePlate: "TRUCK-101",
       driverId: "driver-1",
@@ -37,7 +39,7 @@ vi.mock("@/queries/routes", () => ({
       startMileage: 120,
       endMileage: 0,
       totalMileage: 0,
-      status: "PLANNED",
+      status: "DRAFT",
       parcelCount: 3,
       parcelsDelivered: 0,
       createdAt: "2026-04-08T08:00:00Z",

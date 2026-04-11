@@ -4,10 +4,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import NewRoutePage from "@/components/routes/route-create-page";
 
-const { mockPush, mockCreateRoute, mockCandidates } = vi.hoisted(() => ({
+const { mockPush, mockCreateRoute, mockCandidates, mockPreview } = vi.hoisted(() => ({
   mockPush: vi.fn(),
   mockCreateRoute: vi.fn(),
   mockCandidates: vi.fn(),
+  mockPreview: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -16,24 +17,36 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
+vi.mock("next-auth/react", () => ({
+  useSession: () => ({
+    status: "authenticated",
+    data: { user: { name: "Dispatch User" } },
+  }),
+}));
+
+vi.mock("@/components/routes/route-map", () => ({
+  RouteMap: () => <div data-testid="route-map" />,
+}));
+
 vi.mock("@/queries/routes", () => ({
   useCreateRoute: () => ({
     mutateAsync: mockCreateRoute,
     isPending: false,
   }),
   useRouteAssignmentCandidates: () => mockCandidates(),
+  useRoutePlanPreview: (request: unknown) => mockPreview(request),
 }));
 
-vi.mock("@/queries/parcels", () => ({
-  useParcelsForRouteCreation: () => ({
+vi.mock("@/queries/zones", () => ({
+  useZones: () => ({
     data: [
       {
-        id: "parcel-1",
-        trackingNumber: "LMSTAGEWEB0001",
-        weight: 2.5,
-        weightUnit: "KG",
+        id: "zone-1",
+        name: "Zone A",
         zoneId: "zone-1",
-        zoneName: "Zone A",
+        depotId: "depot-1",
+        depotName: "Test Depot",
+        isActive: true,
       },
     ],
     isLoading: false,
@@ -82,6 +95,82 @@ describe("route-create-page", () => {
       isLoading: false,
       error: null,
     });
+    mockPreview.mockImplementation(
+      (request?: {
+        assignmentMode?: "MANUAL_PARCELS" | "AUTO_BY_ZONE";
+        parcelIds?: string[];
+        zoneId?: string;
+      }) => {
+        if (!request?.zoneId) {
+          return {
+            data: null,
+            isLoading: false,
+            error: null,
+          };
+        }
+
+        const isSelected =
+          request.assignmentMode === "AUTO_BY_ZONE"
+          || (request.parcelIds ?? []).includes("parcel-1");
+
+        return {
+          data: {
+            zoneId: "zone-1",
+            zoneName: "Zone A",
+            depotId: "depot-1",
+            depotName: "Test Depot",
+            depotAddressLine: "1 Depot Street",
+            depotLongitude: 151.2093,
+            depotLatitude: -33.8688,
+            estimatedStopCount: isSelected ? 1 : 0,
+            plannedDistanceMeters: 12500,
+            plannedDurationSeconds: 2100,
+            warnings: [],
+            candidateParcels: [
+              {
+                id: "parcel-1",
+                trackingNumber: "LMSTAGEWEB0001",
+                weight: 2.5,
+                weightUnit: "KG",
+                zoneId: "zone-1",
+                zoneName: "Zone A",
+                recipientLabel: "Recipient One",
+                addressLine: "20 Recipient Road",
+                longitude: 151.215,
+                latitude: -33.872,
+                isSelected,
+              },
+            ],
+            stops: isSelected
+              ? [
+                  {
+                    id: "stop-1",
+                    sequence: 1,
+                    recipientLabel: "Recipient One",
+                    addressLine: "20 Recipient Road",
+                    longitude: 151.215,
+                    latitude: -33.872,
+                    parcels: [
+                      {
+                        parcelId: "parcel-1",
+                        trackingNumber: "LMSTAGEWEB0001",
+                        recipientLabel: "Recipient One",
+                        addressLine: "20 Recipient Road",
+                      },
+                    ],
+                  },
+                ]
+              : [],
+            path: [
+              { longitude: 151.2093, latitude: -33.8688 },
+              { longitude: 151.215, latitude: -33.872 },
+            ],
+          },
+          isLoading: false,
+          error: null,
+        };
+      },
+    );
   });
 
   it("submits the selected staging area with the create route request", async () => {
@@ -89,13 +178,16 @@ describe("route-create-page", () => {
 
     const user = userEvent.setup();
 
-    await user.click(screen.getByRole("button", { name: /select vehicle/i }));
+    await user.click(screen.getByLabelText(/^zone$/i));
+    await user.click(screen.getByRole("option", { name: /zone a/i }));
+
+    await user.click(screen.getByLabelText(/^vehicle$/i));
     await user.click(screen.getByRole("option", { name: /truck-101/i }));
 
-    await user.click(screen.getByRole("button", { name: /select driver/i }));
+    await user.click(screen.getByLabelText(/^driver$/i));
     await user.click(screen.getByRole("option", { name: /jamie parker/i }));
 
-    await user.click(screen.getByRole("button", { name: /select staging area/i }));
+    await user.click(screen.getByLabelText(/^staging area$/i));
     await user.click(screen.getByRole("option", { name: /area b/i }));
 
     await user.click(screen.getByLabelText(/lmstageweb0001/i));
@@ -124,14 +216,16 @@ describe("route-create-page", () => {
 
     const user = userEvent.setup();
 
-    await user.click(screen.getByRole("button", { name: /select vehicle/i }));
+    await user.click(screen.getByLabelText(/^zone$/i));
+    await user.click(screen.getByRole("option", { name: /zone a/i }));
+
+    await user.click(screen.getByLabelText(/^vehicle$/i));
     await user.click(screen.getByRole("option", { name: /truck-101/i }));
 
-    await user.click(screen.getByRole("button", { name: /select driver/i }));
+    await user.click(screen.getByLabelText(/^driver$/i));
     await user.click(screen.getByRole("option", { name: /jamie parker/i }));
 
     expect(screen.getByText(/driver workload/i)).toBeInTheDocument();
-    expect(screen.getByText(/other routes already assigned/i)).toBeInTheDocument();
     expect(screen.getByText(/truck-202/i)).toBeInTheDocument();
     expect(screen.getByText(/completed/i)).toBeInTheDocument();
   });

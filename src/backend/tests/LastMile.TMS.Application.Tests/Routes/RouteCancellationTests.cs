@@ -24,7 +24,7 @@ public class CancelRouteCommandHandlerTests
             vehicle,
             driver,
             data.ServiceDate,
-            RouteStatus.Planned);
+            RouteStatus.Draft);
         vehicle.Status = VehicleStatus.InUse;
         db.Routes.Add(route);
         await db.SaveChangesAsync();
@@ -78,7 +78,7 @@ public class CancelRouteCommandHandlerTests
             vehicle,
             driver,
             data.ServiceDate,
-            RouteStatus.Planned,
+            RouteStatus.Draft,
             parcel);
         vehicle.Status = VehicleStatus.InUse;
         db.Routes.Add(route);
@@ -122,6 +122,67 @@ public class CancelRouteCommandHandlerTests
     }
 
     [Fact]
+    public async Task Handle_WhenRouteHasLoadedParcels_ReturnsThemToSortedAndNotifies()
+    {
+        await using var db = RouteAssignmentTestData.CreateDbContext();
+        var data = await RouteAssignmentTestData.SeedAsync(db);
+        db.ChangeTracker.Clear();
+
+        var vehicle = await db.Vehicles.SingleAsync(candidate => candidate.Id == data.Vehicle1.Id);
+        var driver = await db.Drivers.SingleAsync(candidate => candidate.Id == data.Driver1.Id);
+        var parcel = await db.Parcels
+            .Include(candidate => candidate.TrackingEvents)
+            .Include(candidate => candidate.ChangeHistory)
+            .SingleAsync(candidate => candidate.Id == data.Parcel1.Id);
+        parcel.Status = ParcelStatus.Loaded;
+
+        var route = RouteAssignmentTestData.CreateRoute(
+            vehicle,
+            driver,
+            data.ServiceDate,
+            RouteStatus.Dispatched,
+            parcel);
+        vehicle.Status = VehicleStatus.InUse;
+        db.Routes.Add(route);
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        var currentUser = Substitute.For<ICurrentUserService>();
+        currentUser.UserName.Returns("dispatcher@test");
+        var parcelUpdateNotifier = Substitute.For<IParcelUpdateNotifier>();
+
+        var handler = new CancelRouteCommandHandler(db, currentUser, parcelUpdateNotifier);
+
+        await handler.Handle(
+            new CancelRouteCommand(
+                route.Id,
+                new()
+                {
+                    Reason = "Vehicle swap required",
+                }),
+            CancellationToken.None);
+
+        var persistedParcel = await db.Parcels
+            .Include(candidate => candidate.ChangeHistory)
+            .Include(candidate => candidate.TrackingEvents)
+            .SingleAsync(candidate => candidate.Id == parcel.Id);
+
+        persistedParcel.Status.Should().Be(ParcelStatus.Sorted);
+        persistedParcel.ChangeHistory.Should().ContainSingle(entry =>
+            entry.Action == ParcelChangeAction.Updated
+            && entry.FieldName == "Status"
+            && entry.BeforeValue == "Loaded"
+            && entry.AfterValue == "Sorted");
+        persistedParcel.TrackingEvents.Should().Contain(entry =>
+            entry.Description.Contains("Vehicle swap required"));
+        await parcelUpdateNotifier.Received(1).NotifyParcelUpdatedAsync(
+            Arg.Is<ParcelUpdateNotification>(notification =>
+                notification.TrackingNumber == persistedParcel.TrackingNumber
+                && notification.Status == ParcelStatus.Sorted.ToString()),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task Handle_WhenVehicleHasOtherActiveRoutes_KeepsVehicleInUse()
     {
         await using var db = RouteAssignmentTestData.CreateDbContext();
@@ -135,12 +196,12 @@ public class CancelRouteCommandHandlerTests
             vehicle,
             driver1,
             data.ServiceDate,
-            RouteStatus.Planned);
+            RouteStatus.Draft);
         var siblingActiveRoute = RouteAssignmentTestData.CreateRoute(
             vehicle,
             driver2,
             data.ServiceDate.AddDays(1),
-            RouteStatus.Planned);
+            RouteStatus.Draft);
         vehicle.Status = VehicleStatus.InUse;
         db.Routes.AddRange(routeToCancel, siblingActiveRoute);
         await db.SaveChangesAsync();
@@ -165,7 +226,7 @@ public class CancelRouteCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WhenRouteIsNotPlanned_Throws()
+    public async Task Handle_WhenRouteIsNotCancellable_Throws()
     {
         await using var db = RouteAssignmentTestData.CreateDbContext();
         var data = await RouteAssignmentTestData.SeedAsync(db);
@@ -199,7 +260,7 @@ public class CancelRouteCommandHandlerTests
 
         await act.Should()
             .ThrowAsync<InvalidOperationException>()
-            .WithMessage("*Only planned routes can be cancelled before dispatch*");
+            .WithMessage("*Only draft or dispatched routes can be cancelled before route start*");
     }
 
     [Fact]
@@ -215,7 +276,7 @@ public class CancelRouteCommandHandlerTests
             vehicle,
             driver,
             data.ServiceDate,
-            RouteStatus.Planned);
+            RouteStatus.Draft);
         db.Routes.Add(route);
         await db.SaveChangesAsync();
         db.ChangeTracker.Clear();

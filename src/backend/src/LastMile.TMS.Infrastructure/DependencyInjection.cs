@@ -1,5 +1,6 @@
 using LastMile.TMS.Application.Common.Interfaces;
 using LastMile.TMS.Application.Parcels.Services;
+using LastMile.TMS.Application.Routes.Services;
 using LastMile.TMS.Application.Zones.Services;
 using LastMile.TMS.Infrastructure.Options;
 using LastMile.TMS.Infrastructure.Services;
@@ -20,6 +21,7 @@ public static class DependencyInjection
             "InMemory",
             StringComparison.OrdinalIgnoreCase);
         var enableTestSupport = configuration.GetValue("Testing:EnableTestSupport", false);
+        var hasMapboxAccessToken = !string.IsNullOrWhiteSpace(configuration["Mapbox:AccessToken"]);
 
         QuestPDF.Settings.License = LicenseType.Community;
 
@@ -31,6 +33,21 @@ public static class DependencyInjection
                     || (!string.IsNullOrWhiteSpace(options.AccessKey)
                         && !string.IsNullOrWhiteSpace(options.SecretKey)),
                 "Storage access key and secret key are required when external infrastructure is enabled.")
+            .ValidateOnStart();
+        services.AddOptions<MapboxOptions>()
+            .Bind(configuration.GetSection("Mapbox"))
+            .Validate(
+                options => enableTestSupport
+                    || isInMemoryDatabase
+                    || !string.IsNullOrWhiteSpace(options.AccessToken),
+                "Mapbox access token is required when external routing is enabled.")
+            .ValidateOnStart();
+        services.AddOptions<NominatimOptions>()
+            .Bind(configuration.GetSection("Nominatim"))
+            .Validate(
+                options => !string.IsNullOrWhiteSpace(options.BaseUrl)
+                    && !string.IsNullOrWhiteSpace(options.UserAgent),
+                "Nominatim base URL and user agent are required when external geocoding is enabled.")
             .ValidateOnStart();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IDriverPhotoFileCleanup, DriverPhotoFileCleanup>();
@@ -58,14 +75,29 @@ public static class DependencyInjection
         if (enableTestSupport)
         {
             services.AddScoped<IGeocodingService, TestSupportGeocodingService>();
-        }
-        else if (isInMemoryDatabase)
-        {
-            services.AddScoped<IGeocodingService, DeterministicGeocodingService>();
+            services.AddScoped<IRouteRoutingService, DeterministicRouteRoutingService>();
         }
         else
         {
-            services.AddHttpClient<IGeocodingService, NominatimGeocodingService>();
+            if (isInMemoryDatabase)
+            {
+                services.AddScoped<IGeocodingService, DeterministicGeocodingService>();
+            }
+            else
+            {
+                services.AddHttpClient<IGeocodingService, NominatimGeocodingService>();
+            }
+
+            if (!disableExternalInfrastructure && hasMapboxAccessToken)
+            {
+                // Keep local in-memory development visually faithful by using real road routing
+                // whenever a Mapbox token is configured.
+                services.AddHttpClient<IRouteRoutingService, MapboxRouteRoutingService>();
+            }
+            else
+            {
+                services.AddScoped<IRouteRoutingService, DeterministicRouteRoutingService>();
+            }
         }
 
         services.AddScoped<IZoneMatchingService, ZoneMatchingService>();

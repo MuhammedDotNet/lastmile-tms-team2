@@ -6,9 +6,11 @@ using NetTopologySuite.Geometries;
 namespace LastMile.TMS.Infrastructure.Services;
 
 /// <summary>
-/// Finds the first active zone whose boundary contains the given point.
+/// Finds the most specific active zone whose boundary contains the given point.
 /// Uses the Npgsql NetTopologySuite provider to translate Boundary.Covers(point)
 /// to PostGIS ST_Covers so the GIST spatial index on Zone.Boundary is used.
+/// When multiple active zones overlap, the smallest boundary wins to avoid a
+/// broad fallback zone swallowing a more precise delivery zone.
 /// </summary>
 public class ZoneMatchingService : IZoneMatchingService
 {
@@ -24,12 +26,19 @@ public class ZoneMatchingService : IZoneMatchingService
         if (point is null)
             return null;
 
-        var zoneId = await _db.Zones
+        var matchingZones = await _db.Zones
             .AsNoTracking()
             .Where(z => z.IsActive && z.Boundary.Covers(point))
-            .Select(z => (Guid?)z.Id)
-            .FirstOrDefaultAsync(cancellationToken);
+            .Select(z => new ZoneMatchCandidate(z.Id, z.Boundary.Area, z.CreatedAt))
+            .ToListAsync(cancellationToken);
 
-        return zoneId;
+        return matchingZones
+            .OrderBy(candidate => candidate.Area)
+            .ThenByDescending(candidate => candidate.CreatedAt)
+            .ThenBy(candidate => candidate.Id)
+            .Select(candidate => (Guid?)candidate.Id)
+            .FirstOrDefault();
     }
+
+    private sealed record ZoneMatchCandidate(Guid Id, double Area, DateTimeOffset CreatedAt);
 }

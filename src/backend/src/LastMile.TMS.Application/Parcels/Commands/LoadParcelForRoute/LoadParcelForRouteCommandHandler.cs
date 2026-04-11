@@ -118,7 +118,7 @@ public sealed class LoadParcelForRouteCommandHandler(
             .AsNoTracking()
             .Where(r =>
                 r.Id != route.Id
-                && (r.Status == RouteStatus.Planned || r.Status == RouteStatus.InProgress)
+                && (r.Status == RouteStatus.Dispatched || r.Status == RouteStatus.InProgress)
                 && r.Parcels.Any(cp => cp.Id == parcel.Id))
             .Select(r => new { r.Id, r.StagingArea })
             .FirstOrDefaultAsync(cancellationToken);

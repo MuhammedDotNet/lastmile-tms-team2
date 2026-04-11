@@ -410,9 +410,18 @@ public class ParcelGraphQLTests(CustomWebApplicationFactory factory)
     }
 
     [Fact]
-    public async Task GetPreLoadParcels_ReturnsPreLoadStatuses()
+    public async Task GetPreLoadParcels_ReturnsStatusesVisibleOnParcelsPage()
     {
         var token = await GetAdminAccessTokenAsync();
+        const string loadedTrackingNumber = "LMPRELOADLOADED001";
+        const string outForDeliveryTrackingNumber = "LMPRELOADOUT00001";
+        const string deliveredTrackingNumber = "LMPRELOADDLVD0001";
+        const string exceptionTrackingNumber = "LMPRELOADEXCEPT001";
+
+        await SeedParcelAsync(DbSeeder.TestZoneId, loadedTrackingNumber, ParcelStatus.Loaded);
+        await SeedParcelAsync(DbSeeder.TestZoneId, outForDeliveryTrackingNumber, ParcelStatus.OutForDelivery);
+        await SeedParcelAsync(DbSeeder.TestZoneId, deliveredTrackingNumber, ParcelStatus.Delivered);
+        await SeedParcelAsync(DbSeeder.TestZoneId, exceptionTrackingNumber, ParcelStatus.Exception);
 
         using var registerDoc = await PostGraphQLAsync(
             """
@@ -483,6 +492,18 @@ public class ParcelGraphQLTests(CustomWebApplicationFactory factory)
             parcel.GetProperty("trackingNumber").GetString() == registeredTracking
             && parcel.GetProperty("status").GetString() == "Registered");
         parcels.Should().Contain(parcel => parcel.GetProperty("status").GetString() == "Sorted");
+        parcels.Should().Contain(parcel =>
+            parcel.GetProperty("trackingNumber").GetString() == loadedTrackingNumber
+            && parcel.GetProperty("status").GetString() == "Loaded");
+        parcels.Should().Contain(parcel =>
+            parcel.GetProperty("trackingNumber").GetString() == outForDeliveryTrackingNumber
+            && parcel.GetProperty("status").GetString() == "OutForDelivery");
+        parcels.Should().Contain(parcel =>
+            parcel.GetProperty("trackingNumber").GetString() == deliveredTrackingNumber
+            && parcel.GetProperty("status").GetString() == "Delivered");
+        parcels.Should().Contain(parcel =>
+            parcel.GetProperty("trackingNumber").GetString() == exceptionTrackingNumber
+            && parcel.GetProperty("status").GetString() == "Exception");
     }
 
     [Fact]
@@ -1468,7 +1489,7 @@ public class ParcelGraphQLTests(CustomWebApplicationFactory factory)
 
         aggregateParcel.GetProperty("id").GetString().Should().Be(parcelId);
         aggregateParcel.GetProperty("trackingNumber").GetString().Should().Be(trackingNumber);
-        aggregateParcel.GetProperty("senderAddress").GetProperty("street1").GetString().Should().Be("10 Shipper Lane");
+        aggregateParcel.GetProperty("senderAddress").GetProperty("street1").GetString().Should().Be("500 W Madison St");
         aggregateParcel.GetProperty("recipientAddress").GetProperty("contactName").GetString().Should().Be("Aggregate Test");
         aggregateParcel.GetProperty("statusTimeline").EnumerateArray().Should().NotBeEmpty();
         aggregateParcel.GetProperty("routeAssignment").GetProperty("driverName").GetString().Should().Be("Test Driver");
@@ -1604,7 +1625,7 @@ public class ParcelGraphQLTests(CustomWebApplicationFactory factory)
         var activeRouteId = await SeedRouteAsync(
             DbSeeder.TestVehicleId,
             DbSeeder.TestDriverId,
-            RouteStatus.Planned,
+            RouteStatus.Draft,
             StagingArea.A,
             plannedSortedParcelId,
             plannedStagedParcelId);
@@ -1645,7 +1666,7 @@ public class ParcelGraphQLTests(CustomWebApplicationFactory factory)
 
         var route = routes.Single();
         route.GetProperty("stagingArea").GetString().Should().Be("A");
-        route.GetProperty("status").GetString().Should().Be("PLANNED");
+        route.GetProperty("status").GetString().Should().Be("DRAFT");
         route.GetProperty("expectedParcelCount").GetInt32().Should().Be(2);
         route.GetProperty("stagedParcelCount").GetInt32().Should().Be(1);
         route.GetProperty("remainingParcelCount").GetInt32().Should().Be(1);
@@ -1659,7 +1680,7 @@ public class ParcelGraphQLTests(CustomWebApplicationFactory factory)
         var routeId = await SeedRouteAsync(
             DbSeeder.TestVehicleId,
             DbSeeder.TestDriverId,
-            RouteStatus.Planned,
+            RouteStatus.Draft,
             StagingArea.A,
             parcelId);
 
@@ -1740,7 +1761,7 @@ public class ParcelGraphQLTests(CustomWebApplicationFactory factory)
         var routeId = await SeedRouteAsync(
             DbSeeder.TestVehicleId,
             DbSeeder.TestDriverId,
-            RouteStatus.Planned,
+            RouteStatus.Draft,
             StagingArea.A,
             parcelId);
 
@@ -1799,13 +1820,13 @@ public class ParcelGraphQLTests(CustomWebApplicationFactory factory)
         var selectedRouteId = await SeedRouteAsync(
             DbSeeder.TestVehicleId,
             DbSeeder.TestDriverId,
-            RouteStatus.Planned,
+            RouteStatus.Draft,
             StagingArea.A,
             selectedRouteParcelId);
         var conflictingRouteId = await SeedRouteAsync(
             DbSeeder.TestVehicleId,
             DbSeeder.TestDriver2Id,
-            RouteStatus.Planned,
+            RouteStatus.Draft,
             StagingArea.B,
             conflictingParcelId);
 
@@ -1868,7 +1889,7 @@ public class ParcelGraphQLTests(CustomWebApplicationFactory factory)
         var routeId = await SeedRouteAsync(
             DbSeeder.TestVehicleId,
             DbSeeder.TestDriverId,
-            RouteStatus.Planned,
+            RouteStatus.Draft,
             StagingArea.A,
             expectedParcelId);
 
@@ -2364,10 +2385,16 @@ public class ParcelGraphQLTests(CustomWebApplicationFactory factory)
         var parcels = await dbContext.Parcels
             .Where(parcel => parcelIds.Contains(parcel.Id))
             .ToListAsync();
+        var routeZoneId = parcels.FirstOrDefault()?.ZoneId
+            ?? await dbContext.Drivers
+                .Where(driver => driver.Id == driverId)
+                .Select(driver => driver.ZoneId)
+                .SingleAsync();
 
         var route = new Route
         {
             Id = Guid.NewGuid(),
+            ZoneId = routeZoneId,
             VehicleId = vehicleId,
             DriverId = driverId,
             StartDate = DateTimeOffset.UtcNow.AddHours(-1),
@@ -2398,6 +2425,7 @@ public class ParcelGraphQLTests(CustomWebApplicationFactory factory)
         var route = new Route
         {
             Id = Guid.NewGuid(),
+            ZoneId = parcel.ZoneId,
             VehicleId = DbSeeder.TestVehicleId,
             DriverId = DbSeeder.TestDriverId,
             StartDate = DateTimeOffset.UtcNow.AddHours(-1),

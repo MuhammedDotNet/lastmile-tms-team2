@@ -1,12 +1,15 @@
 using LastMile.TMS.Application.Common.Interfaces;
 using LastMile.TMS.Application.Depots.Mappings;
+using LastMile.TMS.Application.Parcels.Services;
 using LastMile.TMS.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace LastMile.TMS.Application.Depots.Commands;
 
-public sealed class UpdateDepotCommandHandler(IAppDbContext db)
+public sealed class UpdateDepotCommandHandler(
+    IAppDbContext db,
+    IGeocodingService geocodingService)
     : IRequestHandler<UpdateDepotCommand, Depot?>
 {
     public async Task<Depot?> Handle(UpdateDepotCommand request, CancellationToken cancellationToken)
@@ -23,8 +26,37 @@ public sealed class UpdateDepotCommandHandler(IAppDbContext db)
 
         if (request.Dto.Address is not null)
         {
-            request.Dto.Address.UpdateEntity(depot.Address);
-            depot.Address.CountryCode = depot.Address.CountryCode.ToUpperInvariant();
+            if (depot.Address is null)
+            {
+                depot.Address = request.Dto.Address.ToEntity();
+                depot.Address.CountryCode = depot.Address.CountryCode.ToUpperInvariant();
+                await DepotAddressGeocodingSupport.ApplyGeoLocationAsync(
+                    depot.Address,
+                    geocodingService,
+                    cancellationToken);
+            }
+            else
+            {
+                var previousAddressQuery = DepotAddressGeocodingSupport.BuildAddressQuery(depot.Address);
+                var previousGeoLocation = depot.Address.GeoLocation;
+
+                request.Dto.Address.UpdateEntity(depot.Address);
+                depot.Address.CountryCode = depot.Address.CountryCode.ToUpperInvariant();
+
+                var currentAddressQuery = DepotAddressGeocodingSupport.BuildAddressQuery(depot.Address);
+                var fallbackGeoLocation = string.Equals(
+                    previousAddressQuery,
+                    currentAddressQuery,
+                    StringComparison.OrdinalIgnoreCase)
+                    ? previousGeoLocation
+                    : null;
+
+                await DepotAddressGeocodingSupport.ApplyGeoLocationAsync(
+                    depot.Address,
+                    geocodingService,
+                    cancellationToken,
+                    fallbackGeoLocation);
+            }
         }
 
         if (request.Dto.OperatingHours is not null)

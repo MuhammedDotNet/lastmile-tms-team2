@@ -248,6 +248,9 @@ type Mutation {
   createRoute(input: CreateRouteInput!): Route! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
   updateRouteAssignment(id: UUID! input: UpdateRouteAssignmentInput!): Route @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
   cancelRoute(id: UUID! input: CancelRouteInput!): Route @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
+  dispatchRoute(id: UUID!): Route @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
+  startRoute(id: UUID!): Route @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
+  completeRoute(id: UUID! input: CompleteRouteInput!): Route @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
   createUser(input: CreateUserInput!): UserManagementUser! @authorize(roles: [ "Admin" ]) @cost(weight: "10")
   updateUser(input: UpdateUserInput!): UserManagementUser! @authorize(roles: [ "Admin" ]) @cost(weight: "10")
   deactivateUser(userId: UUID!): UserManagementUser! @authorize(roles: [ "Admin" ]) @cost(weight: "10")
@@ -482,7 +485,8 @@ type Query {
   routeLoadOutBoard(routeId: UUID!): RouteLoadOutBoard @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager", "WarehouseOperator" ]) @cost(weight: "10")
   routes(where: RouteFilterInput @cost(weight: "10") order: [RouteSortInput!] @cost(weight: "10")): [Route!]! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
   route(id: UUID!): Route @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
-  routeAssignmentCandidates(serviceDate: DateTime! routeId: UUID): RouteAssignmentCandidates! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
+  routeAssignmentCandidates(serviceDate: DateTime! zoneId: UUID! routeId: UUID): RouteAssignmentCandidates! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
+  routePlanPreview(input: RoutePlanPreviewInput!): RoutePlanPreviewDto! @authorize(roles: [ "Admin", "Dispatcher", "OperationsManager" ]) @cost(weight: "10")
   users(search: String isActive: Boolean depotId: UUID zoneId: UUID where: UserManagementUserFilterInput @cost(weight: "10") order: [UserManagementUserSortInput!] @cost(weight: "10")): [UserManagementUser!]! @authorize(roles: [ "Admin" ]) @cost(weight: "10")
   user(id: UUID!): UserManagementUser @authorize(roles: [ "Admin" ]) @cost(weight: "10")
   userManagementLookups: UserManagementLookupsDto! @authorize(roles: [ "Admin" ]) @cost(weight: "10")
@@ -524,6 +528,13 @@ type RegisteredParcel {
 
 type Route {
   id: UUID!
+  zoneId: UUID!
+  zoneName: String @cost(weight: "10")
+  depotId: UUID! @cost(weight: "10")
+  depotName: String @cost(weight: "10")
+  depotAddressLine: String @cost(weight: "10")
+  depotLongitude: Float @cost(weight: "10")
+  depotLatitude: Float @cost(weight: "10")
   vehicleId: UUID!
   driverId: UUID!
   vehiclePlate: String @cost(weight: "10")
@@ -538,6 +549,11 @@ type Route {
   status: RouteStatus!
   parcelCount: Int! @cost(weight: "10")
   parcelsDelivered: Int! @cost(weight: "10")
+  plannedDistanceMeters: Int!
+  plannedDurationSeconds: Int!
+  estimatedStopCount: Int! @cost(weight: "10")
+  path: [RoutePathPoint!]! @cost(weight: "10")
+  stops: [RouteStop!]! @cost(weight: "10")
   createdAt: DateTime!
   updatedAt: DateTime
   assignmentAuditTrail: [RouteAssignmentAuditEntry!]! @cost(weight: "10")
@@ -588,6 +604,42 @@ type RouteLoadOutExpectedParcel {
   isLoaded: Boolean!
 }
 
+type RoutePathPoint {
+  longitude: Float!
+  latitude: Float!
+}
+
+type RoutePlanParcelCandidateDto {
+  id: UUID!
+  trackingNumber: String!
+  weight: Decimal!
+  weightUnit: WeightUnit!
+  zoneId: UUID!
+  zoneName: String!
+  recipientLabel: String!
+  addressLine: String!
+  longitude: Float
+  latitude: Float
+  isSelected: Boolean!
+}
+
+type RoutePlanPreviewDto {
+  zoneId: UUID!
+  zoneName: String!
+  depotId: UUID!
+  depotName: String!
+  depotAddressLine: String!
+  depotLongitude: Float
+  depotLatitude: Float
+  candidateParcels: [RoutePlanParcelCandidateDto!]!
+  stops: [RouteStop!]!
+  path: [RoutePathPoint!]!
+  estimatedStopCount: Int!
+  plannedDistanceMeters: Int!
+  plannedDurationSeconds: Int!
+  warnings: [String!]!
+}
+
 type RouteStagingBoard {
   id: UUID!
   vehicleId: UUID!
@@ -609,6 +661,23 @@ type RouteStagingExpectedParcel {
   barcode: String!
   status: String!
   isStaged: Boolean!
+}
+
+type RouteStop {
+  id: String!
+  sequence: Int!
+  recipientLabel: String!
+  addressLine: String!
+  longitude: Float!
+  latitude: Float!
+  parcels: [RouteStopParcelDto!]!
+}
+
+type RouteStopParcelDto {
+  parcelId: UUID!
+  trackingNumber: String!
+  recipientLabel: String!
+  addressLine: String!
 }
 
 type StageParcelForRouteResult {
@@ -800,6 +869,10 @@ input CompletePasswordResetInput {
   newPassword: String!
 }
 
+input CompleteRouteInput {
+  endMileage: Int!
+}
+
 input ConfirmInboundReceivingSessionInput {
   sessionId: UUID!
 }
@@ -841,12 +914,16 @@ input CreateDriverInput {
 }
 
 input CreateRouteInput {
+  zoneId: UUID!
   vehicleId: UUID!
   driverId: UUID!
   stagingArea: StagingArea!
   startDate: DateTime!
   startMileage: Int!
+  assignmentMode: RouteAssignmentMode!
+  stopMode: RouteStopMode!
   parcelIds: [UUID!]!
+  stops: [RouteStopDraftInput!]!
 }
 
 input CreateStorageAisleInput {
@@ -1116,26 +1193,43 @@ input RouteFilterInput {
   and: [RouteFilterInput!]
   or: [RouteFilterInput!]
   id: UuidOperationFilterInput
+  zoneId: UuidOperationFilterInput
   vehicleId: UuidOperationFilterInput
   driverId: UuidOperationFilterInput
   startDate: DateTimeOperationFilterInput
   endDate: DateTimeOperationFilterInput
   startMileage: IntOperationFilterInput
   endMileage: IntOperationFilterInput
+  plannedDistanceMeters: IntOperationFilterInput
+  plannedDurationSeconds: IntOperationFilterInput
   stagingArea: StagingAreaOperationFilterInput
   status: RouteStatusOperationFilterInput
   createdAt: DateTimeOperationFilterInput
   updatedAt: DateTimeOperationFilterInput
 }
 
+input RoutePlanPreviewInput {
+  zoneId: UUID!
+  vehicleId: UUID
+  driverId: UUID
+  startDate: DateTime!
+  assignmentMode: RouteAssignmentMode!
+  stopMode: RouteStopMode!
+  parcelIds: [UUID!]!
+  stops: [RouteStopDraftInput!]!
+}
+
 input RouteSortInput {
   id: SortEnumType @cost(weight: "10")
+  zoneId: SortEnumType @cost(weight: "10")
   vehicleId: SortEnumType @cost(weight: "10")
   driverId: SortEnumType @cost(weight: "10")
   startDate: SortEnumType @cost(weight: "10")
   endDate: SortEnumType @cost(weight: "10")
   startMileage: SortEnumType @cost(weight: "10")
   endMileage: SortEnumType @cost(weight: "10")
+  plannedDistanceMeters: SortEnumType @cost(weight: "10")
+  plannedDurationSeconds: SortEnumType @cost(weight: "10")
   stagingArea: SortEnumType @cost(weight: "10")
   status: SortEnumType @cost(weight: "10")
   createdAt: SortEnumType @cost(weight: "10")
@@ -1147,6 +1241,11 @@ input RouteStatusOperationFilterInput {
   neq: RouteStatus @cost(weight: "10")
   in: [RouteStatus!] @cost(weight: "10")
   nin: [RouteStatus!] @cost(weight: "10")
+}
+
+input RouteStopDraftInput {
+  sequence: Int!
+  parcelIds: [UUID!]!
 }
 
 input ScanInboundParcelInput {
@@ -1472,6 +1571,11 @@ enum RouteAssignmentAuditAction {
   REASSIGNED
 }
 
+enum RouteAssignmentMode {
+  MANUAL_PARCELS
+  AUTO_BY_ZONE
+}
+
 enum RouteLoadOutScanOutcome {
   LOADED
   ALREADY_LOADED
@@ -1489,10 +1593,16 @@ enum RouteStagingScanOutcome {
 }
 
 enum RouteStatus {
-  PLANNED
+  DRAFT
+  DISPATCHED
   IN_PROGRESS
   COMPLETED
   CANCELLED
+}
+
+enum RouteStopMode {
+  AUTO
+  MANUAL
 }
 
 enum ServiceType {

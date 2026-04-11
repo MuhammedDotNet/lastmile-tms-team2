@@ -30,9 +30,9 @@ public sealed class CancelRouteCommandHandler(
             return null;
         }
 
-        if (route.Status != RouteStatus.Planned)
+        if (route.Status != RouteStatus.Draft && route.Status != RouteStatus.Dispatched)
         {
-            throw new InvalidOperationException("Only planned routes can be cancelled before dispatch.");
+            throw new InvalidOperationException("Only draft or dispatched routes can be cancelled before route start.");
         }
 
         var reason = request.Dto.Reason.Trim();
@@ -55,11 +55,12 @@ public sealed class CancelRouteCommandHandler(
         route.LastModifiedBy = actor;
 
         var revertedParcels = route.Parcels
-            .Where(parcel => parcel.Status == ParcelStatus.Staged)
+            .Where(parcel => parcel.Status is ParcelStatus.Staged or ParcelStatus.Loaded)
             .ToList();
 
         foreach (var parcel in revertedParcels)
         {
+            var previousStatus = parcel.Status;
             parcel.ReturnToSortedFromCancelledRoute();
             parcel.LastModifiedAt = now;
             parcel.LastModifiedBy = actor;
@@ -69,7 +70,7 @@ public sealed class CancelRouteCommandHandler(
                 ParcelId = parcel.Id,
                 Action = ParcelChangeAction.Updated,
                 FieldName = "Status",
-                BeforeValue = ParcelChangeSupport.FormatEnum(ParcelStatus.Staged),
+                BeforeValue = ParcelChangeSupport.FormatEnum(previousStatus),
                 AfterValue = ParcelChangeSupport.FormatEnum(ParcelStatus.Sorted),
                 ChangedAt = now,
                 ChangedBy = actor,

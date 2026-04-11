@@ -1,44 +1,64 @@
+fragment RouteSummaryFields on Route {
+  id
+  zoneId
+  zoneName
+  vehicleId
+  vehiclePlate
+  driverId
+  driverName
+  stagingArea
+  startDate
+  endDate
+  startMileage
+  endMileage
+  totalMileage
+  status
+  parcelCount
+  parcelsDelivered
+  estimatedStopCount
+  plannedDistanceMeters
+  plannedDurationSeconds
+  createdAt
+  updatedAt
+  cancellationReason
+}
+
+fragment RouteStopFields on RouteStop {
+  id
+  sequence
+  recipientLabel
+  addressLine
+  longitude
+  latitude
+  parcels {
+    parcelId
+    trackingNumber
+    recipientLabel
+    addressLine
+  }
+}
+
 query GetRoutes($where: RouteFilterInput, $order: [RouteSortInput!]) {
   routes(where: $where, order: $order) {
-    id
-    vehicleId
-    vehiclePlate
-    driverId
-    driverName
-    stagingArea
-    startDate
-    endDate
-    startMileage
-    endMileage
-    totalMileage
-    status
-    parcelCount
-    parcelsDelivered
-    createdAt
-    updatedAt
-    cancellationReason
+    ...RouteSummaryFields
   }
 }
 
 query GetRoute($id: UUID!) {
   route(id: $id) {
-    id
-    vehicleId
-    vehiclePlate
-    driverId
-    driverName
-    stagingArea
-    startDate
-    endDate
-    startMileage
-    endMileage
-    totalMileage
-    status
-    parcelCount
-    parcelsDelivered
-    createdAt
-    updatedAt
-    cancellationReason
+    ...RouteSummaryFields
+    depotId
+    depotName
+    depotAddressLine
+    depotLongitude
+    depotLatitude
+    path {
+      longitude
+      latitude
+    }
+    stops {
+      ...RouteStopFields
+    }
     assignmentAuditTrail {
       id
       action
@@ -56,8 +76,8 @@ query GetRoute($id: UUID!) {
   }
 }
 
-query GetRouteAssignmentCandidates($serviceDate: DateTime!, $routeId: UUID) {
-  routeAssignmentCandidates(serviceDate: $serviceDate, routeId: $routeId) {
+query GetRouteAssignmentCandidates($serviceDate: DateTime!, $zoneId: UUID!, $routeId: UUID) {
+  routeAssignmentCandidates(serviceDate: $serviceDate, zoneId: $zoneId, routeId: $routeId) {
     vehicles {
       id
       registrationPlate
@@ -86,68 +106,74 @@ query GetRouteAssignmentCandidates($serviceDate: DateTime!, $routeId: UUID) {
   }
 }
 
+query GetRoutePlanPreview($input: RoutePlanPreviewInput!) {
+  routePlanPreview(input: $input) {
+    zoneId
+    zoneName
+    depotId
+    depotName
+    depotAddressLine
+    depotLongitude
+    depotLatitude
+    estimatedStopCount
+    plannedDistanceMeters
+    plannedDurationSeconds
+    warnings
+    candidateParcels {
+      id
+      trackingNumber
+      weight
+      weightUnit
+      zoneId
+      zoneName
+      recipientLabel
+      addressLine
+      longitude
+      latitude
+      isSelected
+    }
+    stops {
+      ...RouteStopFields
+    }
+    path {
+      longitude
+      latitude
+    }
+  }
+}
+
 mutation CreateRoute($input: CreateRouteInput!) {
   createRoute(input: $input) {
-    id
-    vehicleId
-    vehiclePlate
-    driverId
-    driverName
-    stagingArea
-    startDate
-    endDate
-    startMileage
-    endMileage
-    totalMileage
-    status
-    parcelCount
-    parcelsDelivered
-    createdAt
-    updatedAt
-    cancellationReason
+    ...RouteSummaryFields
   }
 }
 
 mutation UpdateRouteAssignment($id: UUID!, $input: UpdateRouteAssignmentInput!) {
   updateRouteAssignment(id: $id, input: $input) {
-    id
-    vehicleId
-    vehiclePlate
-    driverId
-    driverName
-    stagingArea
-    startDate
-    endDate
-    startMileage
-    endMileage
-    totalMileage
-    status
-    parcelCount
-    parcelsDelivered
-    createdAt
-    updatedAt
-    cancellationReason
+    ...RouteSummaryFields
   }
 }
 
 mutation CancelRoute($id: UUID!, $input: CancelRouteInput!) {
   cancelRoute(id: $id, input: $input) {
-    id
-    vehicleId
-    vehiclePlate
-    driverId
-    driverName
-    stagingArea
-    startDate
-    endDate
-    startMileage
-    endMileage
-    totalMileage
-    status
-    parcelCount
-    parcelsDelivered
-    createdAt
-    updatedAt
-    cancellationReason
+    ...RouteSummaryFields
+  }
+}
+
+mutation DispatchRoute($id: UUID!) {
+  dispatchRoute(id: $id) {
+    ...RouteSummaryFields
+  }
+}
+
+mutation StartRoute($id: UUID!) {
+  startRoute(id: $id) {
+    ...RouteSummaryFields
+  }
+}
+
+mutation CompleteRoute($id: UUID!, $input: CompleteRouteInput!) {
+  completeRoute(id: $id, input: $input) {
+    ...RouteSummaryFields
   }
 }

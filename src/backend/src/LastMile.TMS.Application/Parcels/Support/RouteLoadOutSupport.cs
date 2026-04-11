@@ -12,14 +12,14 @@ internal static class RouteLoadOutSupport
         db.Routes
             .AsNoTracking()
             .Where(route =>
-                route.Status == RouteStatus.Planned
+                route.Status == RouteStatus.Dispatched
                 && route.Vehicle.DepotId == depotId
                 && route.Parcels.Any(p => p.Status == ParcelStatus.Staged || p.Status == ParcelStatus.Loaded));
 
     public static IQueryable<Route> GetTrackedLoadOutRoutes(IAppDbContext db, Guid depotId) =>
         db.Routes
             .Where(route =>
-                route.Status == RouteStatus.Planned
+                route.Status == RouteStatus.Dispatched
                 && route.Vehicle.DepotId == depotId
                 && route.Parcels.Any(p => p.Status == ParcelStatus.Staged || p.Status == ParcelStatus.Loaded));
 
@@ -31,7 +31,7 @@ internal static class RouteLoadOutSupport
         db.Routes
             .AsNoTracking()
             .Where(route =>
-                (route.Status == RouteStatus.Planned || route.Status == RouteStatus.InProgress)
+                (route.Status == RouteStatus.Dispatched || route.Status == RouteStatus.InProgress)
                 && route.Vehicle.DepotId == depotId
                 && route.Id == routeId)
             .Select(route => new RouteLoadOutBoardDto

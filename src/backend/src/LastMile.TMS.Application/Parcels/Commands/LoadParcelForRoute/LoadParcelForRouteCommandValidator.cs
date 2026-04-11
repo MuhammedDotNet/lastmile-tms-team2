@@ -6,7 +6,11 @@ public sealed class LoadParcelForRouteCommandValidator : AbstractValidator<LoadP
 {
     public LoadParcelForRouteCommandValidator()
     {
-        RuleFor(x => x.RouteId).NotEmpty();
-        RuleFor(x => x.Barcode).NotEmpty().MaximumLength(100);
+        RuleFor(x => x.RouteId)
+            .NotEmpty();
+
+        RuleFor(x => x.Barcode)
+            .NotEmpty()
+            .MaximumLength(100);
     }
 }

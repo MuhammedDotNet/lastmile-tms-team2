@@ -1,46 +1,59 @@
+import type { RouteFilterInput } from "@/graphql/generated";
 import {
+  CANCEL_ROUTE,
+  COMPLETE_ROUTE,
+  CREATE_ROUTE,
+  DISPATCH_ROUTE,
   GET_ROUTE,
   GET_ROUTE_ASSIGNMENT_CANDIDATES,
-  CREATE_ROUTE,
+  GET_ROUTE_PLAN_PREVIEW,
   PAGINATED_ROUTES,
+  START_ROUTE,
   UPDATE_ROUTE_ASSIGNMENT,
-  CANCEL_ROUTE,
 } from "@/graphql/routes";
 import type {
   CancelRouteMutation,
+  CompleteRouteMutation,
   CreateRouteMutation,
-  GetRouteQuery,
+  DispatchRouteMutation,
   GetRouteAssignmentCandidatesQuery,
+  GetRoutePlanPreviewQuery,
+  GetRouteQuery,
   GetRoutesQuery,
+  StartRouteMutation,
   UpdateRouteAssignmentMutation,
 } from "@/graphql/routes";
-import type { RouteFilterInput } from "@/graphql/generated";
 import { graphqlRequest } from "@/lib/network/graphql-client";
 import type {
   CancelRouteRequest,
+  CompleteRouteRequest,
   CreateRouteRequest,
   Route,
   RouteAssignmentCandidates,
+  RoutePlanPreview,
+  RoutePlanPreviewRequest,
   UpdateRouteAssignmentRequest,
 } from "@/types/routes";
-import {
-  getMockRouteById,
-  mockRoutes,
-} from "@/mocks/routes.mock";
-import { mockDrivers } from "@/mocks/drivers.mock";
-import { mockVehicles } from "@/mocks/vehicles.mock";
-
-const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK_DATA === "true";
 
 function mapRouteSummary(
   raw:
     | NonNullable<GetRoutesQuery["routes"]>[number]
     | NonNullable<CreateRouteMutation["createRoute"]>
     | NonNullable<UpdateRouteAssignmentMutation["updateRouteAssignment"]>
-    | NonNullable<CancelRouteMutation["cancelRoute"]>,
+    | NonNullable<CancelRouteMutation["cancelRoute"]>
+    | NonNullable<DispatchRouteMutation["dispatchRoute"]>
+    | NonNullable<StartRouteMutation["startRoute"]>
+    | NonNullable<CompleteRouteMutation["completeRoute"]>,
 ): Route {
   return {
     id: raw.id,
+    zoneId: raw.zoneId,
+    zoneName: raw.zoneName?.trim() || "Unknown zone",
+    depotId: null,
+    depotName: null,
+    depotAddressLine: null,
+    depotLongitude: null,
+    depotLatitude: null,
     vehicleId: raw.vehicleId,
     vehiclePlate: raw.vehiclePlate?.trim() || "Unknown vehicle",
     driverId: raw.driverId,
@@ -54,10 +67,15 @@ function mapRouteSummary(
     status: raw.status,
     parcelCount: raw.parcelCount,
     parcelsDelivered: raw.parcelsDelivered,
+    estimatedStopCount: raw.estimatedStopCount,
+    plannedDistanceMeters: raw.plannedDistanceMeters,
+    plannedDurationSeconds: raw.plannedDurationSeconds,
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt ?? null,
     cancellationReason:
       "cancellationReason" in raw ? raw.cancellationReason ?? null : null,
+    path: [],
+    stops: [],
     assignmentAuditTrail: [],
   };
 }
@@ -65,160 +83,106 @@ function mapRouteSummary(
 function mapRouteDetail(raw: NonNullable<GetRouteQuery["route"]>): Route {
   return {
     ...mapRouteSummary(raw),
+    depotId: raw.depotId ?? null,
+    depotName: raw.depotName?.trim() || null,
+    depotAddressLine: raw.depotAddressLine?.trim() || null,
+    depotLongitude: raw.depotLongitude ?? null,
+    depotLatitude: raw.depotLatitude ?? null,
+    path: raw.path ?? [],
+    stops: raw.stops ?? [],
     assignmentAuditTrail: raw.assignmentAuditTrail ?? [],
   };
 }
 
-export const routesService = {
-  getAll: async (
-    where?: RouteFilterInput
-  ): Promise<Route[]> => {
-    if (USE_MOCK) {
-      let items = [...mockRoutes];
-      if (where?.status?.eq !== undefined) {
-        items = items.filter((r) => r.status === where.status!.eq);
-      }
-      if (where?.vehicleId?.eq !== undefined) {
-        items = items.filter((r) => r.vehicleId === where.vehicleId!.eq);
-      }
-      return Promise.resolve(items);
-    }
+function mapRoutePlanPreview(raw: GetRoutePlanPreviewQuery["routePlanPreview"]): RoutePlanPreview {
+  return {
+    ...raw,
+    candidateParcels: raw.candidateParcels ?? [],
+    stops: raw.stops ?? [],
+    path: raw.path ?? [],
+    warnings: raw.warnings ?? [],
+  };
+}
 
+export const routesService = {
+  getAll: async (where?: RouteFilterInput): Promise<Route[]> => {
     const variables: Record<string, unknown> = {};
     if (where !== undefined) {
       variables.where = where;
     }
 
-    const data = await graphqlRequest<GetRoutesQuery>(
-      PAGINATED_ROUTES,
-      variables
-    );
+    const data = await graphqlRequest<GetRoutesQuery>(PAGINATED_ROUTES, variables);
     return data.routes.map(mapRouteSummary);
   },
 
   getById: async (id: string): Promise<Route> => {
-    if (USE_MOCK) {
-      const route = getMockRouteById(id);
-      if (!route) throw new Error("Route not found");
-      return Promise.resolve(route);
-    }
-
     const data = await graphqlRequest<GetRouteQuery>(GET_ROUTE, { id });
-    if (!data.route) throw new Error("Route not found");
+    if (!data.route) {
+      throw new Error("Route not found");
+    }
     return mapRouteDetail(data.route);
   },
 
   create: async (data: CreateRouteRequest): Promise<Route> => {
-    if (USE_MOCK) {
-      const newRoute: Route = {
-        id: `mock-${Date.now()}`,
+    const result = await graphqlRequest<CreateRouteMutation>(CREATE_ROUTE, {
+      input: {
+        zoneId: data.zoneId,
         vehicleId: data.vehicleId,
-        vehiclePlate: "Mock Vehicle",
         driverId: data.driverId,
-        driverName: "Mock Driver",
         stagingArea: data.stagingArea,
         startDate: data.startDate,
-        endDate: null,
         startMileage: data.startMileage,
-        endMileage: 0,
-        totalMileage: 0,
-        status: "PLANNED",
-        parcelCount: data.parcelIds.length,
-        parcelsDelivered: 0,
-        createdAt: new Date().toISOString(),
-        updatedAt: null,
-        cancellationReason: null,
-        assignmentAuditTrail: [],
-      };
-      return Promise.resolve(newRoute);
-    }
+        assignmentMode: data.assignmentMode,
+        stopMode: data.stopMode,
+        parcelIds: data.parcelIds,
+        stops: data.stops,
+      },
+    });
 
-    const res = await graphqlRequest<CreateRouteMutation>(
-      CREATE_ROUTE,
-      {
-        input: {
-          vehicleId: data.vehicleId,
-          driverId: data.driverId,
-          stagingArea: data.stagingArea,
-          startDate: data.startDate,
-          startMileage: data.startMileage,
-          parcelIds: data.parcelIds,
-        },
-      }
-    );
-    return mapRouteSummary(res.createRoute);
+    return mapRouteSummary(result.createRoute);
   },
 
   getAssignmentCandidates: async (
     serviceDate: string,
+    zoneId: string,
     routeId?: string,
   ): Promise<RouteAssignmentCandidates> => {
-    if (USE_MOCK) {
-      return Promise.resolve({
-        vehicles: mockVehicles
-          .filter((vehicle) => vehicle.status !== "MAINTENANCE" && vehicle.status !== "RETIRED")
-          .map((vehicle) => ({
-            id: vehicle.id,
-            registrationPlate: vehicle.registrationPlate,
-            depotId: vehicle.depotId,
-            depotName: vehicle.depotName ?? null,
-            parcelCapacity: vehicle.parcelCapacity,
-            weightCapacity: vehicle.weightCapacity,
-            status: vehicle.status,
-            isCurrentAssignment:
-              routeId !== undefined && getMockRouteById(routeId)?.vehicleId === vehicle.id,
-          })),
-        drivers: mockDrivers.map((driver) => ({
-          id: driver.id,
-          displayName: driver.name,
-          depotId: mockVehicles[0]?.depotId ?? "",
-          zoneId: "00000000-0000-0000-0000-000000000001",
-          status: "ACTIVE",
-          isCurrentAssignment:
-            routeId !== undefined && getMockRouteById(routeId)?.driverId === driver.id,
-          workloadRoutes: [],
-        })),
-      });
-    }
-
     const data = await graphqlRequest<GetRouteAssignmentCandidatesQuery>(
       GET_ROUTE_ASSIGNMENT_CANDIDATES,
       {
         serviceDate,
+        zoneId,
         routeId,
       },
     );
 
-    const payload = data.routeAssignmentCandidates;
     return {
-      vehicles: payload?.vehicles ?? [],
-      drivers: payload?.drivers ?? [],
+      vehicles: data.routeAssignmentCandidates?.vehicles ?? [],
+      drivers: data.routeAssignmentCandidates?.drivers ?? [],
     };
+  },
+
+  getPlanPreview: async (request: RoutePlanPreviewRequest): Promise<RoutePlanPreview> => {
+    const data = await graphqlRequest<GetRoutePlanPreviewQuery>(GET_ROUTE_PLAN_PREVIEW, {
+      input: {
+        zoneId: request.zoneId,
+        vehicleId: request.vehicleId ?? undefined,
+        driverId: request.driverId ?? undefined,
+        startDate: request.startDate,
+        assignmentMode: request.assignmentMode,
+        stopMode: request.stopMode,
+        parcelIds: request.parcelIds,
+        stops: request.stops,
+      },
+    });
+
+    return mapRoutePlanPreview(data.routePlanPreview);
   },
 
   updateAssignment: async (
     id: string,
     data: UpdateRouteAssignmentRequest,
   ): Promise<Route> => {
-    if (USE_MOCK) {
-      const route = getMockRouteById(id);
-      if (!route) throw new Error("Route not found");
-
-      const driver =
-        mockDrivers.find((candidate) => candidate.id === data.driverId) ?? null;
-      const vehicle =
-        mockVehicles.find((candidate) => candidate.id === data.vehicleId) ?? null;
-
-      return Promise.resolve({
-        ...route,
-        driverId: data.driverId,
-        driverName: driver?.name ?? route.driverName,
-        vehicleId: data.vehicleId,
-        vehiclePlate: vehicle?.registrationPlate ?? route.vehiclePlate,
-        updatedAt: new Date().toISOString(),
-      });
-    }
-
     const result = await graphqlRequest<UpdateRouteAssignmentMutation>(
       UPDATE_ROUTE_ASSIGNMENT,
       {
@@ -237,22 +201,7 @@ export const routesService = {
     return mapRouteSummary(result.updateRouteAssignment);
   },
 
-  cancel: async (
-    id: string,
-    data: CancelRouteRequest,
-  ): Promise<Route> => {
-    if (USE_MOCK) {
-      const route = getMockRouteById(id);
-      if (!route) {
-        throw new Error("Route not found");
-      }
-
-      route.status = "CANCELLED";
-      route.updatedAt = new Date().toISOString();
-      route.cancellationReason = data.reason;
-      return Promise.resolve({ ...route });
-    }
-
+  cancel: async (id: string, data: CancelRouteRequest): Promise<Route> => {
     const result = await graphqlRequest<CancelRouteMutation>(CANCEL_ROUTE, {
       id,
       input: {
@@ -265,5 +214,38 @@ export const routesService = {
     }
 
     return mapRouteSummary(result.cancelRoute);
+  },
+
+  dispatch: async (id: string): Promise<Route> => {
+    const result = await graphqlRequest<DispatchRouteMutation>(DISPATCH_ROUTE, { id });
+    if (!result.dispatchRoute) {
+      throw new Error("Route not found");
+    }
+
+    return mapRouteSummary(result.dispatchRoute);
+  },
+
+  start: async (id: string): Promise<Route> => {
+    const result = await graphqlRequest<StartRouteMutation>(START_ROUTE, { id });
+    if (!result.startRoute) {
+      throw new Error("Route not found");
+    }
+
+    return mapRouteSummary(result.startRoute);
+  },
+
+  complete: async (id: string, data: CompleteRouteRequest): Promise<Route> => {
+    const result = await graphqlRequest<CompleteRouteMutation>(COMPLETE_ROUTE, {
+      id,
+      input: {
+        endMileage: data.endMileage,
+      },
+    });
+
+    if (!result.completeRoute) {
+      throw new Error("Route not found");
+    }
+
+    return mapRouteSummary(result.completeRoute);
   },
 };

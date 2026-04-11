@@ -64,7 +64,7 @@ function RouteEditForm({
     data: assignmentCandidates,
     isLoading: assignmentLoading,
     error: assignmentError,
-  } = useRouteAssignmentCandidates(route.startDate, routeId);
+  } = useRouteAssignmentCandidates(route.startDate, route.zoneId, routeId);
 
   const vehicles = useMemo(
     () => assignmentCandidates?.vehicles ?? [],
@@ -127,10 +127,11 @@ function RouteEditForm({
         className="form-page-panel-animate"
         section="route"
         title="Current route"
-        description="Assignment can be changed while the route is still planned."
+        description="Assignment can be changed while the route is still in draft."
       >
         <DetailFieldGrid>
           <DetailField label="Status">{ROUTE_STATUS_LABELS[route.status]}</DetailField>
+          <DetailField label="Zone">{route.zoneName}</DetailField>
           <DetailField label="Start date">
             {new Date(route.startDate).toLocaleString()}
           </DetailField>
@@ -338,7 +339,7 @@ export default function RouteEditPage() {
     );
   }
 
-  if (route.status !== "PLANNED") {
+  if (route.status !== "DRAFT") {
     return (
       <DetailFormPageShell variant="route">
         <DetailBreadcrumb
@@ -353,7 +354,7 @@ export default function RouteEditPage() {
         <div className={FORM_PAGE_FORM_COLUMN_CLASS}>
           <DetailEmptyState
             title="Assignment is locked"
-            message="Only planned routes can be reassigned before dispatch."
+            message="Only draft routes can be reassigned before dispatch."
           />
         </div>
       </DetailFormPageShell>
