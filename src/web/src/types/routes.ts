@@ -7,6 +7,7 @@ import type {
   CancelRouteInput,
   CompleteRouteInput,
   CreateRouteInput,
+  RouteStatus as GraphQLRouteStatus,
   RoutePlanPreviewInput,
   RouteStopDraftInput,
   UpdateRouteAssignmentInput,
@@ -14,6 +15,7 @@ import type {
 
 export type {
   DriverStatus,
+  ParcelStatus,
   RouteAssignmentAuditAction,
   RouteAssignmentMode,
   RouteStatus,
@@ -85,6 +87,31 @@ export type Route = Omit<
   path: RoutePathPoint[];
   stops: RouteStop[];
   assignmentAuditTrail: RouteAssignmentAuditEntry[];
+};
+
+export type DispatchMapStopStatus = "WAITING" | "DELIVERED" | "FAILED";
+
+export type DispatchMapStop = RouteStop & {
+  uiStatus: DispatchMapStopStatus;
+};
+
+export type DispatchMapRoutePopupSummary = {
+  routeId: string;
+  vehiclePlate: string;
+  driverName: string;
+  zoneName: string;
+  status: GraphQLRouteStatus;
+  startDate: string;
+  stopCount: number;
+  parcelCount: number;
+};
+
+export type DispatchMapRoute = Omit<Route, "stops"> & {
+  stops: DispatchMapStop[];
+  hasGeometry: boolean;
+  hasPathGeometry: boolean;
+  hasStopGeometry: boolean;
+  popupSummary: DispatchMapRoutePopupSummary;
 };
 
 export type RouteStopDraft = RouteStopDraftInput;

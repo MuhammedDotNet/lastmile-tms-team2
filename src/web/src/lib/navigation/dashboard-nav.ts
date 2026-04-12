@@ -4,6 +4,7 @@ import {
   Building2,
   LayoutDashboard,
   Map,
+  MapPinned,
   Package,
   Route,
   Truck,
@@ -25,6 +26,7 @@ export const dashboardNavItems: readonly DashboardNavItem[] = [
   { href: "/vehicles", label: "Vehicles", icon: Truck },
   { href: "/drivers", label: "Drivers", icon: UserCircle },
   { href: "/routes", label: "Routes", icon: Route },
+  { href: "/dispatch-map", label: "Dispatch Map", icon: MapPinned },
   { href: "/zones", label: "Zones", icon: Map },
   { href: "/depots", label: "Depots", icon: Building2 },
   {

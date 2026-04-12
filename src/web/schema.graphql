@@ -678,6 +678,7 @@ type RouteStopParcelDto {
   trackingNumber: String!
   recipientLabel: String!
   addressLine: String!
+  status: ParcelStatus!
 }
 
 type StageParcelForRouteResult {

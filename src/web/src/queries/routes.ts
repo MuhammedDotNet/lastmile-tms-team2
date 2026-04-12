@@ -18,6 +18,7 @@ export const routeKeys = {
   all: ["routes"] as const,
   lists: () => [...routeKeys.all, "list"] as const,
   list: (where?: RouteFilterInput) => [...routeKeys.lists(), where] as const,
+  dispatchMap: (dateYmd: string) => [...routeKeys.all, "dispatchMap", dateYmd] as const,
   details: () => [...routeKeys.all, "detail"] as const,
   detail: (id: string) => [...routeKeys.details(), id] as const,
   assignmentCandidates: (
@@ -77,6 +78,16 @@ export function useRoute(id: string) {
     queryKey: routeKeys.detail(id),
     queryFn: () => routesService.getById(id),
     enabled: status === "authenticated" && !!id,
+  });
+}
+
+export function useDispatchMapRoutes(dateYmd: string) {
+  const { status } = useSession();
+
+  return useQuery({
+    queryKey: routeKeys.dispatchMap(dateYmd),
+    queryFn: () => routesService.getDispatchMapRoutes(dateYmd),
+    enabled: status === "authenticated" && !!dateYmd,
   });
 }
 

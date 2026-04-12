@@ -7,6 +7,7 @@ import {
   GET_ROUTE,
   GET_ROUTE_ASSIGNMENT_CANDIDATES,
   GET_ROUTE_PLAN_PREVIEW,
+  GET_ROUTES_MAP,
   PAGINATED_ROUTES,
   START_ROUTE,
   UPDATE_ROUTE_ASSIGNMENT,
@@ -19,15 +20,22 @@ import type {
   GetRouteAssignmentCandidatesQuery,
   GetRoutePlanPreviewQuery,
   GetRouteQuery,
+  GetRoutesMapQuery,
   GetRoutesQuery,
   StartRouteMutation,
   UpdateRouteAssignmentMutation,
 } from "@/graphql/routes";
+import {
+  buildDispatchMapDayRange,
+  sortDispatchMapRoutes,
+  toDispatchMapRoute,
+} from "@/lib/routes/dispatch-map";
 import { graphqlRequest } from "@/lib/network/graphql-client";
 import type {
   CancelRouteRequest,
   CompleteRouteRequest,
   CreateRouteRequest,
+  DispatchMapRoute,
   Route,
   RouteAssignmentCandidates,
   RoutePlanPreview,
@@ -38,6 +46,7 @@ import type {
 function mapRouteSummary(
   raw:
     | NonNullable<GetRoutesQuery["routes"]>[number]
+    | NonNullable<GetRoutesMapQuery["routes"]>[number]
     | NonNullable<CreateRouteMutation["createRoute"]>
     | NonNullable<UpdateRouteAssignmentMutation["updateRouteAssignment"]>
     | NonNullable<CancelRouteMutation["cancelRoute"]>
@@ -94,6 +103,20 @@ function mapRouteDetail(raw: NonNullable<GetRouteQuery["route"]>): Route {
   };
 }
 
+function mapRouteForDispatchMap(raw: NonNullable<GetRoutesMapQuery["routes"]>[number]): DispatchMapRoute {
+  return toDispatchMapRoute({
+    ...mapRouteSummary(raw),
+    depotId: raw.depotId ?? null,
+    depotName: raw.depotName?.trim() || null,
+    depotAddressLine: raw.depotAddressLine?.trim() || null,
+    depotLongitude: raw.depotLongitude ?? null,
+    depotLatitude: raw.depotLatitude ?? null,
+    path: raw.path ?? [],
+    stops: raw.stops ?? [],
+    assignmentAuditTrail: [],
+  });
+}
+
 function mapRoutePlanPreview(raw: GetRoutePlanPreviewQuery["routePlanPreview"]): RoutePlanPreview {
   return {
     ...raw,
@@ -121,6 +144,21 @@ export const routesService = {
       throw new Error("Route not found");
     }
     return mapRouteDetail(data.route);
+  },
+
+  getDispatchMapRoutes: async (dateYmd: string): Promise<DispatchMapRoute[]> => {
+    const dayRange = buildDispatchMapDayRange(dateYmd);
+    const data = await graphqlRequest<GetRoutesMapQuery>(GET_ROUTES_MAP, {
+      where: {
+        startDate: {
+          gte: dayRange.gte,
+          lt: dayRange.lt,
+        },
+      },
+      order: [{ startDate: "ASC" }],
+    });
+
+    return sortDispatchMapRoutes(data.routes.map(mapRouteForDispatchMap));
   },
 
   create: async (data: CreateRouteRequest): Promise<Route> => {
